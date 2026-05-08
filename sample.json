@@ -1,0 +1,160 @@
+{
+  "dataSource": {
+    "dataSourceType": "json",
+    "data": [
+      {
+        "callDate": { "type": "date", "caption": "Call Date" },
+        "agentName": { "type": "string", "caption": "Agent" },
+        "country": { "type": "string", "caption": "Country" },
+        "duration": { "type": "number", "caption": "Duration (s)" },
+        "revenue": { "type": "number", "caption": "Revenue" }
+      },
+      { "callDate": "2024-03-15", "agentName": "Alice", "country": "IT", "duration": 320, "revenue": 1200 },
+      { "callDate": "2024-03-15", "agentName": "Bob",   "country": "FR", "duration": 145, "revenue": 980 },
+      { "callDate": "2024-03-16", "agentName": "Alice", "country": "IT", "duration": 410, "revenue": 1450 },
+      { "callDate": "2024-03-16", "agentName": "Carol", "country": "DE", "duration": 220, "revenue": 760 }
+    ]
+  },
+  "options": {
+    "grid": {
+      "type": "compact",
+      "showHeaders": false
+    },
+    "sorting": "columns",
+    "enableDrillThrough": true,
+    "toolbar": {
+      "visible": true,
+      "showFields": true,
+      "showFormat": true,
+      "showExport": true,
+      "showFullscreen": true,
+      "showReset": true
+    },
+    "fields": [
+      { "uniqueName": "revenue", "caption": "Total Revenue (EUR)" },
+      { "uniqueName": "duration", "caption": "Call Duration" }
+    ],
+    "calculatedFields": [
+      {
+        "uniqueName": "avgRevenuePerCall",
+        "caption": "Avg revenue / call",
+        "formula": "sum(\"revenue\") / count(\"revenue\")"
+      }
+    ],
+    "formats": {
+      "values": {
+        "fontFamily": "inherit",
+        "fontSize": 13,
+        "fontWeight": 400,
+        "italic": false,
+        "textColor": null,
+        "backgroundColor": null,
+        "textAlign": "right",
+        "thousandSeparator": "System",
+        "decimalSeparator": "System",
+        "numberOfDecimals": 2,
+        "currencySymbol": "€",
+        "currencyOther": "",
+        "currencyAlignment": "Left",
+        "nullValue": "",
+        "percentage": false
+      },
+      "valuesByMeasure": {
+        "revenue:sum": {
+          "currencySymbol": "€",
+          "numberOfDecimals": 2
+        }
+      },
+      "headers": {
+        "fontFamily": "inherit",
+        "fontSize": 12,
+        "fontWeight": 600,
+        "italic": false,
+        "textColor": null,
+        "backgroundColor": null,
+        "textAlign": "left"
+      },
+      "dimensions": {
+        "fontFamily": "inherit",
+        "fontSize": 13,
+        "fontWeight": 500,
+        "italic": false,
+        "textColor": null,
+        "backgroundColor": null,
+        "textAlign": "left"
+      },
+      "grandTotals": {
+        "fontFamily": "inherit",
+        "fontSize": 13,
+        "fontWeight": 700,
+        "italic": false,
+        "textColor": null,
+        "backgroundColor": null,
+        "textAlign": "left"
+      },
+      "layout": {
+        "totalsRowsPosition": "before",
+        "totalsColumnsPosition": "before",
+        "alternateRows": false
+      },
+      "conditional": [
+        {
+          "id": "rule-1",
+          "measure": "revenue:sum",
+          "operator": "gt",
+          "valueKind": "const",
+          "value": 1000,
+          "style": {
+            "textColor": "#0b8043",
+            "backgroundColor": null,
+            "fontWeight": 600,
+            "italic": false
+          }
+        },
+        {
+          "id": "rule-2",
+          "measure": null,
+          "operator": "between",
+          "valueKind": "const",
+          "value": 0,
+          "value2Kind": "const",
+          "value2": 100,
+          "style": {
+            "textColor": "#c62828",
+            "backgroundColor": "#fff5f5"
+          }
+        }
+      ],
+      "conditionalMode": "first"
+    },
+    "slides": {
+      "rows": [
+        { "uniqueName": "callDate.Year" },
+        { "uniqueName": "callDate.Month" }
+      ],
+      "columns": [
+        { "uniqueName": "agentName" },
+        { "uniqueName": "Measures" }
+      ],
+      "measures": [
+        { "uniqueName": "revenue", "aggregation": "sum" },
+        { "uniqueName": "duration", "aggregation": "avg", "caption": "Avg duration" },
+        { "uniqueName": "avgRevenuePerCall", "aggregation": "formula" }
+      ],
+      "filters": [
+        { "uniqueName": "country", "members": ["IT", "FR", "DE"] },
+        { "uniqueName": "agentName", "exclude": ["Charlie"] },
+        { "uniqueName": "revenue", "range": { "min": 100, "max": 5000 } }
+      ],
+      "expands": {
+        "expandAll": true,
+        "expandedMembers": []
+      },
+      "sort": {
+        "colKey": "agentName|Alice",
+        "colDirection": "desc",
+        "colMeasure": "revenue:sum"
+      }
+    }
+  }
+}

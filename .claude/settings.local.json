@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npm install *)",
+      "Bash(npm view *)",
+      "Bash(npm ls *)",
+      "WebFetch(domain:mui.com)"
+    ]
+  }
+}
