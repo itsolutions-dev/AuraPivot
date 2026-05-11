@@ -185,6 +185,17 @@ class PivotEngine {
     // 'iso' | 'iso-date' | '<pattern>' }. Missing entries use the browser
     // locale short date.
     this._dateFormats = {};
+    // User-defined display order for the FieldList "All fields" list. Stored
+    // as an array of uniqueNames; fields not present in the array fall back
+    // to metadata-iteration order at the tail. Also drives the column order
+    // in the drill-through dialog.
+    this._fieldOrder = [];
+    // Per-field opt-out for the drill-through table. Absent key = visible
+    // (default-on, preserves the legacy "show every metadata field" UX).
+    this._drillThroughFields = {};
+    // Number of left-pinned columns in the drill-through table. Clamped at
+    // read time against the count of currently visible fields.
+    this._drillThroughFrozenCount = 0;
   }
 
   // ---- event bus -----------------------------------------------------
@@ -348,6 +359,37 @@ class PivotEngine {
     this._dateFormats = map && typeof map === "object" ? { ...map } : {};
     this._dirty = true;
     this._emit("formatChange");
+  }
+
+  // ---- field order / drill-through config ---------------------------
+
+  getFieldOrder() {
+    return [...this._fieldOrder];
+  }
+
+  setFieldOrder(order) {
+    this._fieldOrder = Array.isArray(order) ? order.filter(Boolean) : [];
+    // Display-only: no matrix invalidation. The FieldList + DrillThrough
+    // dialog re-render via the dataChange event.
+    this._emit("dataChange");
+  }
+
+  getDrillThroughConfig() {
+    return {
+      fields: { ...this._drillThroughFields },
+      frozenCount: this._drillThroughFrozenCount,
+    };
+  }
+
+  setDrillThroughConfig(config) {
+    if (!config) return;
+    if (config.fields && typeof config.fields === "object") {
+      this._drillThroughFields = { ...config.fields };
+    }
+    if (Number.isFinite(config.frozenCount)) {
+      this._drillThroughFrozenCount = Math.max(0, Math.floor(config.frozenCount));
+    }
+    this._emit("dataChange");
   }
 
   _buildDimensionFormatter() {
@@ -588,6 +630,18 @@ class PivotEngine {
     if (report.dateFormats && typeof report.dateFormats === "object") {
       this._dateFormats = { ...report.dateFormats };
     }
+    if (Array.isArray(report.fieldOrder)) {
+      this._fieldOrder = report.fieldOrder.filter(Boolean);
+    }
+    if (report.drillThrough && typeof report.drillThrough === "object") {
+      const dt = report.drillThrough;
+      if (dt.fields && typeof dt.fields === "object") {
+        this._drillThroughFields = { ...dt.fields };
+      }
+      if (Number.isFinite(dt.frozenCount)) {
+        this._drillThroughFrozenCount = Math.max(0, Math.floor(dt.frozenCount));
+      }
+    }
     if (Array.isArray(report.calculatedFields)) {
       this._calculatedFields = report.calculatedFields.map((f) => ({ ...f }));
     }
@@ -611,6 +665,11 @@ class PivotEngine {
       options: this._options,
       formats: this.getFormat(),
       dateFormats: { ...this._dateFormats },
+      fieldOrder: [...this._fieldOrder],
+      drillThrough: {
+        fields: { ...this._drillThroughFields },
+        frozenCount: this._drillThroughFrozenCount,
+      },
       calculatedFields: this._calculatedFields.map((f) => ({ ...f })),
       dataSource: {
         dataSourceType: "json",

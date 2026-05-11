@@ -19,6 +19,7 @@ import {
   ToggleButton,
   Popover,
   TextField,
+  Checkbox,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
@@ -390,6 +391,15 @@ const FieldList = function FieldList({ open, onClose }) {
 
   // Local draft of per-date-field formats. Committed to the engine on Apply.
   const [dateFormats, setDateFormats] = useState(() => engine.getDateFormats());
+  // Local drafts for the "All fields" reorder and the drill-through config.
+  // Persisted on Apply via engine.setFieldOrder / setDrillThroughConfig.
+  const [fieldOrder, setFieldOrder] = useState(() => engine.getFieldOrder());
+  const [drillThroughFields, setDrillThroughFields] = useState(
+    () => engine.getDrillThroughConfig().fields
+  );
+  const [frozenCount, setFrozenCount] = useState(
+    () => engine.getDrillThroughConfig().frozenCount
+  );
   // Popover anchor/state for the per-field format editor. `subpart` selects
   // the preset list; null means the parent date field (free date formatter).
   const [formatEditor, setFormatEditor] = useState({
@@ -430,12 +440,20 @@ const FieldList = function FieldList({ open, onClose }) {
       setSliceState(ensureMeasuresAnchor({ ...engine.getSlice() }));
     const syncCalc = () => setCalcFields(engine.getCalculatedFields());
     const syncDateFormats = () => setDateFormats(engine.getDateFormats());
+    const syncFieldOrder = () => setFieldOrder(engine.getFieldOrder());
+    const syncDrillThrough = () => {
+      const cfg = engine.getDrillThroughConfig();
+      setDrillThroughFields(cfg.fields);
+      setFrozenCount(cfg.frozenCount);
+    };
     engine.on('reportChange', sync);
     engine.on('dataChange', syncCalc);
     engine.on('formatChange', syncDateFormats);
     sync();
     syncCalc();
     syncDateFormats();
+    syncFieldOrder();
+    syncDrillThrough();
     return () => {
       engine.off('reportChange', sync);
       engine.off('dataChange', syncCalc);
@@ -470,11 +488,20 @@ const FieldList = function FieldList({ open, onClose }) {
     const meta = engine.getMetadata()[uniqueName];
     return meta?.availableAggregations || DEFAULT_NUMERIC_AGGS;
   };
+  // Set of uniqueNames currently used as a dimension (rows / columns / filters).
+  // These remain visible in "All fields" but become non-draggable per UX spec.
+  // Measures usage is intentionally excluded: the same field can be dropped
+  // into measures multiple times with different aggregations.
+  const usedAsDimensionSet = useMemo(() => {
+    const set = new Set();
+    (slice.rows || []).forEach((f) => set.add(f.uniqueName));
+    (slice.columns || []).forEach((f) => set.add(f.uniqueName));
+    (slice.filters || []).forEach((f) => set.add(f.uniqueName));
+    return set;
+  }, [slice]);
+
   const availableFields = useMemo(() => {
     const all = engine.getAvailableFields();
-    const inRowsCols = new Set(
-      [...(slice.rows || []), ...(slice.columns || [])].map((f) => f.uniqueName)
-    );
     const measureAggs = new Map();
     (slice.measures || []).forEach((m) => {
       if (!measureAggs.has(m.uniqueName))
@@ -483,14 +510,15 @@ const FieldList = function FieldList({ open, onClose }) {
     });
     return all.filter((f) => {
       if (f.uniqueName === 'Measures') return false;
-      if (inRowsCols.has(f.uniqueName)) return false;
+      // Used-as-dimension fields are kept visible (dimmed in the UI).
+      if (usedAsDimensionSet.has(f.uniqueName)) return true;
       const used = measureAggs.get(f.uniqueName);
       if (!used) return true;
       const allowed = allowedAggsFor(f.uniqueName);
       return allowed.some((a) => !used.has(a));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [engine, slice, calcFields]);
+  }, [engine, slice, calcFields, usedAsDimensionSet]);
 
   // Group synthetic date-hierarchy sub-fields ({parent}.Year/.Month/.Day/.Hour)
   // under their parent date field so the available list renders as a tree. Each
@@ -547,8 +575,18 @@ const FieldList = function FieldList({ open, onClose }) {
         children,
       });
     });
+    // Apply user-defined ordering. Fields not in the saved order list keep
+    // their natural position at the end (stable sort preserves it).
+    if (fieldOrder && fieldOrder.length > 0) {
+      const rank = new Map(fieldOrder.map((n, i) => [n, i]));
+      nodes.sort((a, b) => {
+        const ra = rank.has(a.uniqueName) ? rank.get(a.uniqueName) : Infinity;
+        const rb = rank.has(b.uniqueName) ? rank.get(b.uniqueName) : Infinity;
+        return ra - rb;
+      });
+    }
     return nodes;
-  }, [availableFields, engine, t]);
+  }, [availableFields, engine, t, fieldOrder]);
 
   const [expandedDates, setExpandedDates] = useState(() => new Set());
   const toggleDateExpanded = (uniqueName) => {
@@ -774,8 +812,43 @@ const FieldList = function FieldList({ open, onClose }) {
 
   const handleApply = () => {
     engine.setDateFormats(dateFormats);
+    engine.setFieldOrder(fieldOrder);
+    engine.setDrillThroughConfig({
+      fields: drillThroughFields,
+      frozenCount,
+    });
     engine.setSlice(slice);
     onClose?.();
+  };
+
+  // Move `uniqueName` to the slot immediately before `targetUniqueName` in the
+  // local `fieldOrder` draft. The order array is rebuilt from the current
+  // tree so untouched fields keep their displayed position even before the
+  // first explicit reorder.
+  const reorderFieldList = (uniqueName, targetUniqueName) => {
+    if (!uniqueName || uniqueName === targetUniqueName) return;
+    const currentOrder = fieldsTree.map((n) => n.uniqueName);
+    const without = currentOrder.filter((n) => n !== uniqueName);
+    let insertAt = targetUniqueName
+      ? without.indexOf(targetUniqueName)
+      : without.length;
+    if (insertAt < 0) insertAt = without.length;
+    without.splice(insertAt, 0, uniqueName);
+    setFieldOrder(without);
+  };
+
+  const toggleDrillThroughField = (uniqueName) => {
+    setDrillThroughFields((prev) => {
+      const current = prev[uniqueName];
+      const wasOn = current === undefined ? true : !!current;
+      const next = { ...prev, [uniqueName]: !wasOn };
+      return next;
+    });
+  };
+
+  const isDrillThroughOn = (uniqueName) => {
+    const v = drillThroughFields[uniqueName];
+    return v === undefined ? true : !!v;
   };
 
   const updateDateFormat = (uniqueName, format, subpart) => {
@@ -990,6 +1063,23 @@ const FieldList = function FieldList({ open, onClose }) {
                 {t?.fieldsList?.allFields || 'All fields'}
               </Typography>
               <Box
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const payload = parseDragPayload(
+                    e.dataTransfer.getData('text/plain')
+                  );
+                  if (
+                    payload &&
+                    payload.source === 'all' &&
+                    payload.uniqueName
+                  ) {
+                    reorderFieldList(payload.uniqueName, null);
+                  }
+                }}
                 sx={(theme) => ({
                   mt: 0.75,
                   border: `1px solid ${theme.palette.divider}`,
@@ -1010,9 +1100,21 @@ const FieldList = function FieldList({ open, onClose }) {
                   {fieldsTree.map((f) => {
                     if (f.isDateParent) {
                       const isExpanded = expandedDates.has(f.uniqueName);
-                      const draggable = !f.parentUsed;
+                      const isUsedAsDim = usedAsDimensionSet.has(f.uniqueName);
+                      const draggable = !f.parentUsed && !isUsedAsDim;
+                      const dimmed = f.parentUsed || isUsedAsDim;
                       return (
                         <Box key={f.uniqueName}>
+                          <Tooltip
+                            title={
+                              isUsedAsDim
+                                ? t?.fieldsList?.fieldUsedTooltip ||
+                                  'Field already used — remove it from rows/columns/filters to drag it elsewhere'
+                                : ''
+                            }
+                            disableHoverListener={!isUsedAsDim}
+                            disableFocusListener={!isUsedAsDim}
+                          >
                           <Box
                             draggable={draggable}
                             onDragStart={
@@ -1020,6 +1122,27 @@ const FieldList = function FieldList({ open, onClose }) {
                                 ? (e) => handleDragStart(e, f.uniqueName)
                                 : undefined
                             }
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = 'move';
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const payload = parseDragPayload(
+                                e.dataTransfer.getData('text/plain')
+                              );
+                              if (
+                                payload &&
+                                payload.source === 'all' &&
+                                payload.uniqueName
+                              ) {
+                                reorderFieldList(
+                                  payload.uniqueName,
+                                  f.uniqueName
+                                );
+                              }
+                            }}
                             sx={(theme) => ({
                               display: 'flex',
                               alignItems: 'center',
@@ -1028,16 +1151,16 @@ const FieldList = function FieldList({ open, onClose }) {
                               px: 1,
                               py: 0.5,
                               borderRadius: 1.5,
-                              backgroundColor: f.parentUsed
+                              backgroundColor: dimmed
                                 ? 'transparent'
                                 : theme.palette.action.hover,
                               border: '1px solid transparent',
                               '&:hover': {
-                                backgroundColor: f.parentUsed
+                                backgroundColor: dimmed
                                   ? theme.palette.action.hover
                                   : theme.palette.action.selected,
                               },
-                              opacity: f.parentUsed ? 0.6 : 1,
+                              opacity: dimmed ? 0.55 : 1,
                             })}
                           >
                             <IconButton
@@ -1106,20 +1229,56 @@ const FieldList = function FieldList({ open, onClose }) {
                                 <TuneIcon fontSize="inherit" />
                               </IconButton>
                             </Tooltip>
+                            <Tooltip
+                              title={
+                                t?.fieldsList?.showInDrillThrough ||
+                                'Show in drill-through'
+                              }
+                            >
+                              <Checkbox
+                                size="small"
+                                checked={isDrillThroughOn(f.uniqueName)}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  toggleDrillThroughField(f.uniqueName);
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                sx={{ p: '2px' }}
+                              />
+                            </Tooltip>
                           </Box>
+                          </Tooltip>
                           {isExpanded &&
-                            f.children.map((c) => (
-                              <Box
+                            f.children.map((c) => {
+                              const childUsed = usedAsDimensionSet.has(
+                                c.uniqueName
+                              );
+                              const childDraggable = !childUsed;
+                              return (
+                              <Tooltip
                                 key={c.uniqueName}
-                                draggable
-                                onDragStart={(e) =>
-                                  handleDragStart(e, c.uniqueName)
+                                title={
+                                  childUsed
+                                    ? t?.fieldsList?.fieldUsedTooltip ||
+                                      'Field already used — remove it from rows/columns/filters to drag it elsewhere'
+                                    : ''
+                                }
+                                disableHoverListener={!childUsed}
+                                disableFocusListener={!childUsed}
+                              >
+                              <Box
+                                draggable={childDraggable}
+                                onDragStart={
+                                  childDraggable
+                                    ? (e) =>
+                                        handleDragStart(e, c.uniqueName)
+                                    : undefined
                                 }
                                 sx={(theme) => ({
                                   display: 'flex',
                                   alignItems: 'center',
                                   gap: 0.5,
-                                  cursor: 'grab',
+                                  cursor: childDraggable ? 'grab' : 'default',
                                   pl: 4,
                                   pr: 1,
                                   py: 0.5,
@@ -1127,16 +1286,21 @@ const FieldList = function FieldList({ open, onClose }) {
                                   borderRadius: 1.5,
                                   backgroundColor: theme.palette.action.hover,
                                   border: '1px solid transparent',
+                                  opacity: childUsed ? 0.55 : 1,
                                   '&:hover': {
                                     backgroundColor:
                                       theme.palette.action.selected,
                                   },
                                 })}
                               >
-                                <DragIndicatorIcon
-                                  fontSize="small"
-                                  sx={{ opacity: 0.5 }}
-                                />
+                                {childDraggable ? (
+                                  <DragIndicatorIcon
+                                    fontSize="small"
+                                    sx={{ opacity: 0.5 }}
+                                  />
+                                ) : (
+                                  <Box sx={{ width: 20 }} />
+                                )}
                                 <Typography variant="body2" sx={{ flex: 1 }}>
                                   {c.partCaption}
                                 </Typography>
@@ -1188,20 +1352,56 @@ const FieldList = function FieldList({ open, onClose }) {
                                   </Tooltip>
                                 )}
                               </Box>
-                            ))}
+                              </Tooltip>
+                              );
+                            })}
                         </Box>
                       );
                     }
+                    const isUsedAsDim = usedAsDimensionSet.has(f.uniqueName);
+                    const draggable = !isUsedAsDim;
                     return (
-                      <Box
+                      <Tooltip
                         key={f.uniqueName}
-                        draggable={!f.isCalculated || true}
-                        onDragStart={(e) => handleDragStart(e, f.uniqueName)}
+                        title={
+                          isUsedAsDim
+                            ? t?.fieldsList?.fieldUsedTooltip ||
+                              'Field already used — remove it from rows/columns/filters to drag it elsewhere'
+                            : ''
+                        }
+                        disableHoverListener={!isUsedAsDim}
+                        disableFocusListener={!isUsedAsDim}
+                      >
+                      <Box
+                        draggable={draggable}
+                        onDragStart={
+                          draggable
+                            ? (e) => handleDragStart(e, f.uniqueName)
+                            : undefined
+                        }
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = 'move';
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const payload = parseDragPayload(
+                            e.dataTransfer.getData('text/plain')
+                          );
+                          if (
+                            payload &&
+                            payload.source === 'all' &&
+                            payload.uniqueName
+                          ) {
+                            reorderFieldList(payload.uniqueName, f.uniqueName);
+                          }
+                        }}
                         sx={(theme) => ({
                           display: 'flex',
                           alignItems: 'center',
                           gap: 0.5,
-                          cursor: 'grab',
+                          cursor: draggable ? 'grab' : 'default',
                           px: 1,
                           py: 0.5,
                           borderRadius: 1.5,
@@ -1211,15 +1411,20 @@ const FieldList = function FieldList({ open, onClose }) {
                           border: f.isCalculated
                             ? `1px solid ${theme.palette.primary.main}40`
                             : '1px solid transparent',
+                          opacity: isUsedAsDim ? 0.55 : 1,
                           '&:hover': {
                             backgroundColor: theme.palette.action.selected,
                           },
                         })}
                       >
-                        <DragIndicatorIcon
-                          fontSize="small"
-                          sx={{ opacity: 0.5 }}
-                        />
+                        {draggable ? (
+                          <DragIndicatorIcon
+                            fontSize="small"
+                            sx={{ opacity: 0.5 }}
+                          />
+                        ) : (
+                          <Box sx={{ width: 20 }} />
+                        )}
                         {f.uniqueName === 'Measures' && (
                           <Tooltip
                             title={
@@ -1268,6 +1473,25 @@ const FieldList = function FieldList({ open, onClose }) {
                             </IconButton>
                           </Tooltip>
                         )}
+                        {!f.isCalculated && f.uniqueName !== 'Measures' && (
+                          <Tooltip
+                            title={
+                              t?.fieldsList?.showInDrillThrough ||
+                              'Show in drill-through'
+                            }
+                          >
+                            <Checkbox
+                              size="small"
+                              checked={isDrillThroughOn(f.uniqueName)}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                toggleDrillThroughField(f.uniqueName);
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              sx={{ p: '2px' }}
+                            />
+                          </Tooltip>
+                        )}
                         {f.isCalculated && (
                           <>
                             <Tooltip title={t?.buttons?.edit || 'Edit'}>
@@ -1307,6 +1531,7 @@ const FieldList = function FieldList({ open, onClose }) {
                           </>
                         )}
                       </Box>
+                      </Tooltip>
                     );
                   })}
                 </Stack>
@@ -1320,6 +1545,36 @@ const FieldList = function FieldList({ open, onClose }) {
               >
                 {t?.fieldsList?.addCalculated || 'Add calculated value'}
               </Button>
+
+              <Box sx={{ mt: 1.5 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontWeight: 600,
+                    opacity: 0.75,
+                    display: 'block',
+                    mb: 0.5,
+                  }}
+                >
+                  {t?.fieldsList?.freezeColumns ||
+                    'Frozen drill-through columns'}
+                </Typography>
+                <TextField
+                  size="small"
+                  type="number"
+                  fullWidth
+                  value={frozenCount}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value, 10);
+                    setFrozenCount(Number.isFinite(v) && v >= 0 ? v : 0);
+                  }}
+                  inputProps={{ min: 0, step: 1 }}
+                  helperText={
+                    t?.fieldsList?.freezeColumnsHelp ||
+                    'Number of left-pinned columns'
+                  }
+                />
+              </Box>
             </Box>
 
             <Box>

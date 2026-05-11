@@ -23,6 +23,11 @@
     "perColumn": "Per column",
     "dateFormat": "Date format",
     "dateFormatHelp": "Tokens: yyyy yy MMMM MMM MM M dd d EEEE EEE HH H mm m ss s",
+    "showInDrillThrough": "Show in drill-through",
+    "freezeColumns": "Frozen drill-through columns",
+    "freezeColumnsHelp": "Number of left-pinned columns",
+    "reorderHint": "Drag to reorder",
+    "fieldUsedTooltip": "Field already used — remove it from rows/columns/filters to drag it elsewhere",
     "dateFormats": {
       "localeDate": "Browser locale (date)",
       "localeDateTime": "Browser locale (date & time)",

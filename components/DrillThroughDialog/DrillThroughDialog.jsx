@@ -50,6 +50,10 @@ const DrillThroughDialog = function DrillThroughDialog({
   const [filterText, setFilterText] = useState('');
   const [sortBy, setSortBy] = useState(null);
   const [sortDir, setSortDir] = useState('asc');
+  const [drillConfig, setDrillConfig] = useState(() =>
+    engine.getDrillThroughConfig()
+  );
+  const [fieldOrder, setFieldOrder] = useState(() => engine.getFieldOrder());
 
   useEffect(() => {
     if (open) {
@@ -59,16 +63,63 @@ const DrillThroughDialog = function DrillThroughDialog({
     }
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return undefined;
+    const sync = () => {
+      setDrillConfig(engine.getDrillThroughConfig());
+      setFieldOrder(engine.getFieldOrder());
+    };
+    sync();
+    engine.on('dataChange', sync);
+    return () => engine.off('dataChange', sync);
+  }, [engine, open]);
+
   const columns = useMemo(() => {
     const meta = engine.getMetadata() || {};
-    return Object.entries(meta)
+    const dtFields = drillConfig?.fields || {};
+    const isOn = (uniqueName) => {
+      const v = dtFields[uniqueName];
+      return v === undefined ? true : !!v;
+    };
+    const base = Object.entries(meta)
       .filter(([uniqueName]) => !uniqueName.includes('.'))
+      .filter(([uniqueName]) => isOn(uniqueName))
       .map(([uniqueName, m]) => ({
         uniqueName,
         caption: m?.caption || uniqueName,
         type: m?.type,
       }));
-  }, [engine, open]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (fieldOrder && fieldOrder.length > 0) {
+      const rank = new Map(fieldOrder.map((n, i) => [n, i]));
+      base.sort((a, b) => {
+        const ra = rank.has(a.uniqueName) ? rank.get(a.uniqueName) : Infinity;
+        const rb = rank.has(b.uniqueName) ? rank.get(b.uniqueName) : Infinity;
+        return ra - rb;
+      });
+    }
+    return base;
+  }, [engine, open, drillConfig, fieldOrder]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fixed width for left-pinned columns so cumulative `left` is computable
+  // without runtime DOM measurement. Same value applied to head + body cells.
+  const FROZEN_COL_WIDTH = 160;
+  const frozenCount = Math.max(
+    0,
+    Math.min(drillConfig?.frozenCount || 0, columns.length)
+  );
+  const frozenStyles = (ci, isHead) => {
+    if (ci >= frozenCount) return null;
+    return {
+      position: 'sticky',
+      left: ci * FROZEN_COL_WIDTH,
+      // Header frozen cells sit at the top-left intersection, so they need
+      // a higher z-index than both the column-only sticky body cells and
+      // the row-only sticky header cells from MUI's stickyHeader prop.
+      zIndex: isHead ? 4 : 1,
+      minWidth: FROZEN_COL_WIDTH,
+      maxWidth: FROZEN_COL_WIDTH,
+    };
+  };
 
   const formatValue = (value, type) => {
     if (value === null || value === undefined || value === '') return '—';
@@ -512,6 +563,16 @@ const DrillThroughDialog = function DrillThroughDialog({
                           pl: ci === 0 ? { xs: 2.5, sm: 3.5 } : 1.5,
                           textAlign: c.type === 'number' ? 'right' : 'left',
                           '&:first-of-type': { borderTopLeftRadius: 0 },
+                          ...(frozenStyles(ci, true) || {}),
+                          // Frozen header needs an opaque background so body
+                          // cells scrolling underneath don't bleed through.
+                          ...(ci < frozenCount && {
+                            background: theme.palette.background.paper,
+                            boxShadow:
+                              ci === frozenCount - 1
+                                ? `1px 0 0 ${theme.palette.divider}`
+                                : undefined,
+                          }),
                         })}
                       >
                         <TableSortLabel
@@ -584,6 +645,14 @@ const DrillThroughDialog = function DrillThroughDialog({
                             )}`,
                             pl: ci === 0 ? { xs: 2.5, sm: 3.5 } : 1.5,
                             py: 1.1,
+                            ...(frozenStyles(ci, false) || {}),
+                            ...(ci < frozenCount && {
+                              background: `${theme.palette.background.paper} !important`,
+                              boxShadow:
+                                ci === frozenCount - 1
+                                  ? `1px 0 0 ${theme.palette.divider}`
+                                  : undefined,
+                            }),
                           })}
                         >
                           {formatValue(row?.[c.uniqueName], c.type)}
