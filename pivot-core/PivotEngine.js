@@ -250,6 +250,7 @@ class PivotEngine {
   setLocalization(localization) {
     this._localization = localization || null;
     this._dirty = true;
+    this._emit("dataChange");
   }
 
   /**
@@ -260,6 +261,7 @@ class PivotEngine {
   setLocale(locale) {
     this._locale = locale || undefined;
     this._dirty = true;
+    this._emit("dataChange");
   }
 
   getLocale() {
