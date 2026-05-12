@@ -161,7 +161,7 @@ const DropZone = function DropZone({
       >
         {label}
       </Typography>
-      <Stack direction="row" flexWrap="wrap" gap={0} sx={{ mt: 0.75 }}>
+      <Stack direction="row" gap={0} sx={{ flexWrap: "wrap", mt: 0.75 }}>
         {items.length === 0 && (
           <Typography
             variant="body2"

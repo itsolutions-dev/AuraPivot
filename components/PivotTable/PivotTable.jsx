@@ -176,15 +176,16 @@ const PivotTable = function PivotTable() {
   const hiddenMeasures = useMemo(() => {
     const s = new Set();
     (slice.measures || []).forEach((m) => {
-      if (m?.hidden && m.uniqueName) s.add(m.uniqueName);
+      if (m?.hidden && m.uniqueName) {
+        s.add(`${m.uniqueName}:${m.aggregation}`);
+      }
     });
     return s;
   }, [slice.measures]);
 
   const measureKeyHidden = (mk) => {
     if (!mk) return false;
-    const un = String(mk).split(":")[0];
-    return hiddenMeasures.has(un);
+    return hiddenMeasures.has(String(mk));
   };
 
   const colLeaves = useMemo(() => {
@@ -196,7 +197,9 @@ const PivotTable = function PivotTable() {
     // when it is the only measure on the slice the grand-total column adds
     // no information — drop it from the visible leaves.
     const visibleMeasures = (matrix?.measures || []).filter(
-      (m) => m.aggregation !== "formula" && !hiddenMeasures.has(m.uniqueName),
+      (m) =>
+        m.aggregation !== "formula" &&
+        !hiddenMeasures.has(`${m.uniqueName}:${m.aggregation}`),
     );
     const onlyCurrentRatio =
       visibleMeasures.length === 1 &&
@@ -461,6 +464,18 @@ const PivotTable = function PivotTable() {
     [metadata, t],
   );
 
+  const aggLabel = useCallback(
+    (a) => {
+      if (!a) return "";
+      const wdrKey =
+        { distinctcount: "distinctCount", avg: "average" }[a] || a;
+      const raw = t?.aggregations?.[a] ?? t?.aggregations?.[wdrKey];
+      if (raw && typeof raw === "object") return raw.caption || a;
+      return raw || a;
+    },
+    [t],
+  );
+
   const rowDimensions = useMemo(
     () => (slice.rows || []).filter((f) => f.uniqueName !== "Measures"),
     [slice.rows],
@@ -498,6 +513,7 @@ const PivotTable = function PivotTable() {
       const colKeyBase = String(col.key).split("||M:")[0];
       const hiddenList = (slice.measures || []).filter((m) => m?.hidden);
       return hiddenList.map((m) => {
+        const targetKey = `${m.uniqueName}:${m.aggregation}`;
         let found = null;
         for (const [k, v] of matrix.cells) {
           const sep = k.indexOf("::");
@@ -507,7 +523,7 @@ const PivotTable = function PivotTable() {
           if (rk.split("||M:")[0] !== rowKeyBase) continue;
           if (ck.split("||M:")[0] !== colKeyBase) continue;
           const mk = v?.measureKey;
-          if (mk && mk.startsWith(`${m.uniqueName}:`)) {
+          if (mk === targetKey) {
             found = { value: v.value, measureKey: mk };
             break;
           }
@@ -515,15 +531,17 @@ const PivotTable = function PivotTable() {
         const section = found
           ? getValuesSection(format, found.measureKey)
           : null;
+        const base = captionFor(m.uniqueName);
+        const agg = aggLabel(m.aggregation);
         return {
           uniqueName: m.uniqueName,
-          caption: captionFor(m.uniqueName),
+          caption: agg ? `${base} (${agg})` : base,
           aggregation: m.aggregation,
           formatted: found ? formatNumberWithFormat(found.value, section) : "—",
         };
       });
     },
-    [hiddenMeasures, matrix, slice.measures, format, captionFor],
+    [hiddenMeasures, matrix, slice.measures, format, captionFor, aggLabel],
   );
 
   const handleToggleChildren = useCallback(
@@ -2239,10 +2257,9 @@ const BodyValueCell = function BodyValueCell({
           <Stack component="dl" gap={0.25} sx={{ m: 0, "& dt,& dd": { m: 0 } }}>
             {hiddenMeasureItems.map((it, i) => (
               <Stack
-                key={it.uniqueName}
+                key={`${it.uniqueName}:${it.aggregation}`}
                 direction="row"
                 alignItems="baseline"
-                justifyContent="space-between"
                 spacing={1.5}
                 sx={(theme) => ({
                   py: 0.25,
@@ -2254,6 +2271,9 @@ const BodyValueCell = function BodyValueCell({
                   component="dt"
                   variant="caption"
                   sx={(theme) => ({
+                    flex: 1,
+                    minWidth: 0,
+                    textAlign: "left",
                     opacity: 0.8,
                     fontWeight: theme.typography.subtitle1.fontWeight,
                   })}
@@ -2264,6 +2284,8 @@ const BodyValueCell = function BodyValueCell({
                   component="dd"
                   variant="body2"
                   sx={(theme) => ({
+                    flexShrink: 0,
+                    textAlign: "right",
                     fontVariantNumeric: "tabular-nums",
                     fontWeight: theme.typography.h2.fontWeight,
                     color: "text.primary",
