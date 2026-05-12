@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import PropTypes from 'prop-types';
+import React, { useEffect, useMemo, useState } from "react";
+import PropTypes from "prop-types";
 import {
   Accordion,
   AccordionDetails,
@@ -24,19 +24,19 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Typography,
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
-import FormatBoldIcon from '@mui/icons-material/FormatBold';
-import FormatItalicIcon from '@mui/icons-material/FormatItalic';
-import FormatAlignLeftIcon from '@mui/icons-material/FormatAlignLeft';
-import FormatAlignCenterIcon from '@mui/icons-material/FormatAlignCenter';
-import FormatAlignRightIcon from '@mui/icons-material/FormatAlignRight';
-import { usePivot } from '../../context/PivotContext';
-import { usePortalContainer } from '../../hooks/usePortalContainer';
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
+import FormatBoldIcon from "@mui/icons-material/FormatBold";
+import FormatItalicIcon from "@mui/icons-material/FormatItalic";
+import FormatAlignLeftIcon from "@mui/icons-material/FormatAlignLeft";
+import FormatAlignCenterIcon from "@mui/icons-material/FormatAlignCenter";
+import FormatAlignRightIcon from "@mui/icons-material/FormatAlignRight";
+import { usePivot } from "../../context/PivotContext";
+import { usePortalContainer } from "../../hooks/usePortalContainer";
 
 /**
  * Format customization dialog. Modeled after the auraPivot format panel:
@@ -54,37 +54,37 @@ import { usePortalContainer } from '../../hooks/usePortalContainer';
  */
 
 const FONT_FAMILIES = [
-  'Inter',
-  'Roboto',
-  'Arial',
-  'Helvetica',
-  'Times New Roman',
-  'Courier New',
-  'Georgia',
-  'Verdana',
+  "Inter",
+  "Roboto",
+  "Arial",
+  "Helvetica",
+  "Times New Roman",
+  "Courier New",
+  "Georgia",
+  "Verdana",
 ];
 
 const PRESET_COLORS = [
-  '#000000',
-  '#FFFFFF',
-  '#9E9E9E',
-  '#F44336',
-  '#E91E63',
-  '#9C27B0',
-  '#673AB7',
-  '#3F51B5',
-  '#2196F3',
-  '#03A9F4',
-  '#00BCD4',
-  '#009688',
-  '#4CAF50',
-  '#8BC34A',
-  '#CDDC39',
-  '#FFEB3B',
-  '#FFC107',
-  '#FF9800',
-  '#FF5722',
-  '#795548',
+  "#000000",
+  "#FFFFFF",
+  "#9E9E9E",
+  "#F44336",
+  "#E91E63",
+  "#9C27B0",
+  "#673AB7",
+  "#3F51B5",
+  "#2196F3",
+  "#03A9F4",
+  "#00BCD4",
+  "#009688",
+  "#4CAF50",
+  "#8BC34A",
+  "#CDDC39",
+  "#FFEB3B",
+  "#FFC107",
+  "#FF9800",
+  "#FF5722",
+  "#795548",
 ];
 
 const ColorSwatches = function ColorSwatches({ value, onChange }) {
@@ -101,8 +101,8 @@ const ColorSwatches = function ColorSwatches({ value, onChange }) {
             sx={(theme) => ({
               width: 20,
               height: 20,
-              borderRadius: '50%',
-              cursor: 'pointer',
+              borderRadius: "50%",
+              cursor: "pointer",
               backgroundColor: c,
               padding: 0,
               border: selected
@@ -110,7 +110,7 @@ const ColorSwatches = function ColorSwatches({ value, onChange }) {
                 : `1px solid ${theme.palette.divider}`,
               boxShadow: selected
                 ? `0 0 0 1px ${theme.palette.background.paper} inset`
-                : 'none',
+                : "none",
             })}
           />
         );
@@ -125,48 +125,59 @@ ColorSwatches.propTypes = {
 };
 
 const DEFAULT_RULE_STYLE = {
-  textColor: '#000000',
-  backgroundColor: '#FFEB3B',
+  textColor: "#000000",
+  backgroundColor: "#FFEB3B",
   fontWeight: 600,
   italic: false,
 };
 
 const ColorField = function ColorField({ label, value, onChange }) {
   return (
-    <Stack direction="row" alignItems="flex-start" spacing={1}>
+    <Stack
+      sx={{
+        marginTop: (theme) => theme.spacing(1),
+        marginBottom: (theme) => theme.spacing(1),
+      }}
+      direction="row"
+      alignItems="flex-start"
+      spacing={2}
+    >
       <Typography
         variant="caption"
         sx={{ minWidth: 110, opacity: 0.75, pt: 0.5 }}
       >
         {label}
       </Typography>
-      <Stack spacing={0.75} sx={{ flex: 1 }}>
+      <Stack spacing={1} sx={{ flex: 1 }}>
         <ColorSwatches value={value} onChange={onChange} />
-        <Stack direction="row" alignItems="center" spacing={1}>
+        <Stack direction="row" style={{ alignItems: "center" }} spacing={1}>
           <Box
             component="input"
             type="color"
-            value={value || '#000000'}
+            value={value || "#000000"}
             onChange={(e) => onChange(e.target.value)}
             sx={{
               width: 36,
               height: 28,
-              border: 'none',
+              border: "none",
               borderRadius: 1,
-              cursor: 'pointer',
-              backgroundColor: 'transparent',
+              cursor: "pointer",
+              backgroundColor: "transparent",
               padding: 0,
             }}
           />
           <TextField
             size="small"
-            value={value || ''}
+            value={value || ""}
             onChange={(e) => onChange(e.target.value)}
             placeholder="#RRGGBB"
-            sx={{
+            sx={(theme) => ({
               flex: 1,
-              '& input': { fontFamily: 'monospace', fontSize: 12 },
-            }}
+              "& input": {
+                fontFamily: "monospace",
+                fontSize: theme.typography.fontSize,
+              },
+            })}
           />
           {value && (
             <IconButton size="small" onClick={() => onChange(null)}>
@@ -185,6 +196,28 @@ ColorField.propTypes = {
   onChange: PropTypes.func.isRequired,
 };
 
+const SectionLabel = function SectionLabel({ children }) {
+  return (
+    <Typography
+      variant="caption"
+      sx={{
+        display: "block",
+        fontWeight: 600,
+        opacity: 0.75,
+        letterSpacing: 0.5,
+        textTransform: "uppercase",
+        my: 1.5,
+      }}
+    >
+      {children}
+    </Typography>
+  );
+};
+
+SectionLabel.propTypes = {
+  children: PropTypes.node.isRequired,
+};
+
 const SectionEditor = function SectionEditor({
   section,
   setSection,
@@ -194,123 +227,141 @@ const SectionEditor = function SectionEditor({
   const { localization: t } = usePivot();
   const patch = (upd) => setSection({ ...section, ...upd });
   return (
-    <Stack gap={2} sx={{ pt: 1 }}>
-      <Stack direction="row" spacing={1.5}>
-        <Stack gap={0.5} sx={{ flex: 1 }}>
-          <Typography variant="caption" sx={{ opacity: 0.75 }}>
-            {t?.formatDialog?.font || 'Font'}
-          </Typography>
-          <Select
-            size="small"
-            value={section.fontFamily || 'inherit'}
-            onChange={(e) => patch({ fontFamily: e.target.value })}
-          >
-            <MenuItem value="inherit">
-              <em>{t?.formatDialog?.fontDefault || 'Default (theme)'}</em>
-            </MenuItem>
-            {FONT_FAMILIES.map((f) => (
-              <MenuItem key={f} value={f} style={{ fontFamily: f }}>
-                {f}
-              </MenuItem>
-            ))}
-          </Select>
-        </Stack>
-        <Stack gap={0.5} sx={{ width: 160 }}>
-          <Typography variant="caption" sx={{ opacity: 0.75 }}>
-            {t?.formatDialog?.fontSize || 'Size'} ({section.fontSize || 13}px)
-          </Typography>
-          <Slider
-            size="small"
-            min={10}
-            max={24}
-            value={section.fontSize || 13}
-            onChange={(_, v) => patch({ fontSize: v })}
-          />
-        </Stack>
-      </Stack>
-
-      <Stack direction="row" spacing={1.5} alignItems="center">
-        <ToggleButtonGroup
-          size="small"
-          value={[
-            section.fontWeight >= 600 ? 'bold' : null,
-            section.italic ? 'italic' : null,
-          ].filter(Boolean)}
-          onChange={(_, v) => {
-            patch({
-              fontWeight: v.includes('bold') ? 700 : 400,
-              italic: v.includes('italic'),
-            });
-          }}
-        >
-          <ToggleButton value="bold">
-            <FormatBoldIcon fontSize="small" />
-          </ToggleButton>
-          <ToggleButton value="italic">
-            <FormatItalicIcon fontSize="small" />
-          </ToggleButton>
-        </ToggleButtonGroup>
-
-        {showAlignment && (
-          <>
-            <Divider orientation="vertical" flexItem />
-
-            <ToggleButtonGroup
+    <Stack gap={3} sx={{ pt: 1.5 }}>
+      <Stack gap={1.25}>
+        <SectionLabel>
+          {t?.formatDialog?.sectionTypography || "Typography"}
+        </SectionLabel>
+        <Stack direction="row" spacing={2}>
+          <Stack gap={0.5} sx={{ flex: 1 }}>
+            <Typography variant="caption" sx={{ opacity: 0.75 }}>
+              {t?.formatDialog?.font || "Font"}
+            </Typography>
+            <Select
               size="small"
-              exclusive
-              value={section.textAlign}
-              onChange={(_, v) => v && patch({ textAlign: v })}
+              value={section.fontFamily || "inherit"}
+              onChange={(e) => patch({ fontFamily: e.target.value })}
             >
-              <ToggleButton value="left">
-                <FormatAlignLeftIcon fontSize="small" />
-              </ToggleButton>
-              <ToggleButton value="center">
-                <FormatAlignCenterIcon fontSize="small" />
-              </ToggleButton>
-              <ToggleButton value="right">
-                <FormatAlignRightIcon fontSize="small" />
-              </ToggleButton>
-            </ToggleButtonGroup>
-          </>
-        )}
+              <MenuItem value="inherit">
+                <em>{t?.formatDialog?.fontDefault || "Default (theme)"}</em>
+              </MenuItem>
+              {FONT_FAMILIES.map((f) => (
+                <MenuItem key={f} value={f} style={{ fontFamily: f }}>
+                  {f}
+                </MenuItem>
+              ))}
+            </Select>
+          </Stack>
+          <Stack gap={0.5} sx={{ width: 160 }}>
+            <Typography variant="caption" sx={{ opacity: 0.75 }}>
+              {t?.formatDialog?.fontSize || "Size"} ({section.fontSize || 13}px)
+            </Typography>
+            <Slider
+              size="small"
+              min={10}
+              max={24}
+              sx={(theme) => ({ fontSize: theme.typography.fontSize })}
+              onChange={(_, v) => patch({ fontSize: v })}
+            />
+          </Stack>
+        </Stack>
       </Stack>
 
-      <Divider />
+      <Stack gap={8.25}>
+        <SectionLabel>
+          {t?.formatDialog?.sectionStyle || "Style & alignment"}
+        </SectionLabel>
+        <Stack direction="row" spacing={1.5} style={{ alignItems: "center" }}>
+          <ToggleButtonGroup
+            size="small"
+            value={[
+              section.fontWeight >= 600 ? "bold" : null,
+              section.italic ? "italic" : null,
+            ].filter(Boolean)}
+            onChange={(_, v) => {
+              patch({
+                fontWeight: v.includes("bold") ? 700 : 400,
+                italic: v.includes("italic"),
+              });
+            }}
+          >
+            <ToggleButton value="bold">
+              <FormatBoldIcon fontSize="small" />
+            </ToggleButton>
+            <ToggleButton value="italic">
+              <FormatItalicIcon fontSize="small" />
+            </ToggleButton>
+          </ToggleButtonGroup>
 
-      <ColorField
-        label={t?.formatDialog?.textColorLabel || 'Text color'}
-        value={section.textColor}
-        onChange={(v) => patch({ textColor: v })}
-      />
-      <ColorField
-        label={t?.formatDialog?.bgColorLabel || 'Background color'}
-        value={section.backgroundColor}
-        onChange={(v) => patch({ backgroundColor: v })}
-      />
+          {showAlignment && (
+            <>
+              <Divider orientation="vertical" flexItem />
+
+              <ToggleButtonGroup
+                size="small"
+                exclusive
+                value={section.textAlign}
+                onChange={(_, v) => v && patch({ textAlign: v })}
+              >
+                <ToggleButton value="left">
+                  <FormatAlignLeftIcon fontSize="small" />
+                </ToggleButton>
+                <ToggleButton value="center">
+                  <FormatAlignCenterIcon fontSize="small" />
+                </ToggleButton>
+                <ToggleButton value="right">
+                  <FormatAlignRightIcon fontSize="small" />
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </>
+          )}
+        </Stack>
+      </Stack>
+
+      <Stack gap={1.5}>
+        <SectionLabel>
+          {t?.formatDialog?.sectionColors || "Colors"}
+        </SectionLabel>
+        <ColorField
+          label={t?.formatDialog?.textColorLabel || "Text color"}
+          value={section.textColor}
+          onChange={(v) => patch({ textColor: v })}
+        />
+        <ColorField
+          label={t?.formatDialog?.bgColorLabel || "Background color"}
+          value={section.backgroundColor}
+          onChange={(v) => patch({ backgroundColor: v })}
+        />
+      </Stack>
 
       {showNumberFormat && (
         <>
-          <Divider />
+          <Divider
+            sx={{
+              marginTop: (theme) => theme.spacing(1),
+              marginBottom: (theme) => theme.spacing(1),
+            }}
+          />
 
-          <Typography variant="caption" sx={{ fontWeight: 600, opacity: 0.75 }}>
-            {t?.formatDialog?.numberFormat || 'NUMBER FORMAT'}
-          </Typography>
+          <SectionLabel>
+            {t?.formatDialog?.numberFormat || "NUMBER FORMAT"}
+          </SectionLabel>
 
           <Stack direction="row" spacing={1.5}>
             <Stack gap={0.5} sx={{ flex: 1 }}>
               <Typography variant="caption" sx={{ opacity: 0.75 }}>
-                {t?.formatDialog?.thousandSeparator || 'Thousand Separator'}
+                {t?.formatDialog?.thousandSeparator || "Thousand Separator"}
               </Typography>
               <Select
                 size="small"
-                value={section.thousandSeparator ?? 'System'}
+                value={section.thousandSeparator ?? "System"}
                 onChange={(e) => patch({ thousandSeparator: e.target.value })}
               >
                 <MenuItem value="System">
-                  {t?.formatDialog?.system || 'System'}
+                  {t?.formatDialog?.system || "System"}
                 </MenuItem>
                 <MenuItem value="None">
-                  {t?.formatDialog?.none || 'None'}
+                  {t?.formatDialog?.none || "None"}
                 </MenuItem>
                 <MenuItem value=".">.</MenuItem>
                 <MenuItem value=",">,</MenuItem>
@@ -318,15 +369,15 @@ const SectionEditor = function SectionEditor({
             </Stack>
             <Stack gap={0.5} sx={{ flex: 1 }}>
               <Typography variant="caption" sx={{ opacity: 0.75 }}>
-                {t?.formatDialog?.decimalSeparator || 'Decimal Separator'}
+                {t?.formatDialog?.decimalSeparator || "Decimal Separator"}
               </Typography>
               <Select
                 size="small"
-                value={section.decimalSeparator ?? 'System'}
+                value={section.decimalSeparator ?? "System"}
                 onChange={(e) => patch({ decimalSeparator: e.target.value })}
               >
                 <MenuItem value="System">
-                  {t?.formatDialog?.system || 'System'}
+                  {t?.formatDialog?.system || "System"}
                 </MenuItem>
                 <MenuItem value=".">.</MenuItem>
                 <MenuItem value=",">,</MenuItem>
@@ -334,15 +385,15 @@ const SectionEditor = function SectionEditor({
             </Stack>
             <Stack gap={0.5} sx={{ flex: 1 }}>
               <Typography variant="caption" sx={{ opacity: 0.75 }}>
-                {t?.formatDialog?.numberOfDecimals || 'Number of decimals'}
+                {t?.formatDialog?.numberOfDecimals || "Number of decimals"}
               </Typography>
               <Select
                 size="small"
-                value={section.numberOfDecimals ?? 'Default'}
+                value={section.numberOfDecimals ?? "Default"}
                 onChange={(e) => patch({ numberOfDecimals: e.target.value })}
               >
                 <MenuItem value="Default">
-                  {t?.formatDialog?.default || 'Default'}
+                  {t?.formatDialog?.default || "Default"}
                 </MenuItem>
                 {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
                   <MenuItem key={n} value={n}>
@@ -353,77 +404,86 @@ const SectionEditor = function SectionEditor({
             </Stack>
           </Stack>
 
-          <Stack direction="row" spacing={1.5} alignItems="flex-end">
+          <Stack
+            direction="row"
+            spacing={1.5}
+            style={{ alignItems: "flex-end" }}
+          >
             <Stack gap={0.5} sx={{ flex: 1 }}>
               <Typography variant="caption" sx={{ opacity: 0.75 }}>
-                {t?.formatDialog?.currencySymbol || 'Currency symbol'}
+                {t?.formatDialog?.currencySymbol || "Currency symbol"}
               </Typography>
               <Select
                 size="small"
-                value={section.currencySymbol ?? 'None'}
+                value={section.currencySymbol ?? "None"}
                 onChange={(e) => patch({ currencySymbol: e.target.value })}
               >
                 <MenuItem value="None">
-                  {t?.formatDialog?.none || 'None'}
+                  {t?.formatDialog?.none || "None"}
                 </MenuItem>
                 <MenuItem value="System">
-                  {t?.formatDialog?.system || 'System'}
+                  {t?.formatDialog?.system || "System"}
                 </MenuItem>
                 <MenuItem value="$">$</MenuItem>
                 <MenuItem value="€">€</MenuItem>
                 <MenuItem value="£">£</MenuItem>
                 <MenuItem value="Other">
-                  {t?.formatDialog?.other || 'Other'}
+                  {t?.formatDialog?.other || "Other"}
                 </MenuItem>
               </Select>
             </Stack>
-            {section.currencySymbol === 'Other' && (
+            {section.currencySymbol === "Other" && (
               <TextField
                 size="small"
-                label={t?.formatDialog?.currencyOther || 'Symbol'}
-                value={section.currencyOther || ''}
+                label={t?.formatDialog?.currencyOther || "Symbol"}
+                value={section.currencyOther || ""}
                 onChange={(e) => patch({ currencyOther: e.target.value })}
                 sx={{ flex: 1 }}
               />
             )}
-            {section.currencySymbol && section.currencySymbol !== 'None' && (
+            {section.currencySymbol && section.currencySymbol !== "None" && (
               <Stack gap={0.5} sx={{ flex: 1 }}>
                 <Typography variant="caption" sx={{ opacity: 0.75 }}>
-                  {t?.formatDialog?.currencyAlignment || 'Currency alignment'}
+                  {t?.formatDialog?.currencyAlignment || "Currency alignment"}
                 </Typography>
                 <ToggleButtonGroup
                   size="small"
                   exclusive
-                  value={section.currencyAlignment || 'Left'}
+                  value={section.currencyAlignment || "Left"}
                   onChange={(_, v) => v && patch({ currencyAlignment: v })}
                 >
-                  <ToggleButton value="Left" sx={{ textTransform: 'none' }}>
-                    {t?.formatDialog?.left || 'Left'}
+                  <ToggleButton value="Left" sx={{ textTransform: "none" }}>
+                    {t?.formatDialog?.left || "Left"}
                   </ToggleButton>
-                  <ToggleButton value="Right" sx={{ textTransform: 'none' }}>
-                    {t?.formatDialog?.right || 'Right'}
+                  <ToggleButton value="Right" sx={{ textTransform: "none" }}>
+                    {t?.formatDialog?.right || "Right"}
                   </ToggleButton>
                 </ToggleButtonGroup>
               </Stack>
             )}
           </Stack>
 
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <TextField
-              size="small"
-              label={t?.formatDialog?.nullValue || 'Null Value'}
-              value={section.nullValue ?? ''}
-              onChange={(e) => patch({ nullValue: e.target.value })}
-              sx={{ flex: 1 }}
-            />
+          <Stack direction="row" spacing={1.5} style={{ alignItems: "center" }}>
+            <Stack gap={0.5}>
+              <Typography variant="caption" sx={{ opacity: 0.75 }}>
+                {t?.formatDialog?.numberOfDecimals || "Number of decimals"}
+              </Typography>
+              <TextField
+                size="small"
+                label={t?.formatDialog?.nullValue || "Null Value"}
+                value={section.nullValue ?? ""}
+                onChange={(e) => patch({ nullValue: e.target.value })}
+              />
+            </Stack>
             <FormControlLabel
+              style={{ alignSelf: "self-end" }}
               control={
                 <Checkbox
                   checked={!!section.percentage}
                   onChange={(e) => patch({ percentage: e.target.checked })}
                 />
               }
-              label={t?.formatDialog?.percentage || 'Format as percentage'}
+              label={t?.formatDialog?.percentage || "Format as percentage"}
             />
           </Stack>
         </>
@@ -446,57 +506,69 @@ const TotalsPositionEditor = function TotalsPositionEditor({
   const { localization: t } = usePivot();
   const patch = (upd) => setLayout({ ...layout, ...upd });
   return (
-    <Stack gap={2} sx={{ pt: 1 }}>
+    <Stack gap={3} sx={{ pt: 1.5 }}>
       <Stack gap={0.5}>
         <Typography variant="caption" sx={{ fontWeight: 600, opacity: 0.75 }}>
-          {t?.formatDialog?.totalsPosition || 'TOTALS POSITION'}
+          {t?.formatDialog?.totalsPosition || "TOTALS POSITION"}
         </Typography>
         <Typography variant="caption" sx={{ opacity: 0.7 }}>
           {t?.formatDialog?.totalsPositionDesc ||
-            'Defines whether subtotals and the grand total are displayed before or after the data they aggregate.'}
+            "Defines whether subtotals and the grand total are displayed before or after the data they aggregate."}
         </Typography>
       </Stack>
 
-      <Stack direction="row" spacing={2} alignItems="center">
+      <Stack
+        direction="row"
+        style={{
+          marginBottom: (theme) => theme.spacing(1),
+          alignItems: "center",
+        }}
+      >
         <Typography variant="body2" sx={{ minWidth: 140 }}>
-          {t?.formatDialog?.totalsPerRow || 'Totals per row'}
+          {t?.formatDialog?.totalsPerRow || "Totals per row"}
         </Typography>
         <ToggleButtonGroup
           size="small"
           exclusive
-          value={layout.totalsRowsPosition || 'before'}
+          value={layout.totalsRowsPosition || "before"}
           onChange={(_, v) => v && patch({ totalsRowsPosition: v })}
         >
-          <ToggleButton value="before" sx={{ textTransform: 'none' }}>
-            {t?.formatDialog?.beforeData || 'Before data'}
+          <ToggleButton value="before" sx={{ textTransform: "none" }}>
+            {t?.formatDialog?.beforeData || "Before data"}
           </ToggleButton>
-          <ToggleButton value="after" sx={{ textTransform: 'none' }}>
-            {t?.formatDialog?.afterData || 'After data'}
+          <ToggleButton value="after" sx={{ textTransform: "none" }}>
+            {t?.formatDialog?.afterData || "After data"}
           </ToggleButton>
-          <ToggleButton value="none" sx={{ textTransform: 'none' }}>
-            {t?.formatDialog?.noTotals || 'None'}
+          <ToggleButton value="none" sx={{ textTransform: "none" }}>
+            {t?.formatDialog?.noTotals || "None"}
           </ToggleButton>
         </ToggleButtonGroup>
       </Stack>
 
-      <Stack direction="row" spacing={2} alignItems="center">
+      <Stack
+        direction="row"
+        style={{
+          marginBottom: (theme) => theme.spacing(1),
+          alignItems: "center",
+        }}
+      >
         <Typography variant="body2" sx={{ minWidth: 140 }}>
-          {t?.formatDialog?.totalsPerColumn || 'Totals per column'}
+          {t?.formatDialog?.totalsPerColumn || "Totals per column"}
         </Typography>
         <ToggleButtonGroup
           size="small"
           exclusive
-          value={layout.totalsColumnsPosition || 'before'}
+          value={layout.totalsColumnsPosition || "before"}
           onChange={(_, v) => v && patch({ totalsColumnsPosition: v })}
         >
-          <ToggleButton value="before" sx={{ textTransform: 'none' }}>
-            {t?.formatDialog?.beforeData || 'Before data'}
+          <ToggleButton value="before" sx={{ textTransform: "none" }}>
+            {t?.formatDialog?.beforeData || "Before data"}
           </ToggleButton>
-          <ToggleButton value="after" sx={{ textTransform: 'none' }}>
-            {t?.formatDialog?.afterData || 'After data'}
+          <ToggleButton value="after" sx={{ textTransform: "none" }}>
+            {t?.formatDialog?.afterData || "After data"}
           </ToggleButton>
-          <ToggleButton value="none" sx={{ textTransform: 'none' }}>
-            {t?.formatDialog?.noTotals || 'None'}
+          <ToggleButton value="none" sx={{ textTransform: "none" }}>
+            {t?.formatDialog?.noTotals || "None"}
           </ToggleButton>
         </ToggleButtonGroup>
       </Stack>
@@ -513,38 +585,41 @@ const LayoutTab = function LayoutTab({ layout, setLayout }) {
   const { localization: t } = usePivot();
   const patch = (upd) => setLayout({ ...layout, ...upd });
   return (
-    <Stack gap={2} sx={{ pt: 1 }}>
+    <Stack gap={3} sx={{ pt: 1.5 }}>
       <Stack gap={0.5}>
-        <Typography variant="caption" sx={{ fontWeight: 600, opacity: 0.75 }}>
-          {t?.formatDialog?.density || 'DENSITY'}
-        </Typography>
+        <SectionLabel>{t?.formatDialog?.density || "DENSITY"}</SectionLabel>
         <Typography variant="caption" sx={{ opacity: 0.7 }}>
           {t?.formatDialog?.densityDesc ||
-            'Controls cell height, padding and font size of the grid.'}
+            "Controls cell height, padding and font size of the grid."}
         </Typography>
         <ToggleButtonGroup
           size="small"
           exclusive
-          value={layout.density || 'Standard'}
+          value={layout.density || "Standard"}
           onChange={(_, v) => v && patch({ density: v })}
-          sx={{ alignSelf: 'flex-start' }}
+          sx={{ alignSelf: "flex-start" }}
         >
-          <ToggleButton value="Compact" sx={{ textTransform: 'none' }}>
-            {t?.formatDialog?.densityCompact || 'Compact'}
+          <ToggleButton value="Compact" sx={{ textTransform: "none" }}>
+            {t?.formatDialog?.densityCompact || "Compact"}
           </ToggleButton>
-          <ToggleButton value="Standard" sx={{ textTransform: 'none' }}>
-            {t?.formatDialog?.densityStandard || 'Standard'}
+          <ToggleButton value="Standard" sx={{ textTransform: "none" }}>
+            {t?.formatDialog?.densityStandard || "Standard"}
           </ToggleButton>
-          <ToggleButton value="Comfortable" sx={{ textTransform: 'none' }}>
-            {t?.formatDialog?.densityComfortable || 'Comfortable'}
+          <ToggleButton value="Comfortable" sx={{ textTransform: "none" }}>
+            {t?.formatDialog?.densityComfortable || "Comfortable"}
           </ToggleButton>
         </ToggleButtonGroup>
       </Stack>
-      <Divider />
+      <Divider
+        sx={{
+          marginTop: (theme) => theme.spacing(1),
+          marginBottom: (theme) => theme.spacing(1),
+        }}
+      />
       <Stack gap={0.5}>
-        <Typography variant="caption" sx={{ fontWeight: 600, opacity: 0.75 }}>
-          {t?.formatDialog?.readability || 'READABILITY'}
-        </Typography>
+        <SectionLabel>
+          {t?.formatDialog?.readability || "READABILITY"}
+        </SectionLabel>
         <FormControlLabel
           control={
             <Checkbox
@@ -554,7 +629,7 @@ const LayoutTab = function LayoutTab({ layout, setLayout }) {
           }
           label={
             t?.formatDialog?.alternateRows ||
-            'Alternate rows (zebra stripes for easier reading)'
+            "Alternate rows (zebra stripes for easier reading)"
           }
         />
       </Stack>
@@ -567,8 +642,8 @@ LayoutTab.propTypes = {
   setLayout: PropTypes.func.isRequired,
 };
 
-const DIM_OPS = ['equals', 'startsWith', 'endsWith', 'contains'];
-const NUM_OPS = ['gt', 'gte', 'lt', 'lte', 'eq', 'neq', 'between'];
+const DIM_OPS = ["equals", "startsWith", "endsWith", "contains"];
+const NUM_OPS = ["gt", "gte", "lt", "lte", "eq", "neq", "between"];
 
 const ClauseEditor = function ClauseEditor({
   clause,
@@ -580,31 +655,31 @@ const ClauseEditor = function ClauseEditor({
   const { localization: t } = usePivot();
   const visibleMeasures = useMemo(
     () => measures.filter((m) => !m.hidden),
-    [measures]
+    [measures],
   );
   const patch = (upd) => onChange({ ...clause, ...upd });
   const targetValue =
-    clause.kind === 'dim'
-      ? `dim:${clause.target || ''}`
-      : `meas:${clause.target || ''}`;
+    clause.kind === "dim"
+      ? `dim:${clause.target || ""}`
+      : `meas:${clause.target || ""}`;
 
   const handleTargetChange = (e) => {
-    const v = String(e.target.value || '');
-    if (v.startsWith('dim:')) {
+    const v = String(e.target.value || "");
+    if (v.startsWith("dim:")) {
       onChange({
         ...clause,
-        kind: 'dim',
+        kind: "dim",
         target: v.slice(4),
-        operator: 'equals',
-        value: '',
+        operator: "equals",
+        value: "",
         value2: undefined,
       });
     } else {
       onChange({
         ...clause,
-        kind: 'measure',
+        kind: "measure",
         target: v.slice(5),
-        operator: 'gt',
+        operator: "gt",
         value: 0,
         value2: undefined,
       });
@@ -612,26 +687,32 @@ const ClauseEditor = function ClauseEditor({
   };
 
   const dimOpsLabels = {
-    equals: t?.formatDialog?.exprEquals || 'Equals',
-    startsWith: t?.formatDialog?.exprStartsWith || 'Starts with',
-    endsWith: t?.formatDialog?.exprEndsWith || 'Ends with',
-    contains: t?.formatDialog?.exprContains || 'Contains',
+    equals: t?.formatDialog?.exprEquals || "Equals",
+    startsWith: t?.formatDialog?.exprStartsWith || "Starts with",
+    endsWith: t?.formatDialog?.exprEndsWith || "Ends with",
+    contains: t?.formatDialog?.exprContains || "Contains",
   };
   const numOpsLabels = {
-    gt: t?.formatDialog?.operators?.gt || '> Greater than',
-    gte: t?.formatDialog?.operators?.gte || '≥ Greater or equal',
-    lt: t?.formatDialog?.operators?.lt || '< Less than',
-    lte: t?.formatDialog?.operators?.lte || '≤ Less or equal',
-    eq: t?.formatDialog?.operators?.eq || '= Equal',
-    neq: t?.formatDialog?.operators?.neq || '≠ Not equal',
-    between: t?.formatDialog?.operators?.between || 'Between',
+    gt: t?.formatDialog?.operators?.gt || "> Greater than",
+    gte: t?.formatDialog?.operators?.gte || "≥ Greater or equal",
+    lt: t?.formatDialog?.operators?.lt || "< Less than",
+    lte: t?.formatDialog?.operators?.lte || "≤ Less or equal",
+    eq: t?.formatDialog?.operators?.eq || "= Equal",
+    neq: t?.formatDialog?.operators?.neq || "≠ Not equal",
+    between: t?.formatDialog?.operators?.between || "Between",
   };
 
-  const ops = clause.kind === 'dim' ? DIM_OPS : NUM_OPS;
-  const opLabels = clause.kind === 'dim' ? dimOpsLabels : numOpsLabels;
+  const ops = clause.kind === "dim" ? DIM_OPS : NUM_OPS;
+  const opLabels = clause.kind === "dim" ? dimOpsLabels : numOpsLabels;
 
   return (
-    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+    <Stack
+      direction="row"
+      spacing={1.5}
+      rowGap={1.5}
+      style={{ alignItems: "center" }}
+      flexWrap="wrap"
+    >
       <Select
         size="small"
         value={targetValue}
@@ -641,7 +722,7 @@ const ClauseEditor = function ClauseEditor({
       >
         {dimensions.length > 0 && (
           <MenuItem value="" disabled>
-            <em>{t?.formatDialog?.dimensions || 'Dimensions'}</em>
+            <em>{t?.formatDialog?.dimensions || "Dimensions"}</em>
           </MenuItem>
         )}
         {dimensions.map((d) => (
@@ -651,7 +732,7 @@ const ClauseEditor = function ClauseEditor({
         ))}
         {visibleMeasures.length > 0 && (
           <MenuItem value="" disabled>
-            <em>{t?.fieldsList?.values || 'Measures'}</em>
+            <em>{t?.fieldsList?.values || "Measures"}</em>
           </MenuItem>
         )}
         {visibleMeasures.map((m) => (
@@ -669,7 +750,7 @@ const ClauseEditor = function ClauseEditor({
             onChange={(e) => patch({ not: e.target.checked })}
           />
         }
-        label={t?.formatDialog?.exprNot || 'NOT'}
+        label={t?.formatDialog?.exprNot || "NOT"}
       />
 
       <Select
@@ -685,32 +766,32 @@ const ClauseEditor = function ClauseEditor({
         ))}
       </Select>
 
-      {clause.kind === 'dim' ? (
+      {clause.kind === "dim" ? (
         <TextField
           size="small"
-          value={clause.value ?? ''}
+          value={clause.value ?? ""}
           onChange={(e) => patch({ value: e.target.value })}
           sx={{ width: 200 }}
-          label={t?.formatDialog?.exprValue || 'Value'}
+          label={t?.formatDialog?.exprValue || "Value"}
         />
       ) : (
         <>
           <TextField
             size="small"
             type="number"
-            value={clause.value ?? ''}
+            value={clause.value ?? ""}
             onChange={(e) => patch({ value: Number(e.target.value) })}
             sx={{ width: 140 }}
-            label={t?.formatDialog?.ruleValue || 'Value'}
+            label={t?.formatDialog?.ruleValue || "Value"}
           />
-          {clause.operator === 'between' && (
+          {clause.operator === "between" && (
             <TextField
               size="small"
               type="number"
-              value={clause.value2 ?? ''}
+              value={clause.value2 ?? ""}
               onChange={(e) => patch({ value2: Number(e.target.value) })}
               sx={{ width: 140 }}
-              label={t?.formatDialog?.ruleValueUpperBound || 'Upper bound'}
+              label={t?.formatDialog?.ruleValueUpperBound || "Upper bound"}
             />
           )}
         </>
@@ -742,11 +823,11 @@ const ExpressionDialog = function ExpressionDialog({
   const { localization: t } = usePivot();
   const portalContainer = usePortalContainer();
   const [draft, setDraft] = useState(
-    () => value || { join: 'and', clauses: [] }
+    () => value || { join: "and", clauses: [] },
   );
 
   useEffect(() => {
-    if (open) setDraft(value || { join: 'and', clauses: [] });
+    if (open) setDraft(value || { join: "and", clauses: [] });
   }, [open, value]);
 
   const addClause = () => {
@@ -756,17 +837,17 @@ const ExpressionDialog = function ExpressionDialog({
       ? {
           id: `c${Date.now()}`,
           target: firstDim.uniqueName,
-          kind: 'dim',
-          operator: 'equals',
-          value: '',
+          kind: "dim",
+          operator: "equals",
+          value: "",
           not: false,
         }
       : firstMeasure
         ? {
             id: `c${Date.now()}`,
             target: firstMeasure.measureKey,
-            kind: 'measure',
-            operator: 'gt',
+            kind: "measure",
+            operator: "gt",
             value: 0,
             not: false,
           }
@@ -801,35 +882,35 @@ const ExpressionDialog = function ExpressionDialog({
       container={portalContainer}
     >
       <DialogTitle sx={{ pr: 6 }}>
-        {t?.formatDialog?.expressionTitle || 'Expression'}
+        {t?.formatDialog?.expressionTitle || "Expression"}
         <Typography variant="caption" component="div" sx={{ opacity: 0.7 }}>
           {t?.formatDialog?.expressionSubtitle ||
-            'Combine clauses on dimensions and measures. The expression is evaluated per cell; the rule fires when it returns true.'}
+            "Combine clauses on dimensions and measures. The expression is evaluated per cell; the rule fires when it returns true."}
         </Typography>
         <IconButton
           onClick={onClose}
-          sx={{ position: 'absolute', top: 8, right: 8 }}
+          sx={{ position: "absolute", top: 8, right: 8 }}
         >
           <CloseIcon />
         </IconButton>
       </DialogTitle>
-      <DialogContent>
-        <Stack gap={1.5} sx={{ pt: 1 }}>
-          <Stack direction="row" alignItems="center" spacing={1}>
+      <DialogContent dividers sx={{ px: 3, py: 3 }}>
+        <Stack gap={2.5}>
+          <Stack direction="row" spacing={2} style={{ alignItems: "center" }}>
             <Typography variant="caption" sx={{ opacity: 0.75 }}>
-              {t?.formatDialog?.expressionJoin || 'Combine clauses with'}
+              {t?.formatDialog?.expressionJoin || "Combine clauses with"}
             </Typography>
             <ToggleButtonGroup
               size="small"
               exclusive
-              value={draft.join || 'and'}
+              value={draft.join || "and"}
               onChange={(_, v) => v && setDraft({ ...draft, join: v })}
             >
-              <ToggleButton value="and" sx={{ textTransform: 'none' }}>
-                {t?.formatDialog?.exprAnd || 'AND'}
+              <ToggleButton value="and" sx={{ textTransform: "none" }}>
+                {t?.formatDialog?.exprAnd || "AND"}
               </ToggleButton>
-              <ToggleButton value="or" sx={{ textTransform: 'none' }}>
-                {t?.formatDialog?.exprOr || 'OR'}
+              <ToggleButton value="or" sx={{ textTransform: "none" }}>
+                {t?.formatDialog?.exprOr || "OR"}
               </ToggleButton>
             </ToggleButtonGroup>
             <Box sx={{ flex: 1 }} />
@@ -839,7 +920,7 @@ const ExpressionDialog = function ExpressionDialog({
               variant="outlined"
               onClick={addClause}
             >
-              {t?.formatDialog?.addClause || 'Add clause'}
+              {t?.formatDialog?.addClause || "Add clause"}
             </Button>
           </Stack>
           {draft.clauses.length === 0 && (
@@ -848,12 +929,12 @@ const ExpressionDialog = function ExpressionDialog({
                 border: `1px dashed ${theme.palette.divider}`,
                 borderRadius: 2,
                 p: 3,
-                textAlign: 'center',
+                textAlign: "center",
                 color: theme.palette.text.secondary,
               })}
             >
               <Typography variant="body2">
-                {t?.formatDialog?.noClauses || 'No clauses defined.'}
+                {t?.formatDialog?.noClauses || "No clauses defined."}
               </Typography>
             </Box>
           )}
@@ -869,10 +950,10 @@ const ExpressionDialog = function ExpressionDialog({
           ))}
         </Stack>
       </DialogContent>
-      <DialogActions style={{ padding: 16 }}>
-        <Button onClick={onClose}>{t?.buttons?.cancel || 'Cancel'}</Button>
+      <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+        <Button onClick={onClose}>{t?.buttons?.cancel || "Cancel"}</Button>
         <Button onClick={apply} variant="contained">
-          {t?.buttons?.apply || 'Apply'}
+          {t?.buttons?.apply || "Apply"}
         </Button>
       </DialogActions>
     </Dialog>
@@ -906,10 +987,10 @@ const RuleEditor = function RuleEditor({
   const { localization: t } = usePivot();
   const patch = (upd) => onChange({ ...rule, ...upd });
   const [exprOpen, setExprOpen] = useState(false);
-  const isExpression = rule.operator === 'expression';
+  const isExpression = rule.operator === "expression";
   const visibleMeasures = useMemo(
     () => measures.filter((m) => !m.hidden),
-    [measures]
+    [measures],
   );
   // Helper: match a stored rule.measure (either measureKey or legacy
   // uniqueName) against a measures[] entry.
@@ -917,84 +998,84 @@ const RuleEditor = function RuleEditor({
     if (!stored || !m) return false;
     if (stored === m.measureKey) return true;
     // Legacy: stored value was uniqueName — accept it for back-compat.
-    if (!String(stored).includes(':') && stored === m.uniqueName) return true;
+    if (!String(stored).includes(":") && stored === m.uniqueName) return true;
     return false;
   };
   const otherMeasures = useMemo(
     () => measures.filter((m) => !measureEntryMatches(m, rule.measure)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [measures, rule.measure]
+    [measures, rule.measure],
   );
   const measureCompareAvailable = !!rule.measure && otherMeasures.length > 0;
 
   const operators = useMemo(
     () => [
       {
-        value: 'gt',
-        label: t?.formatDialog?.operators?.gt || 'Greater than (>)',
+        value: "gt",
+        label: t?.formatDialog?.operators?.gt || "Greater than (>)",
       },
       {
-        value: 'gte',
-        label: t?.formatDialog?.operators?.gte || 'Greater or equal (≥)',
+        value: "gte",
+        label: t?.formatDialog?.operators?.gte || "Greater or equal (≥)",
       },
-      { value: 'lt', label: t?.formatDialog?.operators?.lt || 'Less than (<)' },
+      { value: "lt", label: t?.formatDialog?.operators?.lt || "Less than (<)" },
       {
-        value: 'lte',
-        label: t?.formatDialog?.operators?.lte || 'Less or equal (≤)',
+        value: "lte",
+        label: t?.formatDialog?.operators?.lte || "Less or equal (≤)",
       },
-      { value: 'eq', label: t?.formatDialog?.operators?.eq || 'Equal (=)' },
+      { value: "eq", label: t?.formatDialog?.operators?.eq || "Equal (=)" },
       {
-        value: 'neq',
-        label: t?.formatDialog?.operators?.neq || 'Not equal (≠)',
-      },
-      {
-        value: 'between',
-        label: t?.formatDialog?.operators?.between || 'Between',
+        value: "neq",
+        label: t?.formatDialog?.operators?.neq || "Not equal (≠)",
       },
       {
-        value: 'expression',
-        label: t?.formatDialog?.operators?.expression || 'Expression',
+        value: "between",
+        label: t?.formatDialog?.operators?.between || "Between",
+      },
+      {
+        value: "expression",
+        label: t?.formatDialog?.operators?.expression || "Expression",
       },
     ],
-    [t]
+    [t],
   );
   const OP_SYMBOLS = {
-    gt: '>',
-    gte: '≥',
-    lt: '<',
-    lte: '≤',
-    eq: '=',
-    neq: '≠',
-    between: '∈',
-    expression: 'ƒ(x)',
+    gt: ">",
+    gte: "≥",
+    lt: "<",
+    lte: "≤",
+    eq: "=",
+    neq: "≠",
+    between: "∈",
+    expression: "ƒ(x)",
   };
   const measureLabel = rule.measure
     ? measures.find((m) => measureEntryMatches(m, rule.measure))?.caption ||
       rule.measure
-    : t?.formatDialog?.allMeasures || 'All measures';
-  const opSym = OP_SYMBOLS[rule.operator || 'gt'];
+    : t?.formatDialog?.allMeasures || "All measures";
+  const opSym = OP_SYMBOLS[rule.operator || "gt"];
   const formatOperand = (kind, val, ref) => {
-    if (kind === 'measure') {
-      if (!ref) return '?';
+    if (kind === "measure") {
+      if (!ref) return "?";
       const c =
         measures.find((m) => measureEntryMatches(m, ref))?.caption || ref;
       return `[${c}]`;
     }
-    return `${val ?? '?'}`;
+    return `${val ?? "?"}`;
   };
   const expressionSummary = (() => {
     const n = rule.expression?.clauses?.length || 0;
-    const join = (rule.expression?.join || 'and').toUpperCase();
-    if (n === 0) return t?.formatDialog?.noClauses || 'no clauses';
+    const join = (rule.expression?.join || "and").toUpperCase();
+    if (n === 0) return t?.formatDialog?.noClauses || "no clauses";
     return `${n} ${
       n === 1
-        ? t?.formatDialog?.clauseOne || 'clause'
-        : t?.formatDialog?.clauseMany || 'clauses'
+        ? t?.formatDialog?.clauseOne || "clause"
+        : t?.formatDialog?.clauseMany || "clauses"
     } (${join})`;
   })();
   const exprRight = isExpression
     ? expressionSummary
-    : rule.operator === 'between'
+    : rule.operator === "between"
       ? `[${formatOperand(rule.valueKind, rule.value, rule.valueRef)}, ${formatOperand(rule.value2Kind, rule.value2, rule.value2Ref)}]`
       : formatOperand(rule.valueKind, rule.value, rule.valueRef);
   const ruleTitle = `${measureLabel} ${opSym} ${exprRight}`;
@@ -1011,15 +1092,15 @@ const RuleEditor = function RuleEditor({
         }`,
         borderRadius: 2,
         opacity: isDragging ? 0.4 : 1,
-        '&:before': { display: 'none' },
+        "&:before": { display: "none" },
       })}
     >
-      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+      <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 2 }}>
         <Stack
           direction="row"
-          alignItems="center"
-          spacing={1}
-          sx={{ width: '100%' }}
+          style={{ alignItems: "center" }}
+          spacing={1.5}
+          sx={{ width: "100%" }}
         >
           <Box
             component="span"
@@ -1027,12 +1108,12 @@ const RuleEditor = function RuleEditor({
             onDragStart={(e) => onDragStart?.(e, index)}
             onDragEnd={onDragEnd}
             onClick={(e) => e.stopPropagation()}
+            style={{ alignItems: "center" }}
             sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              cursor: 'grab',
-              color: 'text.secondary',
-              '&:active': { cursor: 'grabbing' },
+              display: "inline-flex",
+              cursor: "grab",
+              color: "text.secondary",
+              "&:active": { cursor: "grabbing" },
             }}
             title="Drag to reorder"
           >
@@ -1040,7 +1121,7 @@ const RuleEditor = function RuleEditor({
           </Box>
           <Typography
             variant="caption"
-            sx={{ opacity: 0.6, fontVariantNumeric: 'tabular-nums' }}
+            sx={{ opacity: 0.6, fontVariantNumeric: "tabular-nums" }}
           >
             #{index + 1}
           </Typography>
@@ -1053,14 +1134,14 @@ const RuleEditor = function RuleEditor({
               py: 0.25,
               borderRadius: 0.5,
               fontSize: 12,
-              fontFamily: rule.style?.fontFamily || 'inherit',
+              fontFamily: rule.style?.fontFamily || "inherit",
               fontWeight: rule.style?.fontWeight || 400,
-              fontStyle: rule.style?.italic ? 'italic' : 'normal',
-              color: rule.style?.textColor || 'inherit',
-              backgroundColor: rule.style?.backgroundColor || 'transparent',
+              fontStyle: rule.style?.italic ? "italic" : "normal",
+              color: rule.style?.textColor || "inherit",
+              backgroundColor: rule.style?.backgroundColor || "transparent",
             }}
           >
-            {t?.formatDialog?.preview || 'preview'}
+            {t?.formatDialog?.preview || "preview"}
           </Box>
           <IconButton
             size="small"
@@ -1074,31 +1155,36 @@ const RuleEditor = function RuleEditor({
           </IconButton>
         </Stack>
       </AccordionSummary>
-      <AccordionDetails>
-        <Stack direction="column" spacing={1}>
-          <Stack direction="row" spacing={1} alignItems="center">
+      <AccordionDetails sx={{ px: 2.5, py: 2.5 }}>
+        <Stack direction="column" spacing={2.5}>
+          <Stack
+            direction="row"
+            spacing={1.5}
+            style={{ alignItems: "center" }}
+            flexWrap="wrap"
+          >
             <Select
               size="small"
               value={
                 rule.measure
                   ? measures.find((m) => measureEntryMatches(m, rule.measure))
-                      ?.measureKey || ''
-                  : ''
+                      ?.measureKey || ""
+                  : ""
               }
               onChange={(e) => {
                 const nextMeasure = e.target.value || undefined;
                 const upd = { measure: nextMeasure };
                 const remaining = visibleMeasures.filter(
-                  (m) => m.measureKey !== nextMeasure
+                  (m) => m.measureKey !== nextMeasure,
                 );
                 const canCompare = !!nextMeasure && remaining.length > 0;
                 if (!canCompare) {
-                  if (rule.valueKind === 'measure') {
-                    upd.valueKind = 'constant';
+                  if (rule.valueKind === "measure") {
+                    upd.valueKind = "constant";
                     upd.valueRef = undefined;
                   }
-                  if (rule.value2Kind === 'measure') {
-                    upd.value2Kind = 'constant';
+                  if (rule.value2Kind === "measure") {
+                    upd.value2Kind = "constant";
                     upd.value2Ref = undefined;
                   }
                 } else {
@@ -1111,7 +1197,7 @@ const RuleEditor = function RuleEditor({
               sx={{ width: 220, flexShrink: 0 }}
             >
               <MenuItem value="">
-                <em>{t?.formatDialog?.allMeasures || 'All measures'}</em>
+                <em>{t?.formatDialog?.allMeasures || "All measures"}</em>
               </MenuItem>
               {visibleMeasures.map((m) => (
                 <MenuItem key={m.measureKey} value={m.measureKey}>
@@ -1122,7 +1208,7 @@ const RuleEditor = function RuleEditor({
 
             <Select
               size="small"
-              value={rule.operator || 'gt'}
+              value={rule.operator || "gt"}
               onChange={(e) => patch({ operator: e.target.value })}
               sx={{ width: 180, flexShrink: 0 }}
             >
@@ -1137,29 +1223,29 @@ const RuleEditor = function RuleEditor({
               <>
                 <Select
                   size="small"
-                  value={rule.valueKind || 'constant'}
+                  value={rule.valueKind || "constant"}
                   onChange={(e) => patch({ valueKind: e.target.value })}
                   sx={{ width: 120, flexShrink: 0 }}
                 >
                   <MenuItem value="constant">
-                    {t?.formatDialog?.ruleValueConstant || 'Constant'}
+                    {t?.formatDialog?.ruleValueConstant || "Constant"}
                   </MenuItem>
                   {measureCompareAvailable && (
                     <MenuItem value="measure">
-                      {t?.formatDialog?.ruleValueMeasure || 'Measure'}
+                      {t?.formatDialog?.ruleValueMeasure || "Measure"}
                     </MenuItem>
                   )}
                 </Select>
 
-                {(rule.valueKind || 'constant') === 'measure' ? (
+                {(rule.valueKind || "constant") === "measure" ? (
                   <Select
                     size="small"
                     value={
                       rule.valueRef
                         ? measures.find((m) =>
-                            measureEntryMatches(m, rule.valueRef)
-                          )?.measureKey || ''
-                        : ''
+                            measureEntryMatches(m, rule.valueRef),
+                          )?.measureKey || ""
+                        : ""
                     }
                     onChange={(e) => patch({ valueRef: e.target.value })}
                     displayEmpty
@@ -1167,7 +1253,7 @@ const RuleEditor = function RuleEditor({
                   >
                     <MenuItem value="" disabled>
                       <em>
-                        {t?.formatDialog?.selectMeasure || 'Select measure'}
+                        {t?.formatDialog?.selectMeasure || "Select measure"}
                       </em>
                     </MenuItem>
                     {otherMeasures.map((m) => (
@@ -1180,10 +1266,10 @@ const RuleEditor = function RuleEditor({
                   <TextField
                     size="small"
                     type="number"
-                    value={rule.value ?? ''}
+                    value={rule.value ?? ""}
                     onChange={(e) => patch({ value: Number(e.target.value) })}
                     sx={{ width: 160, flexShrink: 0 }}
-                    label={t?.formatDialog?.ruleValue || 'Value'}
+                    label={t?.formatDialog?.ruleValue || "Value"}
                   />
                 )}
               </>
@@ -1196,7 +1282,7 @@ const RuleEditor = function RuleEditor({
                   variant="outlined"
                   onClick={() => setExprOpen(true)}
                 >
-                  {t?.formatDialog?.editExpression || 'Edit expression'}
+                  {t?.formatDialog?.editExpression || "Edit expression"}
                 </Button>
                 <Typography variant="caption" sx={{ opacity: 0.75 }}>
                   {expressionSummary}
@@ -1205,45 +1291,45 @@ const RuleEditor = function RuleEditor({
             )}
           </Stack>
 
-          {rule.operator === 'between' && !isExpression && (
-            <Stack direction="row" spacing={1} alignItems="center">
+          {rule.operator === "between" && !isExpression && (
+            <Stack direction="row" spacing={1} style={{ alignItems: "center" }}>
               <Typography
                 variant="body2"
                 sx={{
                   width: 408,
                   flexShrink: 0,
                   opacity: 0.75,
-                  textAlign: 'right',
+                  textAlign: "right",
                   pr: 1,
                 }}
               >
-                {t?.formatDialog?.ruleValueAnd || 'and'}
+                {t?.formatDialog?.ruleValueAnd || "and"}
               </Typography>
               <Select
                 size="small"
-                value={rule.value2Kind || 'constant'}
+                value={rule.value2Kind || "constant"}
                 onChange={(e) => patch({ value2Kind: e.target.value })}
                 sx={{ width: 120, flexShrink: 0 }}
               >
                 <MenuItem value="constant">
-                  {t?.formatDialog?.ruleValueConstant || 'Constant'}
+                  {t?.formatDialog?.ruleValueConstant || "Constant"}
                 </MenuItem>
                 {measureCompareAvailable && (
                   <MenuItem value="measure">
-                    {t?.formatDialog?.ruleValueMeasure || 'Measure'}
+                    {t?.formatDialog?.ruleValueMeasure || "Measure"}
                   </MenuItem>
                 )}
               </Select>
 
-              {(rule.value2Kind || 'constant') === 'measure' ? (
+              {(rule.value2Kind || "constant") === "measure" ? (
                 <Select
                   size="small"
                   value={
                     rule.value2Ref
                       ? measures.find((m) =>
-                          measureEntryMatches(m, rule.value2Ref)
-                        )?.measureKey || ''
-                      : ''
+                          measureEntryMatches(m, rule.value2Ref),
+                        )?.measureKey || ""
+                      : ""
                   }
                   onChange={(e) => patch({ value2Ref: e.target.value })}
                   displayEmpty
@@ -1251,7 +1337,7 @@ const RuleEditor = function RuleEditor({
                 >
                   <MenuItem value="" disabled>
                     <em>
-                      {t?.formatDialog?.selectMeasure || 'Select measure'}
+                      {t?.formatDialog?.selectMeasure || "Select measure"}
                     </em>
                   </MenuItem>
                   {otherMeasures.map((m) => (
@@ -1264,10 +1350,10 @@ const RuleEditor = function RuleEditor({
                 <TextField
                   size="small"
                   type="number"
-                  value={rule.value2 ?? ''}
+                  value={rule.value2 ?? ""}
                   onChange={(e) => patch({ value2: Number(e.target.value) })}
                   sx={{ width: 160, flexShrink: 0 }}
-                  label={t?.formatDialog?.ruleValueUpperBound || 'Upper bound'}
+                  label={t?.formatDialog?.ruleValueUpperBound || "Upper bound"}
                 />
               )}
             </Stack>
@@ -1276,57 +1362,62 @@ const RuleEditor = function RuleEditor({
 
         <Stack
           direction="row"
-          spacing={1}
-          alignItems="center"
-          style={{ marginTop: 8 }}
+          spacing={1.5}
+          style={{ alignItems: "center" }}
+          sx={{ mt: 2 }}
         >
-          <Typography variant="caption" sx={{ opacity: 0.75, minWidth: 220 }}>
-            {t?.formatDialog?.conditionalModeLabel || 'Evaluation mode'}
-          </Typography>
+          <SectionLabel>
+            {t?.formatDialog?.conditionalModeLabel || "Evaluation mode"}
+          </SectionLabel>
           <Select
             size="small"
-            value={rule.mode || 'inherit'}
+            value={rule.mode || "inherit"}
             onChange={(e) => patch({ mode: e.target.value })}
             sx={{ width: 180, flexShrink: 0 }}
           >
             <MenuItem value="inherit">
-              {t?.formatDialog?.conditionalModeInherit || 'Inherit'}
+              {t?.formatDialog?.conditionalModeInherit || "Inherit"}
             </MenuItem>
             <MenuItem value="first">
               {t?.formatDialog?.conditionalModeFirst ||
-                'Stop at the first rule matched'}
+                "Stop at the first rule matched"}
             </MenuItem>
             <MenuItem value="all">
-              {t?.formatDialog?.conditionalModeAll || 'Evaluate all the rules'}
+              {t?.formatDialog?.conditionalModeAll || "Evaluate all the rules"}
             </MenuItem>
           </Select>
         </Stack>
 
-        <Divider sx={{ mt: 1.5 }} />
+        <Divider
+          sx={{
+            marginTop: (theme) => theme.spacing(1),
+            marginBottom: (theme) => theme.spacing(1),
+          }}
+        />
 
         <SectionEditor
           section={rule.style || {}}
           setSection={(next) => onChange({ ...rule, style: next })}
         />
 
-        <Stack direction="row" sx={{ mt: 1 }}>
+        <Stack direction="row" sx={{ mt: 2 }}>
           <Box sx={{ flex: 1 }} />
           <Box
             sx={{
               px: 1.5,
               py: 0.5,
               borderRadius: 1,
-              fontFamily: rule.style?.fontFamily || 'inherit',
+              fontFamily: rule.style?.fontFamily || "inherit",
               fontSize: rule.style?.fontSize || 13,
               fontWeight: rule.style?.fontWeight || 400,
-              fontStyle: rule.style?.italic ? 'italic' : 'normal',
-              textAlign: rule.style?.textAlign || 'left',
-              color: rule.style?.textColor || 'inherit',
-              backgroundColor: rule.style?.backgroundColor || 'transparent',
-              fontVariantNumeric: 'tabular-nums',
+              fontStyle: rule.style?.italic ? "italic" : "normal",
+              textAlign: rule.style?.textAlign || "left",
+              color: rule.style?.textColor || "inherit",
+              backgroundColor: rule.style?.backgroundColor || "transparent",
+              fontVariantNumeric: "tabular-nums",
             }}
           >
-            {t?.formatDialog?.preview || 'preview'}
+            {t?.formatDialog?.preview || "preview"}
           </Box>
         </Stack>
       </AccordionDetails>
@@ -1372,9 +1463,9 @@ const ConditionalTab = function ConditionalTab({
 
   const handleDragStart = (e, idx) => {
     setDragIndex(idx);
-    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.effectAllowed = "move";
     try {
-      e.dataTransfer.setData('text/plain', String(idx));
+      e.dataTransfer.setData("text/plain", String(idx));
     } catch {
       // some browsers require data to be set
     }
@@ -1382,7 +1473,7 @@ const ConditionalTab = function ConditionalTab({
   const handleDragOver = (e, idx) => {
     if (dragIndex === null) return;
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = "move";
     if (idx !== dropIndex) setDropIndex(idx);
   };
   const handleDragLeave = () => {
@@ -1413,7 +1504,7 @@ const ConditionalTab = function ConditionalTab({
       {
         id: `r${Date.now()}`,
         measure: undefined,
-        operator: 'gt',
+        operator: "gt",
         value: 0,
         style: { ...DEFAULT_RULE_STYLE },
       },
@@ -1425,20 +1516,20 @@ const ConditionalTab = function ConditionalTab({
 
   const removeRule = (idx) => setRules(rules.filter((_, i) => i !== idx));
 
-  const effectiveMode = mode === 'all' ? 'all' : 'first';
+  const effectiveMode = mode === "all" ? "all" : "first";
   const modeDescription =
-    effectiveMode === 'all'
+    effectiveMode === "all"
       ? t?.formatDialog?.conditionalModeAllDesc ||
-        'Rules are evaluated from top to bottom; every matching rule is applied — later rules override earlier ones for the properties they set.'
+        "Rules are evaluated from top to bottom; every matching rule is applied — later rules override earlier ones for the properties they set."
       : t?.formatDialog?.conditionalModeFirstDesc ||
-        'Rules are evaluated from top to bottom; the first matching rule is applied.';
+        "Rules are evaluated from top to bottom; the first matching rule is applied.";
 
   return (
-    <Stack gap={1.25} sx={{ pt: 1 }}>
-      <Stack gap={0.5}>
-        <Typography variant="caption" sx={{ fontWeight: 600, opacity: 0.75 }}>
-          {t?.formatDialog?.conditionalModeLabel || 'Evaluation mode'}
-        </Typography>
+    <Stack gap={3} sx={{ pt: 1.5 }}>
+      <Stack gap={0.75}>
+        <SectionLabel>
+          {t?.formatDialog?.conditionalModeLabel || "Evaluation mode"}
+        </SectionLabel>
         <Select
           size="small"
           value={effectiveMode}
@@ -1446,20 +1537,29 @@ const ConditionalTab = function ConditionalTab({
         >
           <MenuItem value="first">
             {t?.formatDialog?.conditionalModeFirst ||
-              'Stop at the first rule matched'}
+              "Stop at the first rule matched"}
           </MenuItem>
           <MenuItem value="all">
-            {t?.formatDialog?.conditionalModeAll || 'Evaluate all the rules'}
+            {t?.formatDialog?.conditionalModeAll || "Evaluate all the rules"}
           </MenuItem>
         </Select>
         <Typography variant="caption" sx={{ opacity: 0.7 }}>
           {modeDescription}
         </Typography>
       </Stack>
-      <Divider />
-      <Stack direction="row" alignItems="center">
+      <Divider
+        sx={{
+          marginTop: (theme) => theme.spacing(1),
+          marginBottom: (theme) => theme.spacing(1),
+        }}
+      />
+      <Stack
+        direction="row"
+        sx={{ marginBottom: (theme) => theme.spacing(1) }}
+        style={{ alignItems: "center" }}
+      >
         <Typography variant="caption" sx={{ opacity: 0.75, flex: 1 }}>
-          {t?.formatDialog?.rulesDesc || 'Drag to reorder rules.'}
+          {t?.formatDialog?.rulesDesc || "Drag to reorder rules."}
         </Typography>
         <Button
           size="small"
@@ -1467,21 +1567,22 @@ const ConditionalTab = function ConditionalTab({
           onClick={addRule}
           variant="outlined"
         >
-          {t?.formatDialog?.addRule || 'Add rule'}
+          {t?.formatDialog?.addRule || "Add rule"}
         </Button>
       </Stack>
       {rules.length === 0 && (
         <Box
           sx={(theme) => ({
             border: `1px dashed ${theme.palette.divider}`,
-            borderRadius: 2,
+            borderRadius: theme.borderRadius,
             p: 3,
-            textAlign: 'center',
+            textAlign: "center",
             color: theme.palette.text.secondary,
+            marginTop: theme.spacing(1),
           })}
         >
           <Typography variant="body2">
-            {t?.formatDialog?.noRules || 'No rules defined.'}
+            {t?.formatDialog?.noRules || "No rules defined."}
           </Typography>
         </Box>
       )}
@@ -1520,54 +1621,54 @@ ConditionalTab.propTypes = {
 
 const DEFAULTS = {
   values: {
-    fontFamily: 'inherit',
+    fontFamily: "inherit",
     fontSize: 13,
     fontWeight: 400,
     italic: false,
     textColor: null,
     backgroundColor: null,
-    textAlign: 'right',
-    thousandSeparator: 'System',
-    decimalSeparator: 'System',
-    numberOfDecimals: 'Default',
-    currencySymbol: 'None',
-    currencyOther: '',
-    currencyAlignment: 'Left',
-    nullValue: '',
+    textAlign: "right",
+    thousandSeparator: "System",
+    decimalSeparator: "System",
+    numberOfDecimals: "Default",
+    currencySymbol: "None",
+    currencyOther: "",
+    currencyAlignment: "Left",
+    nullValue: "",
     percentage: false,
   },
   headers: {
-    fontFamily: 'inherit',
+    fontFamily: "inherit",
     fontSize: 14,
     fontWeight: 700,
     italic: false,
     textColor: null,
     backgroundColor: null,
-    textAlign: 'left',
+    textAlign: "left",
   },
   grandTotals: {
-    fontFamily: 'inherit',
+    fontFamily: "inherit",
     fontSize: 13,
     fontWeight: 700,
     italic: false,
     textColor: null,
     backgroundColor: null,
-    textAlign: 'left',
+    textAlign: "left",
   },
   dimensions: {
-    fontFamily: 'inherit',
+    fontFamily: "inherit",
     fontSize: 13,
     fontWeight: 500,
     italic: false,
     textColor: null,
     backgroundColor: null,
-    textAlign: 'left',
+    textAlign: "left",
   },
   layout: {
-    totalsRowsPosition: 'before',
-    totalsColumnsPosition: 'before',
+    totalsRowsPosition: "before",
+    totalsColumnsPosition: "before",
     alternateRows: false,
-    density: 'Standard',
+    density: "Standard",
   },
 };
 
@@ -1578,22 +1679,22 @@ const FormatDialog = function FormatDialog({ open, onClose }) {
   const [values, setValues] = useState(() => engine.getFormat().values);
   const [headers, setHeaders] = useState(() => engine.getFormat().headers);
   const [grandTotals, setGrandTotals] = useState(
-    () => engine.getFormat().grandTotals || { ...DEFAULTS.grandTotals }
+    () => engine.getFormat().grandTotals || { ...DEFAULTS.grandTotals },
   );
   const [dimensions, setDimensions] = useState(
-    () => engine.getFormat().dimensions
+    () => engine.getFormat().dimensions,
   );
   const [layout, setLayout] = useState(
-    () => engine.getFormat().layout || { ...DEFAULTS.layout }
+    () => engine.getFormat().layout || { ...DEFAULTS.layout },
   );
   const [rules, setRules] = useState(() => engine.getFormat().conditional);
   const [conditionalMode, setConditionalMode] = useState(
-    () => engine.getFormat().conditionalMode || 'first'
+    () => engine.getFormat().conditionalMode || "first",
   );
   const [valuesByMeasure, setValuesByMeasure] = useState(
-    () => engine.getFormat().valuesByMeasure || {}
+    () => engine.getFormat().valuesByMeasure || {},
   );
-  const [valuesTarget, setValuesTarget] = useState('__default__');
+  const [valuesTarget, setValuesTarget] = useState("__default__");
 
   useEffect(() => {
     if (!open) return;
@@ -1604,13 +1705,13 @@ const FormatDialog = function FormatDialog({ open, onClose }) {
     setDimensions(current.dimensions);
     setLayout(current.layout || { ...DEFAULTS.layout });
     setRules(current.conditional);
-    setConditionalMode(current.conditionalMode || 'first');
+    setConditionalMode(current.conditionalMode || "first");
     setValuesByMeasure(current.valuesByMeasure || {});
-    setValuesTarget('__default__');
+    setValuesTarget("__default__");
   }, [open, engine]);
 
   const calcByName = new Map(
-    (engine.getCalculatedFields?.() || []).map((f) => [f.uniqueName, f])
+    (engine.getCalculatedFields?.() || []).map((f) => [f.uniqueName, f]),
   );
   // Build one measure option per slice entry so every dropdown exposes the
   // specific aggregation (e.g. "Call Answer Type (Sum)" and
@@ -1618,9 +1719,9 @@ const FormatDialog = function FormatDialog({ open, onClose }) {
   // the full measureKey (`uniqueName:aggregation`) so per-measure overrides
   // and conditional rules can target a single aggregation.
   const aggLabel = (a) => {
-    const wdrKey = { distinctcount: 'distinctCount', avg: 'average' }[a] || a;
+    const wdrKey = { distinctcount: "distinctCount", avg: "average" }[a] || a;
     const raw = t?.aggregations?.[a] ?? t?.aggregations?.[wdrKey];
-    if (raw && typeof raw === 'object') return raw.caption || a;
+    if (raw && typeof raw === "object") return raw.caption || a;
     return raw || a;
   };
   const measures = (engine.getSlice().measures || []).map((m) => ({
@@ -1643,7 +1744,7 @@ const FormatDialog = function FormatDialog({ open, onClose }) {
     const seen = new Set();
     const out = [];
     [...(slice.rows || []), ...(slice.columns || [])].forEach((f) => {
-      if (!f || f.uniqueName === 'Measures') return;
+      if (!f || f.uniqueName === "Measures") return;
       if (seen.has(f.uniqueName)) return;
       seen.add(f.uniqueName);
       out.push({
@@ -1677,18 +1778,18 @@ const FormatDialog = function FormatDialog({ open, onClose }) {
       dimensions: { ...DEFAULTS.dimensions },
       layout: { ...DEFAULTS.layout },
       conditional: [],
-      conditionalMode: 'first',
+      conditionalMode: "first",
     });
     onClose?.();
   };
 
   const activeValuesSection =
-    valuesTarget === '__default__'
+    valuesTarget === "__default__"
       ? values
       : { ...values, ...(valuesByMeasure[valuesTarget] || {}) };
 
   const setActiveValuesSection = (next) => {
-    if (valuesTarget === '__default__') {
+    if (valuesTarget === "__default__") {
       setValues(next);
     } else {
       setValuesByMeasure({ ...valuesByMeasure, [valuesTarget]: next });
@@ -1696,14 +1797,14 @@ const FormatDialog = function FormatDialog({ open, onClose }) {
   };
 
   const clearMeasureOverride = () => {
-    if (valuesTarget === '__default__') return;
+    if (valuesTarget === "__default__") return;
     const rest = { ...valuesByMeasure };
     delete rest[valuesTarget];
     setValuesByMeasure(rest);
   };
 
   const hasMeasureOverride =
-    valuesTarget !== '__default__' && !!valuesByMeasure[valuesTarget];
+    valuesTarget !== "__default__" && !!valuesByMeasure[valuesTarget];
 
   return (
     <Dialog
@@ -1713,15 +1814,19 @@ const FormatDialog = function FormatDialog({ open, onClose }) {
       maxWidth="md"
       container={portalContainer}
     >
-      <DialogTitle sx={{ pr: 6 }}>
-        {t?.toolbar?.format || 'Format'}
-        <Typography variant="caption" component="div" sx={{ opacity: 0.7 }}>
+      <DialogTitle sx={{ pr: 6, pt: 2.5, pb: 2 }}>
+        {t?.toolbar?.format || "Format"}
+        <Typography
+          variant="caption"
+          component="div"
+          sx={{ opacity: 0.7, mt: 0.5 }}
+        >
           {t?.formatDialog?.subtitle ||
-            'Customize cell display and conditional formatting rules.'}
+            "Customize cell display and conditional formatting rules."}
         </Typography>
         <IconButton
           onClick={onClose}
-          sx={{ position: 'absolute', top: 8, right: 8 }}
+          sx={{ position: "absolute", top: 12, right: 12 }}
         >
           <CloseIcon />
         </IconButton>
@@ -1729,26 +1834,34 @@ const FormatDialog = function FormatDialog({ open, onClose }) {
       <Tabs
         value={tab}
         onChange={(_, v) => setTab(v)}
+        variant="scrollable"
+        scrollButtons="auto"
         sx={(theme) => ({
           borderBottom: `1px solid ${theme.palette.divider}`,
-          px: 2,
+          px: 3,
+          "& .MuiTab-root": { textTransform: "none", minHeight: 44 },
         })}
       >
-        <Tab label={t?.formatDialog?.tabs?.headers || 'Headers'} />
-        <Tab label={t?.formatDialog?.tabs?.grandTotals || 'Grand totals'} />
-        <Tab label={t?.formatDialog?.tabs?.dimensions || 'Dimensions'} />
-        <Tab label={t?.formatDialog?.tabs?.layout || 'Layout'} />
-        <Tab label={t?.formatDialog?.tabs?.values || 'Values'} />
-        <Tab label={t?.formatDialog?.tabs?.conditional || 'Conditional'} />
+        <Tab label={t?.formatDialog?.tabs?.headers || "Headers"} />
+        <Tab label={t?.formatDialog?.tabs?.grandTotals || "Grand totals"} />
+        <Tab label={t?.formatDialog?.tabs?.dimensions || "Dimensions"} />
+        <Tab label={t?.formatDialog?.tabs?.layout || "Layout"} />
+        <Tab label={t?.formatDialog?.tabs?.values || "Values"} />
+        <Tab label={t?.formatDialog?.tabs?.conditional || "Conditional"} />
       </Tabs>
-      <DialogContent>
+      <DialogContent sx={{ px: 3, py: 3 }}>
         {tab === 0 && (
           <SectionEditor section={headers} setSection={setHeaders} />
         )}
         {tab === 1 && (
-          <Stack gap={2}>
+          <Stack gap={3}>
             <TotalsPositionEditor layout={layout} setLayout={setLayout} />
-            <Divider />
+            <Divider
+              sx={{
+                marginTop: (theme) => theme.spacing(1),
+                marginBottom: (theme) => theme.spacing(1),
+              }}
+            />
             <SectionEditor
               section={grandTotals}
               setSection={setGrandTotals}
@@ -1761,15 +1874,10 @@ const FormatDialog = function FormatDialog({ open, onClose }) {
         )}
         {tab === 3 && <LayoutTab layout={layout} setLayout={setLayout} />}
         {tab === 4 && (
-          <>
-            <Stack
-              direction="row"
-              spacing={1}
-              alignItems="center"
-              sx={{ pt: 1 }}
-            >
+          <Stack gap={3}>
+            <Stack direction="row" spacing={2} style={{ alignItems: "center" }}>
               <Typography variant="caption" sx={{ opacity: 0.75 }}>
-                {t?.formatDialog?.valuesTarget || 'Apply to'}
+                {t?.formatDialog?.valuesTarget || "Apply to"}
               </Typography>
               <Select
                 size="small"
@@ -1779,12 +1887,12 @@ const FormatDialog = function FormatDialog({ open, onClose }) {
               >
                 <MenuItem value="__default__">
                   <em>
-                    {t?.formatDialog?.valuesDefault || 'Default (all measures)'}
+                    {t?.formatDialog?.valuesDefault || "Default (all measures)"}
                   </em>
                 </MenuItem>
                 {measures.map((m) => (
                   <MenuItem key={m.measureKey} value={m.measureKey}>
-                    {valuesByMeasure[m.measureKey] ? '● ' : ''}
+                    {valuesByMeasure[m.measureKey] ? "● " : ""}
                     {m.caption || m.uniqueName}
                   </MenuItem>
                 ))}
@@ -1795,18 +1903,24 @@ const FormatDialog = function FormatDialog({ open, onClose }) {
                   color="inherit"
                   onClick={clearMeasureOverride}
                 >
-                  {t?.formatDialog?.clearOverride || 'Use default'}
+                  {t?.formatDialog?.clearOverride || "Use default"}
                 </Button>
               )}
             </Stack>
+            <Divider
+              sx={{
+                marginTop: (theme) => theme.spacing(1),
+                marginBottom: (theme) => theme.spacing(1),
+              }}
+            />
             <SectionEditor
               key={valuesTarget}
               section={activeValuesSection}
               setSection={setActiveValuesSection}
               showNumberFormat
             />
-          </>
-        )}{' '}
+          </Stack>
+        )}{" "}
         {tab === 5 && (
           <ConditionalTab
             rules={rules}
@@ -1818,14 +1932,14 @@ const FormatDialog = function FormatDialog({ open, onClose }) {
           />
         )}
       </DialogContent>
-      <DialogActions style={{ padding: 16 }}>
+      <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
         <Button onClick={handleReset} color="inherit">
-          {t?.buttons?.reset || 'Reset'}
+          {t?.buttons?.reset || "Reset"}
         </Button>
         <Box sx={{ flex: 1 }} />
-        <Button onClick={onClose}>{t?.buttons?.cancel || 'Cancel'}</Button>
+        <Button onClick={onClose}>{t?.buttons?.cancel || "Cancel"}</Button>
         <Button onClick={handleApply} variant="contained">
-          {t?.buttons?.apply || 'Apply'}
+          {t?.buttons?.apply || "Apply"}
         </Button>
       </DialogActions>
     </Dialog>
