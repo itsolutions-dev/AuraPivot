@@ -40,6 +40,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import TuneIcon from "@mui/icons-material/Tune";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { usePivot } from "../../context/PivotContext";
 import { usePortalContainer } from "../../hooks/usePortalContainer";
 import CalculatedFieldDialog from "../CalculatedFieldDialog/CalculatedFieldDialog";
@@ -1196,12 +1197,37 @@ const FieldList = function FieldList({ open, onClose }) {
         <DialogContent dividers>
           <Box sx={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 2 }}>
             <Box style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <Typography
-                variant="caption"
-                sx={{ fontWeight: 600, opacity: 0.75 }}
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  flexWrap: "wrap",
+                }}
               >
-                {t?.fieldsList?.allFields || "All fields"}
-              </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{ fontWeight: 600, opacity: 0.75 }}
+                >
+                  {t?.fieldsList?.allFields || "All fields"}
+                </Typography>
+                <Tooltip
+                  arrow
+                  placement="top"
+                  title={
+                    t?.fieldsList?.drillThroughOrderHint ||
+                    "Tick a field to include it in the drill-through table. Drag rows to reorder — the order here is the column order in the drill-through."
+                  }
+                >
+                  <InfoOutlinedIcon
+                    sx={(theme) => ({
+                      fontSize: theme.typography.caption.fontSize,
+                      opacity: 0.65,
+                      cursor: "help",
+                    })}
+                  />
+                </Tooltip>
+              </Box>
               <Box
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -1727,7 +1753,7 @@ const FieldList = function FieldList({ open, onClose }) {
               </Box>
 
               <Button
-                size="small"
+                size="large"
                 startIcon={<CalculateIcon />}
                 onClick={() => setCalcDialog({ open: true, editField: null })}
                 sx={{ mt: 1, width: "100%", justifyContent: "flex-start" }}

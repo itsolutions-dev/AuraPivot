@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 import PropTypes from "prop-types";
-import { Box, Snackbar, Alert, ThemeProvider } from "@mui/material";
+import { Box, Snackbar, Alert, ThemeProvider, Typography } from "@mui/material";
 import PivotEngine from "./pivot-core";
 import { PivotProvider } from "./context/PivotContext";
 import PivotToolbar from "./components/Toolbar/PivotToolbar";
@@ -65,7 +65,16 @@ const Pivot = forwardRef(function Pivot(props, ref) {
   const [snack, setSnack] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [optsTick, setOptsTick] = useState(0);
+  const [layoutFormat, setLayoutFormat] = useState(
+    () => engine.getFormat()?.layout || {},
+  );
   const rootRef = useRef(null);
+
+  useEffect(() => {
+    const onFormat = () => setLayoutFormat(engine.getFormat()?.layout || {});
+    engine.on("formatChange", onFormat);
+    return () => engine.off("formatChange", onFormat);
+  }, [engine]);
 
   const handleToggleFullscreen = () => {
     const el = rootRef.current;
@@ -234,6 +243,21 @@ const Pivot = forwardRef(function Pivot(props, ref) {
           border: `1px solid ${theme.palette.divider}`,
         })}
       >
+        {layoutFormat?.title ? (
+          <Typography
+            variant="h6"
+            sx={(theme) => ({
+              px: 2,
+              pt: 1.5,
+              pb: 1,
+              fontWeight: 600,
+              color: theme.palette.text.primary,
+              borderBottom: `1px solid ${theme.palette.divider}`,
+            })}
+          >
+            {layoutFormat.title}
+          </Typography>
+        ) : null}
         {toolbar && (
           <PivotToolbar
             beforeToolbarCreated={beforeToolbarCreated}
@@ -248,6 +272,20 @@ const Pivot = forwardRef(function Pivot(props, ref) {
         <Box sx={{ flex: 1, minHeight: 0 }}>
           <PivotTable />
         </Box>
+        {layoutFormat?.note ? (
+          <Typography
+            variant="caption"
+            sx={(theme) => ({
+              px: 2,
+              py: 1,
+              whiteSpace: "pre-wrap",
+              color: theme.palette.text.secondary,
+              borderTop: `1px solid ${theme.palette.divider}`,
+            })}
+          >
+            {layoutFormat.note}
+          </Typography>
+        ) : null}
         <FieldList open={fieldsOpen} onClose={() => setFieldsOpen(false)} />
         <FormatDialog open={formatOpen} onClose={() => setFormatOpen(false)} />
       </Box>

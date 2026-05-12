@@ -206,7 +206,7 @@ const SectionLabel = function SectionLabel({ children }) {
         opacity: 0.75,
         letterSpacing: 0.5,
         textTransform: "uppercase",
-        my: 1.5,
+        my: 1.0,
       })}
     >
       {children}
@@ -402,13 +402,6 @@ const SectionEditor = function SectionEditor({
                 ))}
               </Select>
             </Stack>
-          </Stack>
-
-          <Stack
-            direction="row"
-            spacing={1.5}
-            style={{ alignItems: "flex-end" }}
-          >
             <Stack gap={0.5} sx={{ flex: 1 }}>
               <Typography variant="caption" sx={{ opacity: 0.75 }}>
                 {t?.formatDialog?.currencySymbol || "Currency symbol"}
@@ -432,16 +425,33 @@ const SectionEditor = function SectionEditor({
                 </MenuItem>
               </Select>
             </Stack>
-            {section.currencySymbol === "Other" && (
-              <TextField
-                size="small"
-                label={t?.formatDialog?.currencyOther || "Symbol"}
-                value={section.currencyOther || ""}
-                onChange={(e) => patch({ currencyOther: e.target.value })}
-                sx={{ flex: 1 }}
-              />
-            )}
-            {section.currencySymbol && section.currencySymbol !== "None" && (
+            <FormControlLabel
+              sx={{ alignSelf: "flex-end", flex: 1, ml: 0 }}
+              control={
+                <Checkbox
+                  checked={!!section.percentage}
+                  onChange={(e) => patch({ percentage: e.target.checked })}
+                />
+              }
+              label={t?.formatDialog?.percentage || "Format as percentage"}
+            />
+          </Stack>
+
+          {section.currencySymbol && section.currencySymbol !== "None" && (
+            <Stack
+              direction="row"
+              spacing={1.5}
+              style={{ alignItems: "flex-end" }}
+            >
+              {section.currencySymbol === "Other" && (
+                <TextField
+                  size="small"
+                  label={t?.formatDialog?.currencyOther || "Symbol"}
+                  value={section.currencyOther || ""}
+                  onChange={(e) => patch({ currencyOther: e.target.value })}
+                  sx={{ flex: 1 }}
+                />
+              )}
               <Stack gap={0.5} sx={{ flex: 1 }}>
                 <Typography variant="caption" sx={{ opacity: 0.75 }}>
                   {t?.formatDialog?.currencyAlignment || "Currency alignment"}
@@ -460,31 +470,27 @@ const SectionEditor = function SectionEditor({
                   </ToggleButton>
                 </ToggleButtonGroup>
               </Stack>
-            )}
-          </Stack>
+            </Stack>
+          )}
 
-          <Stack direction="row" spacing={1.5} style={{ alignItems: "center" }}>
+          <Stack
+            direction="row"
+            spacing={1.5}
+            sx={(theme) => ({
+              alignItems: "center",
+              marginTop: theme.spacing(2),
+            })}
+          >
             <Stack gap={0.5}>
               <Typography variant="caption" sx={{ opacity: 0.75 }}>
-                {t?.formatDialog?.numberOfDecimals || "Number of decimals"}
+                {t?.formatDialog?.nullValue || "Null Value"}
               </Typography>
               <TextField
                 size="small"
-                label={t?.formatDialog?.nullValue || "Null Value"}
                 value={section.nullValue ?? ""}
                 onChange={(e) => patch({ nullValue: e.target.value })}
               />
             </Stack>
-            <FormControlLabel
-              style={{ alignSelf: "self-end" }}
-              control={
-                <Checkbox
-                  checked={!!section.percentage}
-                  onChange={(e) => patch({ percentage: e.target.checked })}
-                />
-              }
-              label={t?.formatDialog?.percentage || "Format as percentage"}
-            />
           </Stack>
         </>
       )}
@@ -508,10 +514,13 @@ const TotalsPositionEditor = function TotalsPositionEditor({
   return (
     <Stack gap={3} sx={{ pt: 1.5 }}>
       <Stack gap={0.5}>
-        <Typography variant="caption" sx={{ fontWeight: 600, opacity: 0.75 }}>
+        <SectionLabel>
           {t?.formatDialog?.totalsPosition || "TOTALS POSITION"}
-        </Typography>
-        <Typography variant="caption" sx={{ opacity: 0.7 }}>
+        </SectionLabel>
+        <Typography
+          variant="caption"
+          sx={(theme) => ({ opacity: 0.7, marginBottom: theme.spacing(2) })}
+        >
           {t?.formatDialog?.totalsPositionDesc ||
             "Defines whether subtotals and the grand total are displayed before or after the data they aggregate."}
         </Typography>
@@ -587,6 +596,26 @@ const LayoutTab = function LayoutTab({ layout, setLayout }) {
   return (
     <Stack gap={3} sx={{ pt: 1.5 }}>
       <Stack gap={0.5}>
+        <SectionLabel>{t?.formatDialog?.title || "TITLE"}</SectionLabel>
+        <Typography variant="caption" sx={{ opacity: 0.7 }}>
+          {t?.formatDialog?.titleDesc ||
+            "Shown above the toolbar. Leave empty to hide."}
+        </Typography>
+        <TextField
+          size="small"
+          value={layout.title ?? ""}
+          onChange={(e) => patch({ title: e.target.value })}
+          placeholder={t?.formatDialog?.titlePlaceholder || "Report title"}
+          sx={{ mt: 1 }}
+        />
+      </Stack>
+      <Divider
+        sx={{
+          marginTop: (theme) => theme.spacing(2),
+          marginBottom: (theme) => theme.spacing(1),
+        }}
+      />
+      <Stack gap={0.5}>
         <SectionLabel>{t?.formatDialog?.density || "DENSITY"}</SectionLabel>
         <Typography variant="caption" sx={{ opacity: 0.7 }}>
           {t?.formatDialog?.densityDesc ||
@@ -597,7 +626,10 @@ const LayoutTab = function LayoutTab({ layout, setLayout }) {
           exclusive
           value={layout.density || "Standard"}
           onChange={(_, v) => v && patch({ density: v })}
-          sx={{ alignSelf: "flex-start" }}
+          sx={(theme) => ({
+            alignSelf: "flex-start",
+            marginTop: theme.spacing(2),
+          })}
         >
           <ToggleButton value="Compact" sx={{ textTransform: "none" }}>
             {t?.formatDialog?.densityCompact || "Compact"}
@@ -612,7 +644,7 @@ const LayoutTab = function LayoutTab({ layout, setLayout }) {
       </Stack>
       <Divider
         sx={{
-          marginTop: (theme) => theme.spacing(1),
+          marginTop: (theme) => theme.spacing(2),
           marginBottom: (theme) => theme.spacing(1),
         }}
       />
@@ -631,6 +663,29 @@ const LayoutTab = function LayoutTab({ layout, setLayout }) {
             t?.formatDialog?.alternateRows ||
             "Alternate rows (zebra stripes for easier reading)"
           }
+        />
+      </Stack>
+      <Divider
+        sx={{
+          marginTop: (theme) => theme.spacing(2),
+          marginBottom: (theme) => theme.spacing(1),
+        }}
+      />
+      <Stack gap={0.5}>
+        <SectionLabel>{t?.formatDialog?.note || "NOTE"}</SectionLabel>
+        <Typography variant="caption" sx={{ opacity: 0.7 }}>
+          {t?.formatDialog?.noteDesc ||
+            "Shown below the grid. Leave empty to hide."}
+        </Typography>
+        <TextField
+          size="small"
+          value={layout.note ?? ""}
+          onChange={(e) => patch({ note: e.target.value })}
+          placeholder={t?.formatDialog?.notePlaceholder || "Add a note…"}
+          multiline
+          minRows={2}
+          maxRows={6}
+          sx={{ mt: 1 }}
         />
       </Stack>
     </Stack>
@@ -1404,7 +1459,7 @@ const RuleEditor = function RuleEditor({
         <Stack direction="row" sx={{ mt: 2 }}>
           <Box sx={{ flex: 1 }} />
           <Box
-            sx={{
+            sx={(theme) => ({
               px: 1.5,
               py: 0.5,
               borderRadius: 1,
@@ -1417,7 +1472,7 @@ const RuleEditor = function RuleEditor({
               color: rule.style?.textColor || "inherit",
               backgroundColor: rule.style?.backgroundColor || "transparent",
               fontVariantNumeric: "tabular-nums",
-            }}
+            })}
           >
             {t?.formatDialog?.preview || "preview"}
           </Box>
@@ -1671,6 +1726,8 @@ const DEFAULTS = {
     totalsColumnsPosition: "before",
     alternateRows: false,
     density: "Standard",
+    title: "",
+    note: "",
   },
 };
 
@@ -1844,38 +1901,22 @@ const FormatDialog = function FormatDialog({ open, onClose }) {
           "& .MuiTab-root": { textTransform: "none", minHeight: 44 },
         })}
       >
-        <Tab label={t?.formatDialog?.tabs?.headers || "Headers"} />
-        <Tab label={t?.formatDialog?.tabs?.grandTotals || "Grand totals"} />
-        <Tab label={t?.formatDialog?.tabs?.dimensions || "Dimensions"} />
         <Tab label={t?.formatDialog?.tabs?.layout || "Layout"} />
+        <Tab label={t?.formatDialog?.tabs?.headers || "Headers"} />
+        <Tab label={t?.formatDialog?.tabs?.dimensions || "Dimensions"} />
         <Tab label={t?.formatDialog?.tabs?.values || "Values"} />
         <Tab label={t?.formatDialog?.tabs?.conditional || "Conditional"} />
+        <Tab label={t?.formatDialog?.tabs?.grandTotals || "Grand totals"} />
       </Tabs>
       <DialogContent sx={{ px: 3, py: 3 }}>
-        {tab === 0 && (
-          <SectionEditor section={headers} setSection={setHeaders} />
-        )}
+        {tab === 0 && <LayoutTab layout={layout} setLayout={setLayout} />}
         {tab === 1 && (
-          <Stack gap={3}>
-            <TotalsPositionEditor layout={layout} setLayout={setLayout} />
-            <Divider
-              sx={{
-                marginTop: (theme) => theme.spacing(1),
-                marginBottom: (theme) => theme.spacing(1),
-              }}
-            />
-            <SectionEditor
-              section={grandTotals}
-              setSection={setGrandTotals}
-              showAlignment={false}
-            />
-          </Stack>
+          <SectionEditor section={headers} setSection={setHeaders} />
         )}
         {tab === 2 && (
           <SectionEditor section={dimensions} setSection={setDimensions} />
         )}
-        {tab === 3 && <LayoutTab layout={layout} setLayout={setLayout} />}
-        {tab === 4 && (
+        {tab === 3 && (
           <Stack gap={3}>
             <Stack direction="row" spacing={2} style={{ alignItems: "center" }}>
               <Typography variant="caption" sx={{ opacity: 0.75 }}>
@@ -1922,8 +1963,8 @@ const FormatDialog = function FormatDialog({ open, onClose }) {
               showNumberFormat
             />
           </Stack>
-        )}{" "}
-        {tab === 5 && (
+        )}
+        {tab === 4 && (
           <ConditionalTab
             rules={rules}
             setRules={setRules}
@@ -1932,6 +1973,22 @@ const FormatDialog = function FormatDialog({ open, onClose }) {
             mode={conditionalMode}
             setMode={setConditionalMode}
           />
+        )}
+        {tab === 5 && (
+          <Stack gap={3}>
+            <TotalsPositionEditor layout={layout} setLayout={setLayout} />
+            <Divider
+              sx={{
+                marginTop: (theme) => theme.spacing(1),
+                marginBottom: (theme) => theme.spacing(1),
+              }}
+            />
+            <SectionEditor
+              section={grandTotals}
+              setSection={setGrandTotals}
+              showAlignment={false}
+            />
+          </Stack>
         )}
       </DialogContent>
       <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
