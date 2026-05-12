@@ -1,5 +1,5 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import PropTypes from 'prop-types';
+import React, { useMemo, useState, useEffect } from "react";
+import PropTypes from "prop-types";
 import {
   Box,
   Dialog,
@@ -19,13 +19,13 @@ import {
   Stack,
   Divider,
   alpha,
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import SearchIcon from '@mui/icons-material/Search';
-import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
-import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
-import { usePivot } from '../../context/PivotContext';
-import { usePortalContainer } from '../../hooks/usePortalContainer';
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import SearchIcon from "@mui/icons-material/Search";
+import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
+import InboxOutlinedIcon from "@mui/icons-material/InboxOutlined";
+import { usePivot } from "../../context/PivotContext";
+import { usePortalContainer } from "../../hooks/usePortalContainer";
 
 /**
  * Drill-through popup. Opens when the user clicks a non-null value cell and
@@ -47,19 +47,19 @@ const DrillThroughDialog = function DrillThroughDialog({
 }) {
   const { engine, localization: t, locale } = usePivot();
   const portalContainer = usePortalContainer();
-  const [filterText, setFilterText] = useState('');
+  const [filterText, setFilterText] = useState("");
   const [sortBy, setSortBy] = useState(null);
-  const [sortDir, setSortDir] = useState('asc');
+  const [sortDir, setSortDir] = useState("asc");
   const [drillConfig, setDrillConfig] = useState(() =>
-    engine.getDrillThroughConfig()
+    engine.getDrillThroughConfig(),
   );
   const [fieldOrder, setFieldOrder] = useState(() => engine.getFieldOrder());
 
   useEffect(() => {
     if (open) {
-      setFilterText('');
+      setFilterText("");
       setSortBy(null);
-      setSortDir('asc');
+      setSortDir("asc");
     }
   }, [open]);
 
@@ -70,8 +70,8 @@ const DrillThroughDialog = function DrillThroughDialog({
       setFieldOrder(engine.getFieldOrder());
     };
     sync();
-    engine.on('dataChange', sync);
-    return () => engine.off('dataChange', sync);
+    engine.on("dataChange", sync);
+    return () => engine.off("dataChange", sync);
   }, [engine, open]);
 
   const columns = useMemo(() => {
@@ -82,7 +82,7 @@ const DrillThroughDialog = function DrillThroughDialog({
       return v === undefined ? true : !!v;
     };
     const base = Object.entries(meta)
-      .filter(([uniqueName]) => !uniqueName.includes('.'))
+      .filter(([uniqueName]) => !uniqueName.includes("."))
       .filter(([uniqueName]) => isOn(uniqueName))
       .map(([uniqueName, m]) => ({
         uniqueName,
@@ -105,12 +105,12 @@ const DrillThroughDialog = function DrillThroughDialog({
   const FROZEN_COL_WIDTH = 160;
   const frozenCount = Math.max(
     0,
-    Math.min(drillConfig?.frozenCount || 0, columns.length)
+    Math.min(drillConfig?.frozenCount || 0, columns.length),
   );
   const frozenStyles = (ci, isHead) => {
     if (ci >= frozenCount) return null;
     return {
-      position: 'sticky',
+      position: "sticky",
       left: ci * FROZEN_COL_WIDTH,
       // Header frozen cells sit at the top-left intersection, so they need
       // a higher z-index than both the column-only sticky body cells and
@@ -122,11 +122,11 @@ const DrillThroughDialog = function DrillThroughDialog({
   };
 
   const formatValue = (value, type) => {
-    if (value === null || value === undefined || value === '') return '—';
-    if (type === 'number' && Number.isFinite(Number(value))) {
+    if (value === null || value === undefined || value === "") return "—";
+    if (type === "number" && Number.isFinite(Number(value))) {
       return new Intl.NumberFormat(locale || undefined).format(Number(value));
     }
-    if (type === 'date' || type === 'time') {
+    if (type === "date" || type === "time") {
       const d = new Date(value);
       if (!Number.isNaN(d.getTime())) {
         return d.toLocaleString(locale || undefined);
@@ -137,10 +137,10 @@ const DrillThroughDialog = function DrillThroughDialog({
 
   const handleSort = (uniqueName) => {
     if (sortBy === uniqueName) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
       setSortBy(uniqueName);
-      setSortDir('asc');
+      setSortDir("asc");
     }
   };
 
@@ -152,25 +152,25 @@ const DrillThroughDialog = function DrillThroughDialog({
       result = rows.filter((row) =>
         columns.some((c) => {
           const formatted = formatValue(row?.[c.uniqueName], c.type);
-          return formatted !== '—' && formatted.toLowerCase().includes(needle);
-        })
+          return formatted !== "—" && formatted.toLowerCase().includes(needle);
+        }),
       );
     }
     if (sortBy) {
       const col = columns.find((c) => c.uniqueName === sortBy);
-      const dir = sortDir === 'asc' ? 1 : -1;
+      const dir = sortDir === "asc" ? 1 : -1;
       result = [...result].sort((a, b) => {
         const va = a?.[sortBy];
         const vb = b?.[sortBy];
-        const aEmpty = va === null || va === undefined || va === '';
-        const bEmpty = vb === null || vb === undefined || vb === '';
+        const aEmpty = va === null || va === undefined || va === "";
+        const bEmpty = vb === null || vb === undefined || vb === "";
         if (aEmpty && bEmpty) return 0;
         if (aEmpty) return 1;
         if (bEmpty) return -1;
-        if (col?.type === 'number') {
+        if (col?.type === "number") {
           return (Number(va) - Number(vb)) * dir;
         }
-        if (col?.type === 'date' || col?.type === 'time') {
+        if (col?.type === "date" || col?.type === "time") {
           return (new Date(va).getTime() - new Date(vb).getTime()) * dir;
         }
         return (
@@ -183,11 +183,11 @@ const DrillThroughDialog = function DrillThroughDialog({
     return result;
   }, [rows, columns, filterText, sortBy, sortDir, locale]);
 
-  const titleText = title || t?.drillThrough?.title || 'Detail data';
+  const titleText = title || t?.drillThrough?.title || "Detail data";
   const recordsLabel =
     displayedRows.length === 1
-      ? t?.drillThrough?.record || 'record'
-      : t?.drillThrough?.recordsFound || 'records';
+      ? t?.drillThrough?.record || "record"
+      : t?.drillThrough?.recordsFound || "records";
   const isFiltered = filterText && rows?.length;
   const hasRows = rows && rows.length > 0;
 
@@ -200,14 +200,14 @@ const DrillThroughDialog = function DrillThroughDialog({
       container={portalContainer}
       PaperProps={{
         sx: (theme) => ({
-          overflow: 'hidden',
+          overflow: "hidden",
           borderRadius: 3,
           border: `1px solid ${alpha(theme.palette.divider, 0.7)}`,
           background: theme.palette.background.paper,
           boxShadow:
-            theme.palette.mode === 'dark'
-              ? '0 30px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04)'
-              : '0 30px 80px rgba(15,23,42,0.18), 0 0 0 1px rgba(15,23,42,0.04)',
+            theme.palette.mode === "dark"
+              ? "0 30px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04)"
+              : "0 30px 80px rgba(15,23,42,0.18), 0 0 0 1px rgba(15,23,42,0.04)",
           fontFamily: theme.font?.primary || theme.typography.fontFamily,
         }),
       }}
@@ -219,34 +219,34 @@ const DrillThroughDialog = function DrillThroughDialog({
           const accent2 =
             theme.palette.secondary?.main || theme.palette.primary.dark;
           return {
-            position: 'relative',
+            position: "relative",
             px: { xs: 2.5, sm: 3.5 },
             pt: 2.75,
             pb: 2.25,
             borderBottom: `1px solid ${theme.palette.divider}`,
             background:
-              theme.palette.mode === 'dark'
+              theme.palette.mode === "dark"
                 ? `linear-gradient(135deg, ${alpha(accent, 0.14)} 0%, ${alpha(
                     accent2,
-                    0.06
+                    0.06,
                   )} 60%, transparent 100%)`
                 : `linear-gradient(135deg, ${alpha(accent, 0.08)} 0%, ${alpha(
                     accent2,
-                    0.04
+                    0.04,
                   )} 60%, transparent 100%)`,
-            overflow: 'hidden',
-            '&::before': {
+            overflow: "hidden",
+            "&::before": {
               content: '""',
-              position: 'absolute',
+              position: "absolute",
               inset: 0,
               backgroundImage: `radial-gradient(circle at 0% 0%, ${alpha(
                 accent,
-                0.18
+                0.18,
               )} 0, transparent 38%), radial-gradient(circle at 95% 0%, ${alpha(
                 accent2,
-                0.12
+                0.12,
               )} 0, transparent 40%)`,
-              pointerEvents: 'none',
+              pointerEvents: "none",
             },
           };
         }}
@@ -256,7 +256,7 @@ const DrillThroughDialog = function DrillThroughDialog({
           alignItems="flex-start"
           justifyContent="space-between"
           spacing={2}
-          sx={{ position: 'relative' }}
+          sx={{ position: "relative" }}
         >
           <Box sx={{ minWidth: 0, flex: 1 }}>
             <Stack
@@ -265,10 +265,10 @@ const DrillThroughDialog = function DrillThroughDialog({
               spacing={1}
               sx={(theme) => ({
                 color: theme.palette.text.secondary,
-                fontSize: 10,
-                letterSpacing: '0.18em',
-                textTransform: 'uppercase',
-                fontWeight: 600,
+                fontSize: theme.typography.caption.fontSize,
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                fontWeight: theme.typography.caption.fontWeight,
                 mb: 0.5,
               })}
             >
@@ -277,20 +277,20 @@ const DrillThroughDialog = function DrillThroughDialog({
                 sx={(theme) => ({
                   width: 6,
                   height: 6,
-                  borderRadius: '50%',
+                  borderRadius: "50%",
                   background: theme.palette.primary.main,
                   boxShadow: (th) =>
                     `0 0 0 4px ${alpha(th.palette.primary.main, 0.18)}`,
                 })}
               />
-              <span>{t?.drillThrough?.eyebrow || 'Drill-through'}</span>
+              <span>{t?.drillThrough?.eyebrow || "Drill-through"}</span>
             </Stack>
             <Typography
               component="h2"
               sx={(theme) => ({
-                fontSize: { xs: 18, sm: 22 },
-                fontWeight: 700,
-                letterSpacing: '-0.015em',
+                fontSize: theme.typography.h2.fontSize,
+                fontWeight: theme.typography.h2.fontWeight,
+                letterSpacing: "-0.015em",
                 lineHeight: 1.2,
                 color: theme.palette.text.primary,
                 fontFamily:
@@ -316,7 +316,7 @@ const DrillThroughDialog = function DrillThroughDialog({
               sx={{ mt: 1.5 }}
             >
               <Metric
-                label={t?.drillThrough?.records || 'records'}
+                label={t?.drillThrough?.records || "records"}
                 value={displayedRows.length.toLocaleString(locale || undefined)}
                 hint={
                   isFiltered
@@ -325,12 +325,12 @@ const DrillThroughDialog = function DrillThroughDialog({
                 }
               />
               <Metric
-                label={t?.drillThrough?.columns || 'columns'}
+                label={t?.drillThrough?.columns || "columns"}
                 value={columns.length}
               />
               {isFiltered ? (
                 <Metric
-                  label={t?.drillThrough?.filtered || 'filtered'}
+                  label={t?.drillThrough?.filtered || "filtered"}
                   value="•"
                   accent
                 />
@@ -352,7 +352,7 @@ const DrillThroughDialog = function DrillThroughDialog({
                         component="span"
                         sx={(theme) => ({
                           color: alpha(theme.palette.text.primary, 0.35),
-                          fontSize: 12,
+                          fontSize: theme.typography.caption.fontSize,
                           lineHeight: 1,
                         })}
                       >
@@ -366,17 +366,17 @@ const DrillThroughDialog = function DrillThroughDialog({
                         borderRadius: 999,
                         backgroundColor: alpha(
                           theme.palette.primary.main,
-                          theme.palette.mode === 'dark' ? 0.16 : 0.08
+                          theme.palette.mode === "dark" ? 0.16 : 0.08,
                         ),
                         color: theme.palette.text.primary,
                         border: `1px solid ${alpha(
                           theme.palette.primary.main,
-                          0.22
+                          0.22,
                         )}`,
-                        '& .MuiChip-label': {
+                        "& .MuiChip-label": {
                           px: 1,
                           fontSize: 11.5,
-                          fontWeight: 500,
+                          fontWeight: theme.typography.subtitle2.fontWeight,
                         },
                       })}
                       label={
@@ -391,16 +391,19 @@ const DrillThroughDialog = function DrillThroughDialog({
                               component="span"
                               sx={(theme) => ({
                                 color: alpha(theme.palette.text.primary, 0.55),
-                                fontSize: 10.5,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.06em',
+                                fontSize: theme.typography.overline.fontSize,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.06em",
                               })}
                             >
                               {b.field}
                             </Box>
                             <Box
                               component="span"
-                              sx={{ fontWeight: 600, fontSize: 12 }}
+                              sx={(theme) => ({
+                                fontWeight: theme.typography.caption.fontWeight,
+                                fontSize: theme.typography.caption.fontSize,
+                              })}
                             >
                               {b.value}
                             </Box>
@@ -408,7 +411,10 @@ const DrillThroughDialog = function DrillThroughDialog({
                         ) : (
                           <Box
                             component="span"
-                            sx={{ fontWeight: 600, fontSize: 12 }}
+                            sx={(theme) => ({
+                              fontWeight: theme.typography.caption.fontWeight,
+                              fontSize: theme.typography.caption.fontSize,
+                            })}
                           >
                             {b.value}
                           </Box>
@@ -424,7 +430,7 @@ const DrillThroughDialog = function DrillThroughDialog({
           <IconButton
             onClick={onClose}
             size="small"
-            aria-label={t?.drillThrough?.close || 'Close'}
+            aria-label={t?.drillThrough?.close || "Close"}
             sx={(theme) => ({
               flexShrink: 0,
               width: 34,
@@ -432,11 +438,11 @@ const DrillThroughDialog = function DrillThroughDialog({
               borderRadius: 2,
               border: `1px solid ${theme.palette.divider}`,
               background: alpha(theme.palette.background.default, 0.6),
-              backdropFilter: 'blur(8px)',
-              transition: 'transform 140ms ease, background 140ms ease',
-              '&:hover': {
+              backdropFilter: "blur(8px)",
+              transition: "transform 140ms ease, background 140ms ease",
+              "&:hover": {
                 background: theme.palette.action.hover,
-                transform: 'rotate(90deg)',
+                transform: "rotate(90deg)",
               },
             })}
           >
@@ -449,8 +455,8 @@ const DrillThroughDialog = function DrillThroughDialog({
       <DialogContent
         sx={{
           p: 0,
-          display: 'flex',
-          flexDirection: 'column',
+          display: "flex",
+          flexDirection: "column",
           gap: 0,
         }}
       >
@@ -469,7 +475,7 @@ const DrillThroughDialog = function DrillThroughDialog({
               <TextField
                 size="small"
                 fullWidth
-                placeholder={t?.drillThrough?.filter || 'Filter records…'}
+                placeholder={t?.drillThrough?.filter || "Filter records…"}
                 value={filterText}
                 onChange={(e) => setFilterText(e.target.value)}
                 InputProps={{
@@ -482,17 +488,23 @@ const DrillThroughDialog = function DrillThroughDialog({
                     <InputAdornment position="end">
                       <Chip
                         size="small"
-                        icon={<FilterAltOutlinedIcon sx={{ fontSize: 13 }} />}
+                        icon={
+                          <FilterAltOutlinedIcon
+                            sx={(theme) => ({
+                              fontSize: theme.typography.fontSize,
+                            })}
+                          />
+                        }
                         label={`${displayedRows.length.toLocaleString(
-                          locale || undefined
+                          locale || undefined,
                         )} / ${rows.length.toLocaleString(locale || undefined)}`}
                         sx={(theme) => ({
                           height: 22,
-                          fontSize: 11,
+                          fontSize: theme.typography.caption.fontSize,
                           background: alpha(theme.palette.primary.main, 0.12),
                           color: theme.palette.primary.main,
-                          border: 'none',
-                          '& .MuiChip-icon': {
+                          border: "none",
+                          "& .MuiChip-icon": {
                             color: theme.palette.primary.main,
                             ml: 0.5,
                           },
@@ -503,18 +515,18 @@ const DrillThroughDialog = function DrillThroughDialog({
                   sx: (theme) => ({
                     borderRadius: 2,
                     background: theme.palette.background.paper,
-                    fontSize: 13,
-                    '& fieldset': {
+                    fontSize: theme.typography.fontSize,
+                    "& fieldset": {
                       borderColor: theme.palette.divider,
                     },
-                    '&:hover fieldset': {
+                    "&:hover fieldset": {
                       borderColor: alpha(theme.palette.primary.main, 0.4),
                     },
-                    '&.Mui-focused fieldset': {
+                    "&.Mui-focused fieldset": {
                       borderColor: theme.palette.primary.main,
                       boxShadow: `0 0 0 4px ${alpha(
                         theme.palette.primary.main,
-                        0.12
+                        0.12,
                       )}`,
                     },
                   }),
@@ -524,15 +536,15 @@ const DrillThroughDialog = function DrillThroughDialog({
 
             <TableContainer
               sx={(theme) => ({
-                maxHeight: '65vh',
+                maxHeight: "65vh",
                 background: theme.palette.background.paper,
-                '&::-webkit-scrollbar': { width: 10, height: 10 },
-                '&::-webkit-scrollbar-thumb': {
+                "&::-webkit-scrollbar": { width: 10, height: 10 },
+                "&::-webkit-scrollbar-thumb": {
                   background: alpha(theme.palette.text.primary, 0.18),
                   borderRadius: 8,
                   border: `2px solid ${theme.palette.background.paper}`,
                 },
-                '&::-webkit-scrollbar-thumb:hover': {
+                "&::-webkit-scrollbar-thumb:hover": {
                   background: alpha(theme.palette.text.primary, 0.32),
                 },
               })}
@@ -547,22 +559,22 @@ const DrillThroughDialog = function DrillThroughDialog({
                           sortBy === c.uniqueName ? sortDir : false
                         }
                         sx={(theme) => ({
-                          fontWeight: 600,
-                          whiteSpace: 'nowrap',
-                          fontSize: 10.5,
-                          letterSpacing: '0.08em',
-                          textTransform: 'uppercase',
+                          fontWeight: theme.typography.overline.fontWeight,
+                          whiteSpace: "nowrap",
+                          fontSize: theme.typography.overline.fontSize,
+                          letterSpacing: "0.08em",
+                          textTransform: "uppercase",
                           color: theme.palette.text.secondary,
                           background:
-                            theme.palette.mode === 'dark'
+                            theme.palette.mode === "dark"
                               ? alpha(theme.palette.background.default, 0.92)
                               : alpha(theme.palette.background.default, 0.85),
-                          backdropFilter: 'blur(6px)',
+                          backdropFilter: "blur(6px)",
                           borderBottom: `1px solid ${theme.palette.divider}`,
                           py: 1.25,
                           pl: ci === 0 ? { xs: 2.5, sm: 3.5 } : 1.5,
-                          textAlign: c.type === 'number' ? 'right' : 'left',
-                          '&:first-of-type': { borderTopLeftRadius: 0 },
+                          textAlign: c.type === "number" ? "right" : "left",
+                          "&:first-of-type": { borderTopLeftRadius: 0 },
                           ...(frozenStyles(ci, true) || {}),
                           // Frozen header needs an opaque background so body
                           // cells scrolling underneath don't bleed through.
@@ -577,24 +589,22 @@ const DrillThroughDialog = function DrillThroughDialog({
                       >
                         <TableSortLabel
                           active={sortBy === c.uniqueName}
-                          direction={
-                            sortBy === c.uniqueName ? sortDir : 'asc'
-                          }
+                          direction={sortBy === c.uniqueName ? sortDir : "asc"}
                           onClick={() => handleSort(c.uniqueName)}
-                          sx={{
-                            fontWeight: 'inherit',
-                            fontSize: 'inherit',
-                            letterSpacing: 'inherit',
-                            textTransform: 'inherit',
-                            color: 'inherit',
-                            '&.Mui-active': {
+                          sx={(theme) => ({
+                            fontWeight: "inherit",
+                            fontSize: "inherit",
+                            letterSpacing: "inherit",
+                            textTransform: "inherit",
+                            color: "inherit",
+                            "&.Mui-active": {
                               color: (th) => th.palette.primary.main,
                             },
-                            '& .MuiTableSortLabel-icon': {
-                              fontSize: 14,
+                            "& .MuiTableSortLabel-icon": {
+                              fontSize: theme.typography.body2.fontSize,
                               opacity: 0.8,
                             },
-                          }}
+                          })}
                         >
                           {c.caption}
                         </TableSortLabel>
@@ -607,17 +617,17 @@ const DrillThroughDialog = function DrillThroughDialog({
                     <TableRow
                       key={idx}
                       sx={(theme) => ({
-                        transition: 'background 120ms ease',
-                        '&:nth-of-type(odd) td': {
+                        transition: "background 120ms ease",
+                        "&:nth-of-type(odd) td": {
                           background: alpha(
                             theme.palette.text.primary,
-                            theme.palette.mode === 'dark' ? 0.02 : 0.014
+                            theme.palette.mode === "dark" ? 0.02 : 0.014,
                           ),
                         },
-                        '&:hover td': {
+                        "&:hover td": {
                           background: alpha(
                             theme.palette.primary.main,
-                            theme.palette.mode === 'dark' ? 0.08 : 0.05
+                            theme.palette.mode === "dark" ? 0.08 : 0.05,
                           ),
                         },
                       })}
@@ -626,22 +636,22 @@ const DrillThroughDialog = function DrillThroughDialog({
                         <TableCell
                           key={c.uniqueName}
                           sx={(theme) => ({
-                            fontSize: 12.5,
-                            whiteSpace: 'nowrap',
+                            fontSize: theme.typography.caption.fontSize,
+                            whiteSpace: "nowrap",
                             color: theme.palette.text.primary,
-                            textAlign: c.type === 'number' ? 'right' : 'left',
+                            textAlign: c.type === "number" ? "right" : "left",
                             fontVariantNumeric:
-                              c.type === 'number' ? 'tabular-nums' : 'normal',
+                              c.type === "number" ? "tabular-nums" : "normal",
                             fontFamily:
-                              c.type === 'number' ||
-                              c.type === 'date' ||
-                              c.type === 'time'
+                              c.type === "number" ||
+                              c.type === "date" ||
+                              c.type === "time"
                                 ? theme.font?.mono ||
                                   '"JetBrains Mono", ui-monospace, monospace'
-                                : 'inherit',
+                                : "inherit",
                             borderBottom: `1px solid ${alpha(
                               theme.palette.divider,
-                              0.5
+                              0.5,
                             )}`,
                             pl: ci === 0 ? { xs: 2.5, sm: 3.5 } : 1.5,
                             py: 1.1,
@@ -664,16 +674,16 @@ const DrillThroughDialog = function DrillThroughDialog({
                     <TableRow>
                       <TableCell
                         colSpan={columns.length}
-                        sx={{
-                          textAlign: 'center',
+                        sx={(theme) => ({
+                          textAlign: "center",
                           py: 6,
-                          color: 'text.secondary',
-                          fontStyle: 'italic',
-                          fontSize: 13,
-                        }}
+                          color: "text.secondary",
+                          fontStyle: "italic",
+                          fontSize: theme.typography.caption.fontSize,
+                        })}
                       >
                         {t?.drillThrough?.noMatch ||
-                          'No records match the filter.'}
+                          "No records match the filter."}
                       </TableCell>
                     </TableRow>
                   )}
@@ -687,23 +697,23 @@ const DrillThroughDialog = function DrillThroughDialog({
                 px: { xs: 2.5, sm: 3.5 },
                 py: 1.25,
                 borderTop: `1px solid ${theme.palette.divider}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
                 gap: 2,
                 background: alpha(theme.palette.background.default, 0.4),
-                fontSize: 11.5,
+                fontSize: theme.typography.caption.fontSize,
                 color: theme.palette.text.secondary,
               })}
             >
               <Box component="span">
-                {displayedRows.length.toLocaleString(locale || undefined)}{' '}
+                {displayedRows.length.toLocaleString(locale || undefined)}{" "}
                 {recordsLabel}
                 {isFiltered
-                  ? ` · ${t?.drillThrough?.of || 'of'} ${rows.length.toLocaleString(
-                      locale || undefined
+                  ? ` · ${t?.drillThrough?.of || "of"} ${rows.length.toLocaleString(
+                      locale || undefined,
                     )}`
-                  : ''}
+                  : ""}
               </Box>
               <Box
                 component="span"
@@ -711,13 +721,13 @@ const DrillThroughDialog = function DrillThroughDialog({
                   fontFamily:
                     theme.font?.mono ||
                     '"JetBrains Mono", ui-monospace, monospace',
-                  fontSize: 10.5,
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
+                  fontSize: theme.typography.caption.fontSize,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
                   color: alpha(theme.palette.text.primary, 0.5),
                 })}
               >
-                {sortBy ? `${sortBy} · ${sortDir}` : '—'}
+                {sortBy ? `${sortBy} · ${sortDir}` : "—"}
               </Box>
             </Box>
           </>
@@ -733,11 +743,11 @@ function Metric({ label, value, hint, accent }) {
       <Typography
         component="div"
         sx={(theme) => ({
-          fontSize: 9.5,
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
+          fontSize: theme.typography.overline.fontSize,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
           color: theme.palette.text.secondary,
-          fontWeight: 600,
+          fontWeight: theme.typography.overline.fontWeight,
           lineHeight: 1.1,
         })}
       >
@@ -747,15 +757,14 @@ function Metric({ label, value, hint, accent }) {
         <Typography
           component="span"
           sx={(theme) => ({
-            fontSize: 18,
-            fontWeight: 700,
-            letterSpacing: '-0.02em',
+            fontSize: theme.typography.h6.fontSize,
+            fontWeight: theme.typography.h6.fontWeight,
+            letterSpacing: "-0.02em",
             color: accent
               ? theme.palette.primary.main
               : theme.palette.text.primary,
             fontFamily:
-              theme.font?.mono ||
-              '"JetBrains Mono", ui-monospace, monospace',
+              theme.font?.mono || '"JetBrains Mono", ui-monospace, monospace',
             lineHeight: 1.2,
           })}
         >
@@ -765,11 +774,8 @@ function Metric({ label, value, hint, accent }) {
           <Typography
             component="span"
             sx={(theme) => ({
-              fontSize: 11,
+              fontSize: theme.typography.caption.fontSize,
               color: alpha(theme.palette.text.primary, 0.45),
-              fontFamily:
-                theme.font?.mono ||
-                '"JetBrains Mono", ui-monospace, monospace',
             })}
           >
             {hint}
@@ -786,10 +792,10 @@ function EmptyState({ t }) {
       sx={{
         py: 8,
         px: 4,
-        textAlign: 'center',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
+        textAlign: "center",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
         gap: 1.5,
       }}
     >
@@ -797,12 +803,12 @@ function EmptyState({ t }) {
         sx={(theme) => ({
           width: 56,
           height: 56,
-          borderRadius: '50%',
+          borderRadius: "50%",
           background: alpha(theme.palette.text.primary, 0.04),
           border: `1px dashed ${theme.palette.divider}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
           color: alpha(theme.palette.text.primary, 0.4),
         })}
       >
@@ -810,9 +816,9 @@ function EmptyState({ t }) {
       </Box>
       <Typography
         variant="body2"
-        sx={{ fontStyle: 'italic', opacity: 0.6, maxWidth: 320 }}
+        sx={{ fontStyle: "italic", opacity: 0.6, maxWidth: 320 }}
       >
-        {t?.drillThrough?.noRecords || 'No records.'}
+        {t?.drillThrough?.noRecords || "No records."}
       </Typography>
     </Box>
   );
@@ -827,7 +833,7 @@ DrillThroughDialog.propTypes = {
     PropTypes.shape({
       field: PropTypes.string,
       value: PropTypes.string,
-    })
+    }),
   ),
 };
 

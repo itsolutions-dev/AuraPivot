@@ -1104,7 +1104,12 @@ const FieldList = function FieldList({ open, onClose }) {
                   />
                 </Tooltip>
               )}
-              <Typography variant="caption" sx={{ fontWeight: 600 }}>
+              <Typography
+                variant="caption"
+                sx={(theme) => ({
+                  fontWeight: theme.typography.caption.fontWeight,
+                })}
+              >
                 {captionFor(item.uniqueName)}
               </Typography>
               <Select
@@ -1764,7 +1769,12 @@ const FieldList = function FieldList({ open, onClose }) {
                   fontSize="small"
                   sx={{ color: "primary.main" }}
                 />
-                <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                <Typography
+                  variant="caption"
+                  sx={(theme) => ({
+                    fontWeight: theme.typography.h6.fontWeight,
+                  })}
+                >
                   {t?.fieldsList?.showTotals || "Show totals"}
                 </Typography>
                 <ToggleButtonGroup

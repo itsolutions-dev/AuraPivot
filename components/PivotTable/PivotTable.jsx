@@ -1,5 +1,5 @@
-import React, { useMemo, useCallback, useEffect, useState } from 'react';
-import PropTypes from 'prop-types';
+import React, { useMemo, useCallback, useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import {
   Box,
   IconButton,
@@ -10,30 +10,30 @@ import {
   ToggleButtonGroup,
   Tooltip,
   Typography,
-} from '@mui/material';
-import { darken, lighten } from '@mui/material/styles';
-import { TableVirtuoso } from 'react-virtuoso';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import SettingsIcon from '@mui/icons-material/Settings';
-import FilterAltIcon from '@mui/icons-material/FilterAlt';
-import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
-import { findNodeByKey } from '../../pivot-core/slice/TreeBuilder';
-import { usePivot } from '../../context/PivotContext';
-import usePivotMatrix from '../../hooks/usePivotMatrix';
+} from "@mui/material";
+import { darken, lighten } from "@mui/material/styles";
+import { TableVirtuoso } from "react-virtuoso";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import SettingsIcon from "@mui/icons-material/Settings";
+import FilterAltIcon from "@mui/icons-material/FilterAlt";
+import UnfoldMoreIcon from "@mui/icons-material/UnfoldMore";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutlined";
+import { findNodeByKey } from "../../pivot-core/slice/TreeBuilder";
+import { usePivot } from "../../context/PivotContext";
+import usePivotMatrix from "../../hooks/usePivotMatrix";
 import {
   resolveCellStyle,
   formatNumberWithFormat,
   getValuesSection,
-} from '../../pivot-core/format/CellFormatter';
-import DimensionFilterDialog from '../DimensionFilterDialog/DimensionFilterDialog';
-import DrillThroughDialog from '../DrillThroughDialog/DrillThroughDialog';
+} from "../../pivot-core/format/CellFormatter";
+import DimensionFilterDialog from "../DimensionFilterDialog/DimensionFilterDialog";
+import DrillThroughDialog from "../DrillThroughDialog/DrillThroughDialog";
 
 const INDENT_PX = 16;
 const CELL_MIN_WIDTH = 96;
@@ -43,42 +43,58 @@ const LABEL_COL_WIDTH = 240;
 const DENSITY = {
   Compact: {
     rowHeight: 20,
-    rowPaddingY: '1px',
-    rowLineHeight: '18px',
-    bodyFontSize: 12,
-    bodyPaddingX: '8px',
+    rowPaddingY: "1px",
+    rowLineHeight: "18px",
+    bodyFontSizeRate: 0.85,
+    bodyPaddingX: "8px",
     headerRowHeight: 36,
     headerCellMinHeight: 22,
-    headerFontSize: 11,
-    headerPaddingY: '2px',
-    headerPaddingX: '8px',
+    headerFontSizeRate: 0.85,
+    headerPaddingY: "2px",
+    headerPaddingX: "8px",
   },
   Standard: {
     rowHeight: 24,
-    rowPaddingY: '2px',
-    rowLineHeight: '20px',
-    bodyFontSize: 13,
-    bodyPaddingX: '10px',
+    rowPaddingY: "2px",
+    rowLineHeight: "20px",
+    bodyFontSizeRate: 1,
+    bodyPaddingX: "10px",
     headerRowHeight: 48,
     headerCellMinHeight: 26,
-    headerFontSize: 12,
-    headerPaddingY: '4px',
-    headerPaddingX: '10px',
+    headerFontSizeRate: 1,
+    headerPaddingY: "4px",
+    headerPaddingX: "10px",
   },
   Comfortable: {
     rowHeight: 32,
-    rowPaddingY: '6px',
-    rowLineHeight: '20px',
-    bodyFontSize: 14,
-    bodyPaddingX: '12px',
+    rowPaddingY: "6px",
+    rowLineHeight: "20px",
+    bodyFontSizeRate: 1.25,
+    bodyPaddingX: "12px",
     headerRowHeight: 56,
     headerCellMinHeight: 32,
-    headerFontSize: 13,
-    headerPaddingY: '8px',
-    headerPaddingX: '12px',
+    headerFontSizeRate: 1.25,
+    headerPaddingY: "8px",
+    headerPaddingX: "12px",
   },
 };
 const resolveDensity = (key) => DENSITY[key] || DENSITY.Standard;
+
+// Scale a CSS fontSize value ("13px" | "0.9rem" | 13) by a numeric rate.
+// Returns a CSS string with the original unit (defaults to px) or undefined
+// when no input is provided so the caller can fall back to its own default.
+const scaleFontSize = (raw, rate = 1, fallback) => {
+  const r = typeof rate === "number" && rate > 0 ? rate : 1;
+  if (raw == null || raw === "") {
+    return fallback != null ? scaleFontSize(fallback, r) : undefined;
+  }
+  if (typeof raw === "number") return `${raw * r}px`;
+  const m = String(raw).match(/^([\d.]+)\s*([a-z%]*)$/i);
+  if (!m) return raw;
+  const n = parseFloat(m[1]);
+  const unit = m[2] || "px";
+  return `${n * r}${unit}`;
+};
 
 /* const AGG_SYMBOL = {
   sum: 'Σ',
@@ -118,17 +134,17 @@ const PivotTable = function PivotTable() {
   useEffect(() => {
     const onFormat = () => setFormat(engine.getFormat());
     const onReport = () => setSliceState({ ...engine.getSlice() });
-    engine.on('formatChange', onFormat);
-    engine.on('reportChange', onReport);
-    engine.on('dataChange', onReport);
+    engine.on("formatChange", onFormat);
+    engine.on("reportChange", onReport);
+    engine.on("dataChange", onReport);
     return () => {
-      engine.off('formatChange', onFormat);
-      engine.off('reportChange', onReport);
-      engine.off('dataChange', onReport);
+      engine.off("formatChange", onFormat);
+      engine.off("reportChange", onReport);
+      engine.off("dataChange", onReport);
     };
   }, [engine]);
 
-  const compact = (options?.grid?.type || 'compact') === 'compact';
+  const compact = (options?.grid?.type || "compact") === "compact";
 
   const handleToggle = useCallback(
     (nodeKey) => {
@@ -149,7 +165,7 @@ const PivotTable = function PivotTable() {
         },
       });
     },
-    [engine]
+    [engine],
   );
 
   // When the "Valori" (Measures) field is placed on the row axis, each tree
@@ -167,7 +183,7 @@ const PivotTable = function PivotTable() {
 
   const measureKeyHidden = (mk) => {
     if (!mk) return false;
-    const un = String(mk).split(':')[0];
+    const un = String(mk).split(":")[0];
     return hiddenMeasures.has(un);
   };
 
@@ -180,11 +196,11 @@ const PivotTable = function PivotTable() {
     // when it is the only measure on the slice the grand-total column adds
     // no information — drop it from the visible leaves.
     const visibleMeasures = (matrix?.measures || []).filter(
-      (m) => m.aggregation !== 'formula' && !hiddenMeasures.has(m.uniqueName)
+      (m) => m.aggregation !== "formula" && !hiddenMeasures.has(m.uniqueName),
     );
     const onlyCurrentRatio =
       visibleMeasures.length === 1 &&
-      visibleMeasures[0].aggregation === 'currentRatio';
+      visibleMeasures[0].aggregation === "currentRatio";
     if (onlyCurrentRatio) {
       leaves = leaves.filter((c) => !(c.isTotal && c.depth === -1));
     }
@@ -234,7 +250,7 @@ const PivotTable = function PivotTable() {
   // exists, so the chevron column never carries a control and only wastes
   // horizontal space. Drop it entirely.
   const rowDimensionCount = (slice.rows || []).filter(
-    (f) => f && f.uniqueName !== 'Measures'
+    (f) => f && f.uniqueName !== "Measures",
   ).length;
   const hideChevronCol = !!matrix?.measuresOnRows && rowDimensionCount <= 1;
   const chevronColWidth = hideChevronCol ? 0 : CHEVRON_COL_WIDTH + maxRowIndent;
@@ -244,37 +260,37 @@ const PivotTable = function PivotTable() {
       chevronColWidth +
       LABEL_COL_WIDTH +
       CELL_MIN_WIDTH * Math.max(1, colLeaves.length),
-    [chevronColWidth, colLeaves.length]
+    [chevronColWidth, colLeaves.length],
   );
 
   const headerStyle = useMemo(
-    () => resolveCellStyle({ format, scope: 'headers' }),
-    [format]
+    () => resolveCellStyle({ format, scope: "headers" }),
+    [format],
   );
   const dimensionStyle = useMemo(
-    () => resolveCellStyle({ format, scope: 'dimensions' }),
-    [format]
+    () => resolveCellStyle({ format, scope: "dimensions" }),
+    [format],
   );
   const grandTotalLabelStyle = useMemo(
-    () => resolveCellStyle({ format, scope: 'grandTotals' }),
-    [format]
+    () => resolveCellStyle({ format, scope: "grandTotals" }),
+    [format],
   );
   const grandTotalValueStyle = useMemo(() => {
-    const base = resolveCellStyle({ format, scope: 'grandTotals' });
+    const base = resolveCellStyle({ format, scope: "grandTotals" });
     // Grand-total value cells still live on the value axis — if the user
     // hasn't explicitly set an alignment for the grand-totals section fall
     // back to the values alignment so numbers stay right-justified.
     if (base && !format?.grandTotals?.textAlign) {
-      return { ...base, textAlign: format?.values?.textAlign || 'right' };
+      return { ...base, textAlign: format?.values?.textAlign || "right" };
     }
     return base;
   }, [format]);
   // Data columns should share their text-align with the value cells below
   // them so numbers line up against their header.
-  const dataAlign = format?.values?.textAlign || 'right';
+  const dataAlign = format?.values?.textAlign || "right";
   const density = useMemo(
     () => resolveDensity(format?.layout?.density),
-    [format?.layout?.density]
+    [format?.layout?.density],
   );
 
   const applySort = useCallback(
@@ -283,22 +299,22 @@ const PivotTable = function PivotTable() {
       const sameMeasureKey = (a, b) =>
         (a?.uniqueName || null) === (b?.uniqueName || null) &&
         (a?.aggregation || null) === (b?.aggregation || null);
-      let nextDirection = 'desc';
+      let nextDirection = "desc";
       if (
         current &&
         current.colKey === colKey &&
         sameMeasureKey(current.colMeasure, measure)
       ) {
-        if (current.colDirection === 'desc') nextDirection = 'asc';
-        else if (current.colDirection === 'asc') nextDirection = null;
+        if (current.colDirection === "desc") nextDirection = "asc";
+        else if (current.colDirection === "asc") nextDirection = null;
       }
       engine.setSort(
         nextDirection ? colKey : null,
         nextDirection,
-        nextDirection ? measure || null : null
+        nextDirection ? measure || null : null,
       );
     },
-    [engine]
+    [engine],
   );
 
   const handleHeaderClick = useCallback(
@@ -313,7 +329,7 @@ const PivotTable = function PivotTable() {
       // Computed (formula) fields are valid sort keys — their values live
       // in the same matrix cells under the `formula` aggregation suffix.
       const sortableMeasures = (matrix?.measures || []).filter(
-        (m) => !isGrandTotalCol || m.aggregation !== 'currentRatio'
+        (m) => !isGrandTotalCol || m.aggregation !== "currentRatio",
       );
       if (measuresOnRows && sortableMeasures.length > 1) {
         const current = engine.getSlice()?.sort || null;
@@ -324,7 +340,7 @@ const PivotTable = function PivotTable() {
           direction:
             current && current.colKey === colKey
               ? current.colDirection
-              : 'desc',
+              : "desc",
         });
         return;
       }
@@ -336,7 +352,7 @@ const PivotTable = function PivotTable() {
       matrix?.measures,
       matrix?.colLeaves,
       applySort,
-    ]
+    ],
   );
 
   const applySortByRow = useCallback(
@@ -345,22 +361,22 @@ const PivotTable = function PivotTable() {
       const sameMeasureKey = (a, b) =>
         (a?.uniqueName || null) === (b?.uniqueName || null) &&
         (a?.aggregation || null) === (b?.aggregation || null);
-      let nextDirection = 'desc';
+      let nextDirection = "desc";
       if (
         current &&
         current.rowKey === rowKey &&
         sameMeasureKey(current.rowMeasure, measure)
       ) {
-        if (current.rowDirection === 'desc') nextDirection = 'asc';
-        else if (current.rowDirection === 'asc') nextDirection = null;
+        if (current.rowDirection === "desc") nextDirection = "asc";
+        else if (current.rowDirection === "asc") nextDirection = null;
       }
       engine.setSortByRow(
         nextDirection ? rowKey : null,
         nextDirection,
-        nextDirection ? measure || null : null
+        nextDirection ? measure || null : null,
       );
     },
-    [engine]
+    [engine],
   );
 
   const handleLabelClick = useCallback(
@@ -372,7 +388,7 @@ const PivotTable = function PivotTable() {
       // header sort.
       const isGrandTotalRow = !!(rowNode?.isTotal && rowNode?.depth === -1);
       const sortableMeasures = (matrix?.measures || []).filter(
-        (m) => !isGrandTotalRow || m.aggregation !== 'currentRatio'
+        (m) => !isGrandTotalRow || m.aggregation !== "currentRatio",
       );
       if (measuresOnCols && sortableMeasures.length > 1) {
         const current = engine.getSlice()?.sort || null;
@@ -383,13 +399,13 @@ const PivotTable = function PivotTable() {
           direction:
             current && current.rowKey === rowKey
               ? current.rowDirection
-              : 'desc',
+              : "desc",
         });
         return;
       }
       applySortByRow(rowKey, null);
     },
-    [engine, matrix?.measuresOnColumns, matrix?.measures, applySortByRow]
+    [engine, matrix?.measuresOnColumns, matrix?.measures, applySortByRow],
   );
 
   const metadata = engine.getMetadata();
@@ -400,19 +416,19 @@ const PivotTable = function PivotTable() {
     // header carries no measure context — every measure shows up as its own
     // column leaf. Keep the label plain so it doesn't duplicate column captions.
     if (matrix?.measuresOnColumns) {
-      return t?.grid?.total || 'Total';
+      return t?.grid?.total || "Total";
     }
     if (!measures || measures.length === 0) {
-      return t?.grid?.grandTotal || 'Grand Total';
+      return t?.grid?.grandTotal || "Grand Total";
     }
     // The measure captions are pre-built by the engine in the shape
     // "<AggLabel> Totale di <FieldCaption>"; prepend the matching symbol so
     // the grand-total row reads e.g. "Σ Somma Totale di Chiamate risposte".
     if (measures.length === 1) {
       const m = measures[0];
-      const agg = m.aggregation || 'sum';
+      const agg = m.aggregation || "sum";
       //const sym = AGG_SYMBOL[agg] || '';
-      const sym = '';
+      const sym = "";
       const composite =
         m.grandTotalCaption ||
         m.caption ||
@@ -422,9 +438,9 @@ const PivotTable = function PivotTable() {
     }
     return measures
       .map((m) => {
-        const agg = m.aggregation || 'sum';
+        const agg = m.aggregation || "sum";
         //const sym = AGG_SYMBOL[agg] || '';
-        const sym = '';
+        const sym = "";
         const composite =
           m.grandTotalCaption ||
           m.caption ||
@@ -432,26 +448,26 @@ const PivotTable = function PivotTable() {
           m.uniqueName;
         return sym ? `${sym} ${composite}` : composite;
       })
-      .join(' · ');
+      .join(" · ");
   }, [matrix?.measures, matrix?.measuresOnColumns, metadata, t]);
 
   const captionFor = useCallback(
     (uniqueName) => {
-      if (uniqueName === 'Measures') {
-        return t?.fieldsList?.values || 'Values';
+      if (uniqueName === "Measures") {
+        return t?.fieldsList?.values || "Values";
       }
       return metadata[uniqueName]?.caption || uniqueName;
     },
-    [metadata, t]
+    [metadata, t],
   );
 
   const rowDimensions = useMemo(
-    () => (slice.rows || []).filter((f) => f.uniqueName !== 'Measures'),
-    [slice.rows]
+    () => (slice.rows || []).filter((f) => f.uniqueName !== "Measures"),
+    [slice.rows],
   );
   const colDimensions = useMemo(
-    () => (slice.columns || []).filter((f) => f.uniqueName !== 'Measures'),
-    [slice.columns]
+    () => (slice.columns || []).filter((f) => f.uniqueName !== "Measures"),
+    [slice.columns],
   );
 
   const activeFilterFields = useMemo(() => {
@@ -461,7 +477,7 @@ const PivotTable = function PivotTable() {
       const hasMembers = Array.isArray(f.members) && f.members.length > 0;
       const hasRange = f.range && (f.range.min != null || f.range.max != null);
       const hasValue =
-        f.value !== undefined && f.value !== null && f.value !== '';
+        f.value !== undefined && f.value !== null && f.value !== "";
       if (hasMembers || hasRange || hasValue) s.add(f.uniqueName);
     });
     return s;
@@ -478,18 +494,18 @@ const PivotTable = function PivotTable() {
   const getHiddenMeasureItems = useCallback(
     (rowNode, col) => {
       if (hiddenMeasures.size === 0 || !matrix) return [];
-      const rowKeyBase = String(rowNode.key).split('||M:')[0];
-      const colKeyBase = String(col.key).split('||M:')[0];
+      const rowKeyBase = String(rowNode.key).split("||M:")[0];
+      const colKeyBase = String(col.key).split("||M:")[0];
       const hiddenList = (slice.measures || []).filter((m) => m?.hidden);
       return hiddenList.map((m) => {
         let found = null;
         for (const [k, v] of matrix.cells) {
-          const sep = k.indexOf('::');
+          const sep = k.indexOf("::");
           if (sep < 0) continue;
           const rk = k.slice(0, sep);
           const ck = k.slice(sep + 2);
-          if (rk.split('||M:')[0] !== rowKeyBase) continue;
-          if (ck.split('||M:')[0] !== colKeyBase) continue;
+          if (rk.split("||M:")[0] !== rowKeyBase) continue;
+          if (ck.split("||M:")[0] !== colKeyBase) continue;
           const mk = v?.measureKey;
           if (mk && mk.startsWith(`${m.uniqueName}:`)) {
             found = { value: v.value, measureKey: mk };
@@ -503,11 +519,11 @@ const PivotTable = function PivotTable() {
           uniqueName: m.uniqueName,
           caption: captionFor(m.uniqueName),
           aggregation: m.aggregation,
-          formatted: found ? formatNumberWithFormat(found.value, section) : '—',
+          formatted: found ? formatNumberWithFormat(found.value, section) : "—",
         };
       });
     },
-    [hiddenMeasures, matrix, slice.measures, format, captionFor]
+    [hiddenMeasures, matrix, slice.measures, format, captionFor],
   );
 
   const handleToggleChildren = useCallback(
@@ -536,11 +552,11 @@ const PivotTable = function PivotTable() {
           expandAll: !fullyExpanded,
           // When collapsing, flip the root back to expanded via the
           // exception set so grand totals stay visible.
-          expandedMembers: fullyExpanded ? ['__root__'] : [],
+          expandedMembers: fullyExpanded ? ["__root__"] : [],
         },
       });
     },
-    [engine]
+    [engine],
   );
 
   /**
@@ -553,7 +569,7 @@ const PivotTable = function PivotTable() {
       if (!matrix) return;
       // Strip the measure suffix ("||M:...") to look up the actual column
       // node in colRoot — measures live on top of columns, not in the tree.
-      const baseColKey = String(colKey).split('||M:')[0];
+      const baseColKey = String(colKey).split("||M:")[0];
       const colNode = findNodeByKey(matrix.colRoot, baseColKey);
       const source = matrix.sourceRows || [];
       const rowIndexes = rowNode?.rowIndexes || [];
@@ -600,15 +616,15 @@ const PivotTable = function PivotTable() {
         ...buildBreadcrumbs(matrix.colRoot, baseColKey),
       ];
       if (rowNode?.measureKey) {
-        const [uniqueName] = rowNode.measureKey.split(':');
+        const [uniqueName] = rowNode.measureKey.split(":");
         breadcrumbs.push({
-          field: captionFor('Measures') || 'Values',
+          field: captionFor("Measures") || "Values",
           value: rowNode.measureCaption || uniqueName,
         });
       }
       setDrill({ open: true, rows, breadcrumbs });
     },
-    [matrix, captionFor]
+    [matrix, captionFor],
   );
 
   const renderHeader = useCallback(
@@ -620,12 +636,12 @@ const PivotTable = function PivotTable() {
               <th
                 colSpan={hideChevronCol ? 1 : 2}
                 style={{
-                  position: 'sticky',
+                  position: "sticky",
                   left: 0,
                   zIndex: 3,
                   minWidth: chevronColWidth + LABEL_COL_WIDTH,
                   width: chevronColWidth + LABEL_COL_WIDTH,
-                  boxSizing: 'border-box',
+                  boxSizing: "border-box",
                 }}
               >
                 <DimensionHeaderCell
@@ -633,22 +649,22 @@ const PivotTable = function PivotTable() {
                   captionFor={captionFor}
                   activeFilters={activeFilterFields}
                   onOpen={openDimensionFilter}
-                  fallback={''}
+                  fallback={""}
                   style={headerStyle}
                   density={density}
                 />
               </th>
               <th
                 colSpan={Math.max(1, colLeaves.length)}
-                style={{ boxSizing: 'border-box' }}
+                style={{ boxSizing: "border-box" }}
               >
                 <DimensionHeaderCell
                   dims={colDimensions}
                   captionFor={captionFor}
                   activeFilters={activeFilterFields}
                   onOpen={openDimensionFilter}
-                  fallback={''}
-                  style={{ ...headerStyle, textAlign: 'left' }}
+                  fallback={""}
+                  style={{ ...headerStyle, textAlign: "left" }}
                   density={density}
                 />
               </th>
@@ -658,24 +674,24 @@ const PivotTable = function PivotTable() {
           {!hideChevronCol && (
             <th
               style={{
-                position: 'sticky',
+                position: "sticky",
                 left: 0,
                 zIndex: 3,
                 minWidth: chevronColWidth,
                 width: chevronColWidth,
-                boxSizing: 'border-box',
+                boxSizing: "border-box",
               }}
             >
               <Box
                 sx={(theme) => ({
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  height: '100%',
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  height: "100%",
                   minHeight: density.headerCellMinHeight,
                   backgroundColor:
                     headerStyle?.backgroundColor ||
-                    (theme.palette.mode === 'dark'
+                    (theme.palette.mode === "dark"
                       ? theme.palette.grey[900]
                       : theme.palette.grey[100]),
                 })}
@@ -687,13 +703,15 @@ const PivotTable = function PivotTable() {
                       e.stopPropagation();
                       handleToggleChildren(null);
                     }}
-                    title={t?.grid?.expandCollapseAll || 'Expand/Collapse all'}
-                    sx={{
+                    title={t?.grid?.expandCollapseAll || "Expand/Collapse all"}
+                    sx={(theme) => ({
                       p: 0,
                       width: 18,
                       height: 18,
-                      '& svg': { fontSize: 14 },
-                    }}
+                      "& svg": {
+                        fontSize: theme.typography.button.fontSize,
+                      },
+                    })}
                   >
                     <UnfoldMoreIcon fontSize="inherit" />
                   </IconButton>
@@ -703,12 +721,12 @@ const PivotTable = function PivotTable() {
           )}
           <th
             style={{
-              position: 'sticky',
+              position: "sticky",
               left: chevronColWidth,
               zIndex: 3,
               minWidth: LABEL_COL_WIDTH,
               width: LABEL_COL_WIDTH,
-              boxSizing: 'border-box',
+              boxSizing: "border-box",
             }}
           >
             <HeaderCell
@@ -725,20 +743,20 @@ const PivotTable = function PivotTable() {
                     }}
                     title={
                       filtersExpanded
-                        ? t?.grid?.collapseFilters || 'Collapse filters'
-                        : t?.grid?.expandFilters || 'Expand filters'
+                        ? t?.grid?.collapseFilters || "Collapse filters"
+                        : t?.grid?.expandFilters || "Expand filters"
                     }
-                    sx={{
+                    sx={(theme) => ({
                       p: 0,
                       mr: 0.25,
                       width: 18,
                       height: 18,
                       color:
                         activeFilterFields.size > 0
-                          ? 'primary.main'
-                          : 'inherit',
-                      '& svg': { fontSize: 14 },
-                    }}
+                          ? "primary.main"
+                          : "inherit",
+                      "& svg": { fontSize: theme.typography.button.fontSize },
+                    })}
                   >
                     {filtersExpanded ? (
                       <ExpandLessIcon fontSize="inherit" />
@@ -759,21 +777,21 @@ const PivotTable = function PivotTable() {
             // and direction. Only meaningful when this column is the sorted
             // one; otherwise the icon shows the inactive placeholder.
             const sortTooltip = (() => {
-              if (!isSorted) return '';
+              if (!isSorted) return "";
               const dirLabel =
-                sort.colDirection === 'asc'
-                  ? t?.grid?.sortAsc || 'Ascending'
-                  : t?.grid?.sortDesc || 'Descending';
-              let measureLabel = '';
+                sort.colDirection === "asc"
+                  ? t?.grid?.sortAsc || "Ascending"
+                  : t?.grid?.sortDesc || "Descending";
+              let measureLabel = "";
               if (sort.colMeasure) {
                 const m = (matrix?.measures || []).find(
                   (mm) =>
                     mm.uniqueName === sort.colMeasure.uniqueName &&
-                    mm.aggregation === sort.colMeasure.aggregation
+                    mm.aggregation === sort.colMeasure.aggregation,
                 );
                 if (m) measureLabel = ` — ${m.caption || m.uniqueName}`;
               }
-              return `${col.caption || ''}${measureLabel} (${dirLabel})`;
+              return `${col.caption || ""}${measureLabel} (${dirLabel})`;
             })();
             // Mirror the row chevron behavior on the column axis: when a col
             // header corresponds to an internal tree node (has children) and
@@ -790,7 +808,7 @@ const PivotTable = function PivotTable() {
                 key={col.key}
                 style={{
                   minWidth: CELL_MIN_WIDTH,
-                  boxSizing: 'border-box',
+                  boxSizing: "border-box",
                 }}
               >
                 <HeaderCell
@@ -810,16 +828,18 @@ const PivotTable = function PivotTable() {
                         }}
                         title={
                           col.isExpanded !== false
-                            ? t?.grid?.collapseChildren || 'Collapse'
-                            : t?.grid?.expandChildren || 'Expand'
+                            ? t?.grid?.collapseChildren || "Collapse"
+                            : t?.grid?.expandChildren || "Expand"
                         }
-                        sx={{
+                        sx={(theme) => ({
                           p: 0,
                           mr: 0.25,
                           width: 16,
                           height: 16,
-                          '& svg': { fontSize: 14 },
-                        }}
+                          "& svg": {
+                            fontSize: theme.typography.button.fontSize,
+                          },
+                        })}
                       >
                         {col.isExpanded !== false ? (
                           <ExpandMoreIcon fontSize="inherit" />
@@ -856,7 +876,7 @@ const PivotTable = function PivotTable() {
       compact,
       hideChevronCol,
       chevronColWidth,
-    ]
+    ],
   );
 
   const alternateRows = !!format?.layout?.alternateRows;
@@ -877,11 +897,11 @@ const PivotTable = function PivotTable() {
   };
   const rowDimMap = useMemo(
     () => buildDimValueMap(matrix?.rowRoot),
-    [matrix?.rowRoot]
+    [matrix?.rowRoot],
   );
   const colDimMap = useMemo(
     () => buildDimValueMap(matrix?.colRoot),
-    [matrix?.colRoot]
+    [matrix?.colRoot],
   );
 
   const renderRow = useCallback(
@@ -926,16 +946,16 @@ const PivotTable = function PivotTable() {
         <>
           {!hideChevronCol && (
             <td
-              className={`pvt-chevron${showChevron ? '' : ' pvt-chevron-empty'}`}
+              className={`pvt-chevron${showChevron ? "" : " pvt-chevron-empty"}`}
               style={{
                 left: 0,
                 zIndex: 1,
                 minWidth: chevronColWidth,
                 width: chevronColWidth,
-                boxSizing: 'border-box',
-                verticalAlign: 'middle',
-                textAlign: 'center',
-                cursor: showChevron ? 'pointer' : 'default',
+                boxSizing: "border-box",
+                verticalAlign: "middle",
+                textAlign: "center",
+                cursor: showChevron ? "pointer" : "default",
               }}
               onClick={
                 showChevron
@@ -961,12 +981,12 @@ const PivotTable = function PivotTable() {
           <td
             className="pvt-label"
             style={{
-              position: 'sticky',
+              position: "sticky",
               left: chevronColWidth,
               zIndex: 1,
               minWidth: LABEL_COL_WIDTH,
               width: LABEL_COL_WIDTH,
-              boxSizing: 'border-box',
+              boxSizing: "border-box",
             }}
           >
             <BodyLabelCell
@@ -991,21 +1011,21 @@ const PivotTable = function PivotTable() {
                 sort && sort.rowKey === rowNode.key ? sort.rowDirection : null
               }
               sortTooltip={(() => {
-                if (!sort || sort.rowKey !== rowNode.key) return '';
+                if (!sort || sort.rowKey !== rowNode.key) return "";
                 const dirLabel =
-                  sort.rowDirection === 'asc'
-                    ? t?.grid?.sortAsc || 'Ascending'
-                    : t?.grid?.sortDesc || 'Descending';
-                let measureLabel = '';
+                  sort.rowDirection === "asc"
+                    ? t?.grid?.sortAsc || "Ascending"
+                    : t?.grid?.sortDesc || "Descending";
+                let measureLabel = "";
                 if (sort.rowMeasure) {
                   const m = (matrix?.measures || []).find(
                     (mm) =>
                       mm.uniqueName === sort.rowMeasure.uniqueName &&
-                      mm.aggregation === sort.rowMeasure.aggregation
+                      mm.aggregation === sort.rowMeasure.aggregation,
                   );
                   if (m) measureLabel = ` — ${m.caption || m.uniqueName}`;
                 }
-                return `${rowNode.caption || ''}${measureLabel} (${dirLabel})`;
+                return `${rowNode.caption || ""}${measureLabel} (${dirLabel})`;
               })()}
               onSortClick={(e) => handleLabelClick(rowNode.key, rowNode, e)}
             />
@@ -1015,16 +1035,16 @@ const PivotTable = function PivotTable() {
             const measureKey = cell?.measureKey || col.measureKey || null;
             const getMeasureValue = (target) => {
               if (!target) return null;
-              const rowKeyBase = String(rowNode.key).split('||M:')[0];
-              const colKeyBase = String(col.key).split('||M:')[0];
-              const wantsExact = String(target).includes(':');
+              const rowKeyBase = String(rowNode.key).split("||M:")[0];
+              const colKeyBase = String(col.key).split("||M:")[0];
+              const wantsExact = String(target).includes(":");
               for (const [k, v] of matrix.cells) {
-                const sep = k.indexOf('::');
+                const sep = k.indexOf("::");
                 if (sep < 0) continue;
                 const rk = k.slice(0, sep);
                 const ck = k.slice(sep + 2);
-                if (rk.split('||M:')[0] !== rowKeyBase) continue;
-                if (ck.split('||M:')[0] !== colKeyBase) continue;
+                if (rk.split("||M:")[0] !== rowKeyBase) continue;
+                if (ck.split("||M:")[0] !== colKeyBase) continue;
                 const mk = v?.measureKey;
                 if (!mk) continue;
                 if (wantsExact) {
@@ -1036,9 +1056,9 @@ const PivotTable = function PivotTable() {
               return null;
             };
             const rowBaseKey = String(rowNode.nodeKey || rowNode.key).split(
-              '||M:'
+              "||M:",
             )[0];
-            const colBaseKey = String(col.key).split('||M:')[0];
+            const colBaseKey = String(col.key).split("||M:")[0];
             const dimensionValues = {
               ...(rowDimMap.get(rowBaseKey) || {}),
               ...(colDimMap.get(colBaseKey) || {}),
@@ -1056,33 +1076,33 @@ const PivotTable = function PivotTable() {
             // "format as percentage" / decimal-count changes from the dialog
             // flow straight through to the grid.
             const aggFromKey = measureKey
-              ? String(measureKey).split(':')[1]
+              ? String(measureKey).split(":")[1]
               : null;
             let effectiveSection = getValuesSection(format, measureKey);
             if (
-              (aggFromKey === 'ratioTotal' || aggFromKey === 'currentRatio') &&
+              (aggFromKey === "ratioTotal" || aggFromKey === "currentRatio") &&
               effectiveSection
             ) {
-              const uniqueName = String(measureKey).split(':')[0];
+              const uniqueName = String(measureKey).split(":")[0];
               const byMeasure = format?.valuesByMeasure || {};
               const override = byMeasure[measureKey] || byMeasure[uniqueName];
               const userSetPercentage =
                 override &&
-                Object.prototype.hasOwnProperty.call(override, 'percentage');
+                Object.prototype.hasOwnProperty.call(override, "percentage");
               if (!userSetPercentage) {
                 effectiveSection = { ...effectiveSection, percentage: true };
               }
             }
             const isTotalOfTotalCell = !!rowNode.isTotal && !!col.isTotal;
             const hideCurrentRatioOnTotal =
-              aggFromKey === 'currentRatio' &&
+              aggFromKey === "currentRatio" &&
               (isTotalOfTotalCell || !!col.isTotal);
             const displayValue = hideCurrentRatioOnTotal
-              ? ''
+              ? ""
               : cell
                 ? formatNumberWithFormat(cell.value, effectiveSection) ||
                   cell.formattedValue
-                : '';
+                : "";
             const cellClickable =
               options?.enableDrillThrough !== false &&
               !hideCurrentRatioOnTotal &&
@@ -1095,7 +1115,7 @@ const PivotTable = function PivotTable() {
                     ...grandTotalValueStyle,
                     textAlign:
                       getValuesSection(format, measureKey)?.textAlign ||
-                      'right',
+                      "right",
                   }
                 : grandTotalValueStyle
               : null;
@@ -1104,7 +1124,7 @@ const PivotTable = function PivotTable() {
                 key={col.key}
                 style={{
                   minWidth: CELL_MIN_WIDTH,
-                  boxSizing: 'border-box',
+                  boxSizing: "border-box",
                 }}
               >
                 <BodyValueCell
@@ -1125,10 +1145,10 @@ const PivotTable = function PivotTable() {
                       : null
                   }
                   hiddenMeasuresLabel={
-                    t?.grid?.hiddenMeasures || 'Hidden measures'
+                    t?.grid?.hiddenMeasures || "Hidden measures"
                   }
                   error={cell?.error || null}
-                  errorLabel={t?.grid?.formulaError || 'Formula error'}
+                  errorLabel={t?.grid?.formulaError || "Formula error"}
                 >
                   {displayValue}
                 </BodyValueCell>
@@ -1163,7 +1183,7 @@ const PivotTable = function PivotTable() {
       chevronColWidth,
       hideChevronCol,
       options?.enableDrillThrough,
-    ]
+    ],
   );
 
   if (!matrix) return null;
@@ -1172,15 +1192,15 @@ const PivotTable = function PivotTable() {
     return (
       <Box
         sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100%',
-          color: 'text.secondary',
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+          color: "text.secondary",
         }}
       >
         <Typography variant="body2">
-          {t?.grid?.empty || 'No data to display'}
+          {t?.grid?.empty || "No data to display"}
         </Typography>
       </Box>
     );
@@ -1189,40 +1209,40 @@ const PivotTable = function PivotTable() {
   return (
     <Box
       sx={(theme) => ({
-        position: 'relative',
-        width: '100%',
-        height: '100%',
+        position: "relative",
+        width: "100%",
+        height: "100%",
         backgroundColor: theme.palette.background.paper,
         color: theme.palette.text.primary,
-        '& table': {
-          borderCollapse: 'separate',
+        "& table": {
+          borderCollapse: "separate",
           borderSpacing: 0,
           minWidth: totalWidth,
-          tableLayout: 'fixed',
+          tableLayout: "fixed",
         },
-        '& thead tr': {
+        "& thead tr": {
           backgroundColor:
-            theme.palette.mode === 'dark'
+            theme.palette.mode === "dark"
               ? theme.palette.grey[900]
               : theme.palette.grey[100],
         },
-        '& thead th': {
+        "& thead th": {
           padding: 0,
           borderBottom: `1px solid ${theme.palette.divider}`,
           borderRight: `1px solid ${theme.palette.divider}`,
-          textAlign: 'left',
-          fontWeight: 600,
-          fontSize: 12,
+          textAlign: "left",
+          fontWeight: theme.typography.button.fontWeight,
+          fontSize: theme.typography.button.fontSize,
           color: theme.palette.text.secondary,
         },
-        '& tbody td': {
+        "& tbody td": {
           padding: 0,
           borderBottom: `1px solid ${theme.palette.divider}`,
           borderRight: `1px solid ${theme.palette.divider}`,
-          fontSize: 13,
+          fontSize: theme.typography.body2.fontSize,
           backgroundColor: theme.palette.background.paper,
         },
-        '& tbody tr:hover td': {
+        "& tbody tr:hover td": {
           backgroundColor: theme.palette.action.hover,
         },
         // Chevron col never paints its own right border — the label col owns
@@ -1231,40 +1251,40 @@ const PivotTable = function PivotTable() {
         // it (the default `& tbody td` rule only emits borderBottom and
         // borderRight). Empty chevron cells (no icon) hide bg/hover but
         // keep the top border so col 1 still gets the row demarcation.
-        '& tbody td.pvt-chevron': {
-          borderRight: 'none',
-          borderBottom: 'none',
+        "& tbody td.pvt-chevron": {
+          borderRight: "none",
+          borderBottom: "none",
           borderTop: `1px solid ${theme.palette.divider}`,
         },
-        '& tbody td.pvt-chevron-empty, & tbody tr:hover td.pvt-chevron-empty': {
-          borderTop: 'none',
-          backgroundColor: 'transparent',
-          pointerEvents: 'none',
+        "& tbody td.pvt-chevron-empty, & tbody tr:hover td.pvt-chevron-empty": {
+          borderTop: "none",
+          backgroundColor: "transparent",
+          pointerEvents: "none",
         },
-        '& tbody td.pvt-label': {
+        "& tbody td.pvt-label": {
           borderLeft: `1px solid ${theme.palette.divider}`,
         },
       })}
     >
       {loading && (
         <Box
-          sx={{
-            position: 'absolute',
+          sx={(theme) => ({
+            position: "absolute",
             top: 0,
             right: 0,
             px: 1.5,
             py: 0.5,
-            fontSize: 12,
-            color: 'primary.main',
+            fontSize: theme.typography.caption.fontSize,
+            color: "primary.main",
             zIndex: 4,
-          }}
+          })}
         >
-          {t?.grid?.loading || 'Processing…'}
+          {t?.grid?.loading || "Processing…"}
         </Box>
       )}
       <TableVirtuoso
-        key={colLeaves.map((c) => c.key).join('|')}
-        style={{ height: '100%' }}
+        key={colLeaves.map((c) => c.key).join("|")}
+        style={{ height: "100%" }}
         data={rowLeaves}
         fixedHeaderContent={renderHeader}
         itemContent={renderRow}
@@ -1285,58 +1305,64 @@ const PivotTable = function PivotTable() {
         open={!!sortPicker}
         anchorEl={sortPicker?.anchorEl || null}
         onClose={() => setSortPicker(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        transformOrigin={{ vertical: "top", horizontal: "left" }}
       >
         <Box
           sx={{
             px: 1.5,
             py: 0.5,
-            display: 'flex',
-            alignItems: 'center',
+            display: "flex",
+            alignItems: "center",
             gap: 1,
           }}
         >
-          <Typography variant="caption" sx={{ fontWeight: 600, flex: 1 }}>
-            {t?.grid?.sortByMeasure || 'Sort by measure'}
+          <Typography
+            variant="caption"
+            sx={(theme) => ({
+              fontWeight: theme.typography.button.fontWeight,
+              flex: 1,
+            })}
+          >
+            {t?.grid?.sortByMeasure || "Sort by measure"}
           </Typography>
           <ToggleButtonGroup
             size="small"
             exclusive
-            value={sortPicker?.direction || 'desc'}
+            value={sortPicker?.direction || "desc"}
             onChange={(_, v) =>
               v && setSortPicker((p) => (p ? { ...p, direction: v } : p))
             }
           >
             <Tooltip
-              title={t?.grid?.sortAsc || 'Ascending'}
+              title={t?.grid?.sortAsc || "Ascending"}
               disableInteractive
               arrow
             >
               <ToggleButton
                 value="asc"
-                aria-label={t?.grid?.sortAsc || 'Ascending'}
+                aria-label={t?.grid?.sortAsc || "Ascending"}
                 sx={{
                   p: 0.25,
                   lineHeight: 1,
-                  '&.Mui-selected svg': { color: 'primary.main' },
+                  "&.Mui-selected svg": { color: "primary.main" },
                 }}
               >
                 <ArrowUpwardIcon fontSize="small" />
               </ToggleButton>
             </Tooltip>
             <Tooltip
-              title={t?.grid?.sortDesc || 'Descending'}
+              title={t?.grid?.sortDesc || "Descending"}
               disableInteractive
               arrow
             >
               <ToggleButton
                 value="desc"
-                aria-label={t?.grid?.sortDesc || 'Descending'}
+                aria-label={t?.grid?.sortDesc || "Descending"}
                 sx={{
                   p: 0.25,
                   lineHeight: 1,
-                  '&.Mui-selected svg': { color: 'primary.main' },
+                  "&.Mui-selected svg": { color: "primary.main" },
                 }}
               >
                 <ArrowDownwardIcon fontSize="small" />
@@ -1359,8 +1385,8 @@ const PivotTable = function PivotTable() {
               onClick={() => {
                 engine.setSort(
                   sortPicker.colKey,
-                  sortPicker.direction || 'desc',
-                  { uniqueName: m.uniqueName, aggregation: m.aggregation }
+                  sortPicker.direction || "desc",
+                  { uniqueName: m.uniqueName, aggregation: m.aggregation },
                 );
                 setSortPicker(null);
               }}
@@ -1376,9 +1402,9 @@ const PivotTable = function PivotTable() {
               engine.setSort(null, null);
               setSortPicker(null);
             }}
-            sx={{ color: 'error.main', borderTop: 1, borderColor: 'divider' }}
+            sx={{ color: "error.main", borderTop: 1, borderColor: "divider" }}
           >
-            {t?.grid?.removeSort || 'Remove sort'}
+            {t?.grid?.removeSort || "Remove sort"}
           </MenuItem>
         )}
       </Menu>
@@ -1386,58 +1412,64 @@ const PivotTable = function PivotTable() {
         open={!!rowSortPicker}
         anchorEl={rowSortPicker?.anchorEl || null}
         onClose={() => setRowSortPicker(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        transformOrigin={{ vertical: "top", horizontal: "left" }}
       >
         <Box
           sx={{
             px: 1.5,
             py: 0.5,
-            display: 'flex',
-            alignItems: 'center',
+            display: "flex",
+            alignItems: "center",
             gap: 1,
           }}
         >
-          <Typography variant="caption" sx={{ fontWeight: 600, flex: 1 }}>
-            {t?.grid?.sortByMeasure || 'Sort by measure'}
+          <Typography
+            variant="caption"
+            sx={(theme) => ({
+              fontWeight: theme.typography.button.fontWeight,
+              flex: 1,
+            })}
+          >
+            {t?.grid?.sortByMeasure || "Sort by measure"}
           </Typography>
           <ToggleButtonGroup
             size="small"
             exclusive
-            value={rowSortPicker?.direction || 'desc'}
+            value={rowSortPicker?.direction || "desc"}
             onChange={(_, v) =>
               v && setRowSortPicker((p) => (p ? { ...p, direction: v } : p))
             }
           >
             <Tooltip
-              title={t?.grid?.sortAsc || 'Ascending'}
+              title={t?.grid?.sortAsc || "Ascending"}
               disableInteractive
               arrow
             >
               <ToggleButton
                 value="asc"
-                aria-label={t?.grid?.sortAsc || 'Ascending'}
+                aria-label={t?.grid?.sortAsc || "Ascending"}
                 sx={{
                   p: 0.25,
                   lineHeight: 1,
-                  '&.Mui-selected svg': { color: 'primary.main' },
+                  "&.Mui-selected svg": { color: "primary.main" },
                 }}
               >
                 <ArrowForwardIcon fontSize="small" />
               </ToggleButton>
             </Tooltip>
             <Tooltip
-              title={t?.grid?.sortDesc || 'Descending'}
+              title={t?.grid?.sortDesc || "Descending"}
               disableInteractive
               arrow
             >
               <ToggleButton
                 value="desc"
-                aria-label={t?.grid?.sortDesc || 'Descending'}
+                aria-label={t?.grid?.sortDesc || "Descending"}
                 sx={{
                   p: 0.25,
                   lineHeight: 1,
-                  '&.Mui-selected svg': { color: 'primary.main' },
+                  "&.Mui-selected svg": { color: "primary.main" },
                 }}
               >
                 <ArrowBackIcon fontSize="small" />
@@ -1460,8 +1492,8 @@ const PivotTable = function PivotTable() {
               onClick={() => {
                 engine.setSortByRow(
                   rowSortPicker.rowKey,
-                  rowSortPicker.direction || 'desc',
-                  { uniqueName: m.uniqueName, aggregation: m.aggregation }
+                  rowSortPicker.direction || "desc",
+                  { uniqueName: m.uniqueName, aggregation: m.aggregation },
                 );
                 setRowSortPicker(null);
               }}
@@ -1477,9 +1509,9 @@ const PivotTable = function PivotTable() {
               engine.setSortByRow(null, null);
               setRowSortPicker(null);
             }}
-            sx={{ color: 'error.main', borderTop: 1, borderColor: 'divider' }}
+            sx={{ color: "error.main", borderTop: 1, borderColor: "divider" }}
           >
-            {t?.grid?.removeSort || 'Remove sort'}
+            {t?.grid?.removeSort || "Remove sort"}
           </MenuItem>
         )}
       </Menu>
@@ -1497,13 +1529,13 @@ const DimensionHeaderCell = function DimensionHeaderCell({
   density,
 }) {
   const d = density || DENSITY.Standard;
-  const align = style?.textAlign || 'left';
+  const align = style?.textAlign || "left";
   const justify =
-    align === 'right'
-      ? 'flex-end'
-      : align === 'center'
-        ? 'center'
-        : 'flex-start';
+    align === "right"
+      ? "flex-end"
+      : align === "center"
+        ? "center"
+        : "flex-start";
   if (!dims || dims.length === 0) {
     return (
       <Box
@@ -1511,22 +1543,26 @@ const DimensionHeaderCell = function DimensionHeaderCell({
           px: d.headerPaddingX,
           py: d.headerPaddingY,
           minHeight: d.headerCellMinHeight,
-          display: 'flex',
-          alignItems: 'center',
+          display: "flex",
+          alignItems: "center",
           justifyContent: justify,
-          fontFamily: style?.fontFamily || 'inherit',
+          fontFamily: style?.fontFamily || "inherit",
           fontWeight: style?.fontWeight || 600,
-          fontSize: style?.fontSize || d.headerFontSize,
+          fontSize: scaleFontSize(
+            style?.fontSize,
+            d.headerFontSizeRate,
+            theme.typography.body2.fontSize,
+          ),
           color:
             style?.color ||
-            (theme.palette.mode === 'dark'
+            (theme.palette.mode === "dark"
               ? theme.palette.grey[500]
               : theme.palette.grey[600]),
-          fontStyle: 'italic',
+          fontStyle: "italic",
           opacity: 0.7,
           backgroundColor:
             style?.backgroundColor ||
-            (theme.palette.mode === 'dark'
+            (theme.palette.mode === "dark"
               ? theme.palette.grey[900]
               : theme.palette.grey[100]),
         })}
@@ -1538,17 +1574,17 @@ const DimensionHeaderCell = function DimensionHeaderCell({
   return (
     <Box
       sx={(theme) => ({
-        px: '6px',
-        py: '3px',
+        px: "6px",
+        py: "3px",
         minHeight: d.headerCellMinHeight,
-        display: 'flex',
-        alignItems: 'center',
+        display: "flex",
+        alignItems: "center",
         justifyContent: justify,
         gap: 0.5,
-        flexWrap: 'wrap',
+        flexWrap: "wrap",
         backgroundColor:
           style?.backgroundColor ||
-          (theme.palette.mode === 'dark'
+          (theme.palette.mode === "dark"
             ? theme.palette.grey[900]
             : theme.palette.grey[100]),
       })}
@@ -1559,12 +1595,12 @@ const DimensionHeaderCell = function DimensionHeaderCell({
           <Box
             key={dim.uniqueName}
             sx={(theme) => ({
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '2px',
-              px: '6px',
-              py: '1px',
-              borderRadius: '10px',
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "2px",
+              px: "6px",
+              py: "1px",
+              borderRadius: theme.shape.borderRadius,
               border: `1px solid ${
                 active ? theme.palette.primary.main : theme.palette.divider
               }`,
@@ -1574,29 +1610,37 @@ const DimensionHeaderCell = function DimensionHeaderCell({
               color: active
                 ? theme.palette.primary.main
                 : style?.color || theme.palette.text.secondary,
-              fontFamily: style?.fontFamily || 'inherit',
+              fontFamily: style?.fontFamily || "inherit",
               fontWeight: style?.fontWeight || 600,
-              fontSize: style?.fontSize || d.headerFontSize,
-              fontStyle: style?.fontStyle || 'normal',
-              whiteSpace: 'nowrap',
+              fontSize: scaleFontSize(
+                style?.fontSize,
+                d.headerFontSizeRate,
+                theme.typography.body2.fontSize,
+              ),
+              fontStyle: style?.fontStyle || "normal",
+              whiteSpace: "nowrap",
             })}
           >
             {active && (
               <FilterAltIcon
-                sx={{ fontSize: 12, color: 'primary.main', mr: '2px' }}
+                sx={(theme) => ({
+                  fontSize: theme.typography.button.fontSize,
+                  color: "primary.main",
+                  mr: "2px",
+                })}
               />
             )}
             <span>{captionFor(dim.uniqueName)}</span>
             <IconButton
               size="small"
               onClick={() => onOpen(dim.uniqueName)}
-              sx={{
+              sx={(theme) => ({
                 p: 0,
-                ml: '2px',
+                ml: "2px",
                 width: 16,
                 height: 16,
-                '& svg': { fontSize: 12 },
-              }}
+                "& svg": { fontSize: theme.typography.button.fontSize },
+              })}
             >
               <SettingsIcon fontSize="inherit" />
             </IconButton>
@@ -1630,13 +1674,13 @@ const HeaderCell = function HeaderCell({
   prefix,
 }) {
   const d = density || DENSITY.Standard;
-  const align = style?.textAlign || 'left';
+  const align = style?.textAlign || "left";
   const justify =
-    align === 'right'
-      ? 'flex-end'
-      : align === 'center'
-        ? 'center'
-        : 'flex-start';
+    align === "right"
+      ? "flex-end"
+      : align === "center"
+        ? "center"
+        : "flex-start";
   return (
     <Box
       onClick={sortable ? onClick : undefined}
@@ -1644,30 +1688,34 @@ const HeaderCell = function HeaderCell({
         px: d.headerPaddingX,
         py: d.headerPaddingY,
         minHeight: d.headerCellMinHeight,
-        display: 'flex',
-        alignItems: 'center',
+        display: "flex",
+        alignItems: "center",
         justifyContent: justify,
         gap: 0.25,
-        cursor: sortable ? 'pointer' : 'default',
-        userSelect: 'none',
+        cursor: sortable ? "pointer" : "default",
+        userSelect: "none",
         backgroundColor:
           style?.backgroundColor ||
-          (theme.palette.mode === 'dark'
+          (theme.palette.mode === "dark"
             ? theme.palette.grey[900]
             : theme.palette.grey[100]),
-        fontFamily: style?.fontFamily || 'inherit',
+        fontFamily: style?.fontFamily || "inherit",
         fontWeight: style?.fontWeight || 600,
-        fontStyle: style?.fontStyle || 'normal',
+        fontStyle: style?.fontStyle || "normal",
         color:
           style?.color ||
           (primary ? theme.palette.primary.main : theme.palette.text.secondary),
-        fontSize: style?.fontSize || d.headerFontSize,
+        fontSize: scaleFontSize(
+          style?.fontSize,
+          d.headerFontSizeRate,
+          theme.typography.body2.fontSize,
+        ),
         letterSpacing: 0.3,
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        transition: 'background-color 120ms ease',
-        '&:hover': sortable
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        transition: "background-color 120ms ease",
+        "&:hover": sortable
           ? {
               backgroundColor: theme.palette.action.hover,
             }
@@ -1678,28 +1726,44 @@ const HeaderCell = function HeaderCell({
       <Box
         component="span"
         sx={{
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
+          overflow: "hidden",
+          textOverflow: "ellipsis",
           textAlign: align,
         }}
       >
         {children}
       </Box>
-      {sortable && sortDirection === 'asc' && (
-        <Tooltip title={sortTooltip || ''} disableInteractive arrow>
-          <ArrowUpwardIcon sx={{ fontSize: 14, color: 'primary.main' }} />
+      {sortable && sortDirection === "asc" && (
+        <Tooltip title={sortTooltip || ""} disableInteractive arrow>
+          <ArrowUpwardIcon
+            sx={(theme) => ({
+              fontSize: theme.typography.subtitle2.fontSize,
+              color: "primary.main",
+            })}
+          />
         </Tooltip>
       )}
-      {sortable && sortDirection === 'desc' && (
-        <Tooltip title={sortTooltip || ''} disableInteractive arrow>
-          <ArrowDownwardIcon sx={{ fontSize: 14, color: 'primary.main' }} />
+      {sortable && sortDirection === "desc" && (
+        <Tooltip title={sortTooltip || ""} disableInteractive arrow>
+          <ArrowDownwardIcon
+            sx={(theme) => ({
+              fontSize: theme.typography.subtitle2.fontSize,
+              color: "primary.main",
+            })}
+          />
         </Tooltip>
       )}
       {sortable && !sortDirection && (
-        <ArrowDownwardIcon sx={{ fontSize: 14, opacity: 0.2, flexShrink: 0 }} />
+        <ArrowDownwardIcon
+          sx={(theme) => ({
+            fontSize: theme.typography.subtitle2.fontSize,
+            opacity: 0.2,
+            flexShrink: 0,
+          })}
+        />
       )}
       {action && (
-        <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center' }}>
+        <Box sx={{ ml: "auto", display: "flex", alignItems: "center" }}>
           {action}
         </Box>
       )}
@@ -1713,7 +1777,7 @@ HeaderCell.propTypes = {
   style: PropTypes.object,
   density: PropTypes.object,
   sortable: PropTypes.bool,
-  sortDirection: PropTypes.oneOf(['asc', 'desc', null]),
+  sortDirection: PropTypes.oneOf(["asc", "desc", null]),
   sortTooltip: PropTypes.string,
   onClick: PropTypes.func,
   action: PropTypes.node,
@@ -1725,7 +1789,7 @@ const SHADE_AMOUNT = [0, 0.04, 0.08, 0.12];
 const tintForMode = (color, amount, mode) => {
   if (!color || !amount) return color;
   try {
-    return mode === 'dark' ? lighten(color, amount) : darken(color, amount);
+    return mode === "dark" ? lighten(color, amount) : darken(color, amount);
   } catch {
     return color;
   }
@@ -1753,15 +1817,15 @@ const ChevronCell = function ChevronCell({
         const grandTotalBg = tintForMode(
           basePaper,
           GRAND_TOTAL_TINT,
-          theme.palette.mode
+          theme.palette.mode,
         );
         return {
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-start',
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-start",
           paddingLeft: `${(indent || 0) + 7}px`,
-          width: '100%',
-          height: '100%',
+          width: "100%",
+          height: "100%",
           minHeight: d.rowHeight,
           backgroundColor: show
             ? isGrandTotal
@@ -1769,7 +1833,7 @@ const ChevronCell = function ChevronCell({
               : isTotal
                 ? theme.palette.action.selected
                 : stripedBg
-            : 'transparent',
+            : "transparent",
         };
       }}
     >
@@ -1780,12 +1844,12 @@ const ChevronCell = function ChevronCell({
             e.stopPropagation();
             onToggle?.();
           }}
-          sx={{
+          sx={(theme) => ({
             p: 0,
             width: 18,
             height: 18,
-            '& svg': { fontSize: 14 },
-          }}
+            "& svg": { fontSize: theme.typography.body2.fontSize },
+          })}
         >
           {expanded ? (
             <ExpandMoreIcon fontSize="inherit" />
@@ -1835,22 +1899,26 @@ const BodyLabelCell = function BodyLabelCell({
         const grandTotalBg = tintForMode(
           basePaper,
           GRAND_TOTAL_TINT,
-          theme.palette.mode
+          theme.palette.mode,
         );
         return {
-          display: 'flex',
-          alignItems: 'center',
+          display: "flex",
+          alignItems: "center",
           gap: 0.25,
           paddingLeft: `${indent + 4}px`,
-          paddingRight: '8px',
+          paddingRight: "8px",
           paddingTop: d.rowPaddingY,
           paddingBottom: d.rowPaddingY,
           minHeight: d.rowHeight,
           height: d.rowHeight,
           lineHeight: d.rowLineHeight,
-          fontFamily: style?.fontFamily || 'inherit',
-          fontSize: style?.fontSize || d.bodyFontSize,
-          fontStyle: style?.fontStyle || 'normal',
+          fontFamily: style?.fontFamily || "inherit",
+          fontSize: scaleFontSize(
+            style?.fontSize,
+            d.bodyFontSizeRate,
+            theme.typography.body2.fontSize,
+          ),
+          fontStyle: style?.fontStyle || "normal",
           fontWeight: isGrandTotal
             ? style?.fontWeight || 700
             : isTotal
@@ -1864,11 +1932,11 @@ const BodyLabelCell = function BodyLabelCell({
                 ? theme.palette.action.selected
                 : stripedBg),
           color: style?.color || theme.palette.text.primary,
-          textAlign: style?.textAlign || 'left',
-          cursor: sortable ? 'pointer' : 'default',
-          userSelect: sortable ? 'none' : 'auto',
-          transition: 'background-color 120ms ease',
-          '&:hover': sortable
+          textAlign: style?.textAlign || "left",
+          cursor: sortable ? "pointer" : "default",
+          userSelect: sortable ? "none" : "auto",
+          transition: "background-color 120ms ease",
+          "&:hover": sortable
             ? { backgroundColor: theme.palette.action.hover }
             : undefined,
         };
@@ -1877,31 +1945,45 @@ const BodyLabelCell = function BodyLabelCell({
       <Box
         component="span"
         sx={{
-          flex: '1 1 auto',
+          flex: "1 1 auto",
           minWidth: 0,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
         }}
       >
         {caption}
       </Box>
-      {sortable && sortDirection === 'asc' && (
-        <Tooltip title={sortTooltip || ''} disableInteractive arrow>
+      {sortable && sortDirection === "asc" && (
+        <Tooltip title={sortTooltip || ""} disableInteractive arrow>
           <ArrowForwardIcon
-            sx={{ fontSize: 14, color: 'primary.main', flexShrink: 0 }}
+            sx={(theme) => ({
+              fontSize: theme.typography.body2.fontSize,
+              color: "primary.main",
+              flexShrink: 0,
+            })}
           />
         </Tooltip>
       )}
-      {sortable && sortDirection === 'desc' && (
-        <Tooltip title={sortTooltip || ''} disableInteractive arrow>
+      {sortable && sortDirection === "desc" && (
+        <Tooltip title={sortTooltip || ""} disableInteractive arrow>
           <ArrowBackIcon
-            sx={{ fontSize: 14, color: 'primary.main', flexShrink: 0 }}
+            sx={(theme) => ({
+              fontSize: theme.typography.body2.fontSize,
+              color: "primary.main",
+              flexShrink: 0,
+            })}
           />
         </Tooltip>
       )}
       {sortable && !sortDirection && (
-        <ArrowForwardIcon sx={{ fontSize: 14, opacity: 0.2, flexShrink: 0 }} />
+        <ArrowForwardIcon
+          sx={(theme) => ({
+            fontSize: theme.typography.body2.fontSize,
+            opacity: 0.2,
+            flexShrink: 0,
+          })}
+        />
       )}
       {onToggleChildren && (
         <IconButton
@@ -1911,18 +1993,18 @@ const BodyLabelCell = function BodyLabelCell({
             onToggleChildren();
           }}
           title={
-            t?.grid?.expandCollapseChildren || 'Expand / Collapse level below'
+            t?.grid?.expandCollapseChildren || "Expand / Collapse level below"
           }
-          sx={{
+          sx={(theme) => ({
             p: 0,
             ml: 0.5,
             flexShrink: 0,
             width: 16,
             height: 16,
             opacity: 0.55,
-            '&:hover': { opacity: 1 },
-            '& svg': { fontSize: 13 },
-          }}
+            "&:hover": { opacity: 1 },
+            "& svg": { fontSize: theme.typography.body2.fontSize },
+          })}
         >
           <UnfoldMoreIcon fontSize="inherit" />
         </IconButton>
@@ -1941,7 +2023,7 @@ BodyLabelCell.propTypes = {
   shade: PropTypes.number,
   density: PropTypes.object,
   sortable: PropTypes.bool,
-  sortDirection: PropTypes.oneOf(['asc', 'desc', null]),
+  sortDirection: PropTypes.oneOf(["asc", "desc", null]),
   sortTooltip: PropTypes.string,
   onSortClick: PropTypes.func,
 };
@@ -2000,7 +2082,7 @@ const BodyValueCell = function BodyValueCell({
         const grandTotalBg = tintForMode(
           basePaper,
           GRAND_TOTAL_TINT,
-          theme.palette.mode
+          theme.palette.mode,
         );
         return {
           px: d.bodyPaddingX,
@@ -2008,13 +2090,17 @@ const BodyValueCell = function BodyValueCell({
           minHeight: d.rowHeight,
           height: d.rowHeight,
           lineHeight: d.rowLineHeight,
-          fontFamily: style?.fontFamily || 'inherit',
-          fontSize: style?.fontSize || d.bodyFontSize,
-          fontStyle: style?.fontStyle || 'normal',
-          textAlign: style?.textAlign || 'right',
-          fontVariantNumeric: 'tabular-nums',
+          fontFamily: style?.fontFamily || "inherit",
+          fontSize: scaleFontSize(
+            style?.fontSize,
+            d.bodyFontSizeRate,
+            theme.typography.body2.fontSize,
+          ),
+          fontStyle: style?.fontStyle || "normal",
+          textAlign: style?.textAlign || "right",
+          fontVariantNumeric: "tabular-nums",
           fontWeight: style?.fontWeight ?? (isTotal ? 700 : 400),
-          cursor: clickable ? 'pointer' : 'default',
+          cursor: clickable ? "pointer" : "default",
           backgroundColor:
             effectiveBg ||
             (isGrandTotal
@@ -2023,16 +2109,16 @@ const BodyValueCell = function BodyValueCell({
                 ? theme.palette.action.selected
                 : shadeAmt > 0
                   ? stripedBg
-                  : 'transparent'),
+                  : "transparent"),
           color: effectiveColor || theme.palette.text.primary,
-          transition: 'background-color 80ms ease',
-          '&:hover': clickable
+          transition: "background-color 80ms ease",
+          "&:hover": clickable
             ? {
                 backgroundColor: effectiveBg
                   ? safeDarken(effectiveBg, 0.1)
                   : theme.palette.action.focus,
-                textDecoration: 'underline',
-                textUnderlineOffset: '2px',
+                textDecoration: "underline",
+                textUnderlineOffset: "2px",
               }
             : undefined,
         };
@@ -2041,21 +2127,25 @@ const BodyValueCell = function BodyValueCell({
       {error ? (
         <Box
           sx={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            width: '100%',
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "4px",
+            width: "100%",
             justifyContent:
-              style?.textAlign === 'left'
-                ? 'flex-start'
-                : style?.textAlign === 'center'
-                  ? 'center'
-                  : 'flex-end',
+              style?.textAlign === "left"
+                ? "flex-start"
+                : style?.textAlign === "center"
+                  ? "center"
+                  : "flex-end",
           }}
         >
           <span>{children}</span>
           <ErrorOutlineIcon
-            sx={{ fontSize: 16, color: 'error.main', flexShrink: 0 }}
+            sx={(theme) => ({
+              fontSize: theme.typography.body2.fontSize,
+              color: "error.main",
+              flexShrink: 0,
+            })}
           />
         </Box>
       ) : (
@@ -2073,34 +2163,34 @@ const BodyValueCell = function BodyValueCell({
         slotProps={{
           tooltip: {
             sx: {
-              bgcolor: 'background.paper',
-              color: 'text.primary',
+              bgcolor: "background.paper",
+              color: "text.primary",
               border: (theme) => `1px solid ${theme.palette.error.main}`,
               boxShadow: 3,
               p: 1,
               maxWidth: 360,
             },
           },
-          arrow: { sx: { color: 'background.paper' } },
+          arrow: { sx: { color: "background.paper" } },
         }}
         title={
           <Box>
             <Typography
               variant="caption"
-              sx={{
-                display: 'block',
-                fontWeight: 700,
+              sx={(theme) => ({
+                display: "block",
+                fontWeight: theme.typography.h2.fontWeight,
                 letterSpacing: 0.3,
-                textTransform: 'uppercase',
-                color: 'error.main',
+                textTransform: "uppercase",
+                color: "error.main",
                 mb: 0.5,
-              }}
+              })}
             >
               {errorLabel}
             </Typography>
             <Typography
               variant="body2"
-              sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+              sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
             >
               {error}
             </Typography>
@@ -2121,32 +2211,32 @@ const BodyValueCell = function BodyValueCell({
       slotProps={{
         tooltip: {
           sx: {
-            bgcolor: 'background.paper',
-            color: 'text.primary',
+            bgcolor: "background.paper",
+            color: "text.primary",
             border: (theme) => `1px solid ${theme.palette.divider}`,
             boxShadow: 3,
             p: 1,
             maxWidth: 320,
           },
         },
-        arrow: { sx: { color: 'background.paper' } },
+        arrow: { sx: { color: "background.paper" } },
       }}
       title={
         <Box sx={{ minWidth: 200 }}>
           <Typography
             variant="caption"
-            sx={{
-              display: 'block',
-              fontWeight: 700,
+            sx={(theme) => ({
+              display: "block",
+              fontWeight: theme.typography.h2.fontWeight,
               letterSpacing: 0.3,
-              textTransform: 'uppercase',
-              color: 'primary.main',
+              textTransform: "uppercase",
+              color: "primary.main",
               mb: 0.5,
-            }}
+            })}
           >
             {hiddenMeasuresLabel}
           </Typography>
-          <Stack component="dl" gap={0.25} sx={{ m: 0, '& dt,& dd': { m: 0 } }}>
+          <Stack component="dl" gap={0.25} sx={{ m: 0, "& dt,& dd": { m: 0 } }}>
             {hiddenMeasureItems.map((it, i) => (
               <Stack
                 key={it.uniqueName}
@@ -2157,24 +2247,27 @@ const BodyValueCell = function BodyValueCell({
                 sx={(theme) => ({
                   py: 0.25,
                   borderTop:
-                    i === 0 ? 'none' : `1px dashed ${theme.palette.divider}`,
+                    i === 0 ? "none" : `1px dashed ${theme.palette.divider}`,
                 })}
               >
                 <Typography
                   component="dt"
                   variant="caption"
-                  sx={{ opacity: 0.8, fontWeight: 500 }}
+                  sx={(theme) => ({
+                    opacity: 0.8,
+                    fontWeight: theme.typography.subtitle1.fontWeight,
+                  })}
                 >
                   {it.caption}
                 </Typography>
                 <Typography
                   component="dd"
                   variant="body2"
-                  sx={{
-                    fontVariantNumeric: 'tabular-nums',
-                    fontWeight: 700,
-                    color: 'text.primary',
-                  }}
+                  sx={(theme) => ({
+                    fontVariantNumeric: "tabular-nums",
+                    fontWeight: theme.typography.h2.fontWeight,
+                    color: "text.primary",
+                  })}
                 >
                   {it.formatted}
                 </Typography>

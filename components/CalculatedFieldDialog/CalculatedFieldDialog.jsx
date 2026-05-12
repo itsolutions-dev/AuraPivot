@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import PropTypes from 'prop-types';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import PropTypes from "prop-types";
 import {
   Box,
   Button,
@@ -13,10 +13,10 @@ import {
   Stack,
   Chip,
   Tooltip,
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import { usePivot } from '../../context/PivotContext';
-import { usePortalContainer } from '../../hooks/usePortalContainer';
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import { usePivot } from "../../context/PivotContext";
+import { usePortalContainer } from "../../hooks/usePortalContainer";
 
 /**
  * Dialog to create or edit a calculated field.
@@ -43,129 +43,129 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
   const buttonGroups = useMemo(
     () => [
       {
-        title: t?.calculatedField?.groupComparison || 'Comparison / Logic',
+        title: t?.calculatedField?.groupComparison || "Comparison / Logic",
         buttons: [
-          { label: '=', insert: ' == ' },
-          { label: '==', insert: ' == ' },
-          { label: '!=', insert: ' != ' },
-          { label: '>', insert: ' > ' },
-          { label: '<', insert: ' < ' },
-          { label: '>=', insert: ' >= ' },
-          { label: '<=', insert: ' <= ' },
-          { label: 'AND', insert: ' AND ' },
-          { label: 'OR', insert: ' OR ' },
+          { label: "=", insert: " == " },
+          { label: "==", insert: " == " },
+          { label: "!=", insert: " != " },
+          { label: ">", insert: " > " },
+          { label: "<", insert: " < " },
+          { label: ">=", insert: " >= " },
+          { label: "<=", insert: " <= " },
+          { label: "AND", insert: " AND " },
+          { label: "OR", insert: " OR " },
         ],
       },
       {
-        title: t?.calculatedField?.groupFunctions || 'Functions',
+        title: t?.calculatedField?.groupFunctions || "Functions",
         buttons: [
           {
-            label: 'IF',
-            insert: 'IF(, , )',
+            label: "IF",
+            insert: "IF(, , )",
             cursorOffset: -5,
             tooltip:
               t?.calculatedField?.tooltipIF ||
-              'IF(condition, value_if_true, value_if_false)',
+              "IF(condition, value_if_true, value_if_false)",
           },
           {
-            label: 'ABS',
-            insert: 'ABS()',
+            label: "ABS",
+            insert: "ABS()",
             cursorOffset: -1,
-            tooltip: t?.calculatedField?.tooltipABS || 'Absolute value',
+            tooltip: t?.calculatedField?.tooltipABS || "Absolute value",
           },
           {
-            label: 'MIN',
-            insert: 'MIN(, )',
+            label: "MIN",
+            insert: "MIN(, )",
             cursorOffset: -3,
             tooltip:
               t?.calculatedField?.tooltipMIN ||
-              'Minimum of two or more numbers',
+              "Minimum of two or more numbers",
           },
           {
-            label: 'MAX',
-            insert: 'MAX(, )',
+            label: "MAX",
+            insert: "MAX(, )",
             cursorOffset: -3,
             tooltip:
               t?.calculatedField?.tooltipMAX ||
-              'Maximum of two or more numbers',
+              "Maximum of two or more numbers",
           },
         ],
       },
       {
         title:
-          t?.calculatedField?.groupAggregations || 'Aggregations & Running',
+          t?.calculatedField?.groupAggregations || "Aggregations & Running",
         buttons: [
           {
-            label: 'sum( )',
+            label: "sum( )",
             insert: 'sum("")',
             cursorOffset: -2,
-            tooltip: t?.calculatedField?.tooltipSUM || 'Sum of a field',
+            tooltip: t?.calculatedField?.tooltipSUM || "Sum of a field",
           },
           {
-            label: 'count( )',
+            label: "count( )",
             insert: 'count("")',
             cursorOffset: -2,
-            tooltip: t?.calculatedField?.tooltipCOUNT || 'Record count',
+            tooltip: t?.calculatedField?.tooltipCOUNT || "Record count",
           },
           {
-            label: 'avg( )',
+            label: "avg( )",
             insert: 'avg("")',
             cursorOffset: -2,
-            tooltip: t?.calculatedField?.tooltipAVG || 'Average of a field',
+            tooltip: t?.calculatedField?.tooltipAVG || "Average of a field",
           },
           {
-            label: 'min( )',
+            label: "min( )",
             insert: 'min("")',
             cursorOffset: -2,
             tooltip:
-              t?.calculatedField?.tooltipMINField || 'Minimum of the field',
+              t?.calculatedField?.tooltipMINField || "Minimum of the field",
           },
           {
-            label: 'max( )',
+            label: "max( )",
             insert: 'max("")',
             cursorOffset: -2,
             tooltip:
-              t?.calculatedField?.tooltipMAXField || 'Maximum of the field',
+              t?.calculatedField?.tooltipMAXField || "Maximum of the field",
           },
           {
-            label: 'Σ progressivo',
+            label: "Σ progressivo",
             insert: 'runningSum("")',
             cursorOffset: -2,
             tooltip:
               t?.calculatedField?.tooltipRunningSum ||
-              'Running (cumulative) sum of the field over visible rows',
+              "Running (cumulative) sum of the field over visible rows",
           },
         ],
       },
       {
-        title: t?.calculatedField?.groupConstants || 'Constants',
+        title: t?.calculatedField?.groupConstants || "Constants",
         buttons: [
           {
-            label: 'NULL',
-            insert: ' null ',
-            tooltip: t?.calculatedField?.tooltipNULL || 'Null value',
+            label: "NULL",
+            insert: " null ",
+            tooltip: t?.calculatedField?.tooltipNULL || "Null value",
           },
           {
-            label: 'EMPTY',
+            label: "EMPTY",
             insert: "''",
-            tooltip: t?.calculatedField?.tooltipEMPTY || 'Empty string',
+            tooltip: t?.calculatedField?.tooltipEMPTY || "Empty string",
           },
         ],
       },
     ],
-    [t]
+    [t],
   );
 
-  const [caption, setCaption] = useState('');
-  const [formula, setFormula] = useState('');
-  const [error, setError] = useState('');
+  const [caption, setCaption] = useState("");
+  const [formula, setFormula] = useState("");
+  const [error, setError] = useState("");
   const formulaRef = useRef(null);
 
   const availableFields = engine
     .getAvailableFields()
     .filter(
       (f) =>
-        f.uniqueName !== 'Measures' && !f.isCalculated && f.type === 'number'
+        f.uniqueName !== "Measures" && !f.isCalculated && f.type === "number",
     );
 
   const fieldByName = useMemo(() => {
@@ -182,16 +182,16 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
   // the aggregation in parentheses so two entries of the same field remain
   // disambiguated.
   const aggLabelLocal = (a) => {
-    const wdrKey = { distinctcount: 'distinctCount', avg: 'average' }[a] || a;
+    const wdrKey = { distinctcount: "distinctCount", avg: "average" }[a] || a;
     const raw = t?.aggregations?.[a] ?? t?.aggregations?.[wdrKey];
-    if (raw && typeof raw === 'object') return raw.caption || a;
+    if (raw && typeof raw === "object") return raw.caption || a;
     return raw || a;
   };
   const availableMeasures = useMemo(() => {
     const slice = engine.getSlice?.() || {};
     const meta = engine.getMetadata?.() || {};
     const calcMap = new Map(
-      (engine.getCalculatedFields?.() || []).map((f) => [f.uniqueName, f])
+      (engine.getCalculatedFields?.() || []).map((f) => [f.uniqueName, f]),
     );
     return (slice.measures || []).map((m) => {
       const base =
@@ -213,7 +213,7 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
     // Calculated fields are inserted as bare chip references (the formula
     // engine resolves them to the stored formula); regular measures become
     // an aggregation call on the underlying field.
-    if (m.isCalculated || m.aggregation === 'formula') {
+    if (m.isCalculated || m.aggregation === "formula") {
       insertFieldRef(m.uniqueName);
       return;
     }
@@ -228,11 +228,11 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
   const tokenizeFormula = (f) => {
     if (!f) return [];
     const names = Array.from(fieldByName.keys()).sort(
-      (a, b) => b.length - a.length
+      (a, b) => b.length - a.length,
     );
     const isBoundary = (c) => !c || /[^\w]/.test(c);
     const out = [];
-    let buf = '';
+    let buf = "";
     let i = 0;
     while (i < f.length) {
       let matched = null;
@@ -244,60 +244,60 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
       }
       if (matched) {
         if (buf) {
-          out.push({ type: 'text', value: buf });
-          buf = '';
+          out.push({ type: "text", value: buf });
+          buf = "";
         }
-        out.push({ type: 'field', uniqueName: matched });
+        out.push({ type: "field", uniqueName: matched });
         i += matched.length;
       } else {
         buf += f[i];
         i++;
       }
     }
-    if (buf) out.push({ type: 'text', value: buf });
+    if (buf) out.push({ type: "text", value: buf });
     return out;
   };
 
   const buildChip = (field) => {
-    const span = document.createElement('span');
-    span.className = 'pv-calc-chip';
-    span.setAttribute('contenteditable', 'false');
-    span.setAttribute('draggable', 'true');
-    span.setAttribute('data-un', field.uniqueName);
+    const span = document.createElement("span");
+    span.className = "pv-calc-chip";
+    span.setAttribute("contenteditable", "false");
+    span.setAttribute("draggable", "true");
+    span.setAttribute("data-un", field.uniqueName);
 
-    const label = document.createElement('span');
-    label.className = 'pv-calc-chip-label';
+    const label = document.createElement("span");
+    label.className = "pv-calc-chip-label";
     label.textContent = field.caption || field.uniqueName;
     span.appendChild(label);
 
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.className = 'pv-calc-chip-remove';
-    close.setAttribute('contenteditable', 'false');
-    close.setAttribute('tabindex', '-1');
-    close.setAttribute('aria-label', 'Remove');
-    close.textContent = '×';
-    close.addEventListener('mousedown', (e) => {
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "pv-calc-chip-remove";
+    close.setAttribute("contenteditable", "false");
+    close.setAttribute("tabindex", "-1");
+    close.setAttribute("aria-label", "Remove");
+    close.textContent = "×";
+    close.addEventListener("mousedown", (e) => {
       e.preventDefault();
       e.stopPropagation();
     });
-    close.addEventListener('click', (e) => {
+    close.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
       span.remove();
       setFormula(serializeBox());
-      setError('');
+      setError("");
     });
     span.appendChild(close);
 
-    span.addEventListener('dragstart', (e) => {
-      e.dataTransfer.setData('application/x-pv-field', field.uniqueName);
-      e.dataTransfer.setData('text/plain', field.uniqueName);
-      e.dataTransfer.effectAllowed = 'move';
-      span.setAttribute('data-dragging', '1');
+    span.addEventListener("dragstart", (e) => {
+      e.dataTransfer.setData("application/x-pv-field", field.uniqueName);
+      e.dataTransfer.setData("text/plain", field.uniqueName);
+      e.dataTransfer.effectAllowed = "move";
+      span.setAttribute("data-dragging", "1");
     });
-    span.addEventListener('dragend', () => {
-      span.removeAttribute('data-dragging');
+    span.addEventListener("dragend", () => {
+      span.removeAttribute("data-dragging");
     });
     return span;
   };
@@ -317,15 +317,15 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
   };
 
   const handleFormulaDragOver = (e) => {
-    if (!e.dataTransfer.types.includes('application/x-pv-field')) return;
+    if (!e.dataTransfer.types.includes("application/x-pv-field")) return;
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = "move";
   };
 
   const handleFormulaDrop = (e) => {
-    if (!e.dataTransfer.types.includes('application/x-pv-field')) return;
+    if (!e.dataTransfer.types.includes("application/x-pv-field")) return;
     e.preventDefault();
-    const un = e.dataTransfer.getData('application/x-pv-field');
+    const un = e.dataTransfer.getData("application/x-pv-field");
     const box = formulaRef.current;
     if (!un || !box) return;
     const range = caretRangeFromPoint(e.clientX, e.clientY);
@@ -344,16 +344,16 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
       sel.addRange(after);
     }
     setFormula(serializeBox());
-    setError('');
+    setError("");
   };
 
   const renderFormulaToBox = (f) => {
     const box = formulaRef.current;
     if (!box) return;
-    box.innerHTML = '';
+    box.innerHTML = "";
     const tokens = tokenizeFormula(f);
     tokens.forEach((tk) => {
-      if (tk.type === 'text') {
+      if (tk.type === "text") {
         box.appendChild(document.createTextNode(tk.value));
       } else {
         const field = fieldByName.get(tk.uniqueName) || {
@@ -372,17 +372,17 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
    */
   const serializeBox = () => {
     const box = formulaRef.current;
-    if (!box) return '';
+    if (!box) return "";
     const walk = (node) => {
-      let out = '';
+      let out = "";
       node.childNodes.forEach((n) => {
         if (n.nodeType === 3) {
           out += n.textContent;
         } else if (n.nodeType === 1) {
-          if (n.tagName === 'BR') {
-            out += '\n';
-          } else if (n.classList?.contains('pv-calc-chip')) {
-            out += n.getAttribute('data-un') || '';
+          if (n.tagName === "BR") {
+            out += "\n";
+          } else if (n.classList?.contains("pv-calc-chip")) {
+            out += n.getAttribute("data-un") || "";
           } else {
             out += walk(n);
           }
@@ -395,10 +395,10 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
 
   useEffect(() => {
     if (!open) return;
-    const initialFormula = editField?.formula || '';
-    setCaption(editField?.caption || '');
+    const initialFormula = editField?.formula || "";
+    setCaption(editField?.caption || "");
     setFormula(initialFormula);
-    setError('');
+    setError("");
     // Defer so the box ref is bound after Dialog mounts.
     setTimeout(() => renderFormulaToBox(initialFormula), 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -443,7 +443,7 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
     range.insertNode(node);
     const caretIdx = Math.max(
       0,
-      Math.min(text.length + cursorOffset, text.length)
+      Math.min(text.length + cursorOffset, text.length),
     );
     const newRange = document.createRange();
     newRange.setStart(node, caretIdx);
@@ -451,14 +451,14 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
     sel.removeAllRanges();
     sel.addRange(newRange);
     setFormula(serializeBox());
-    setError('');
+    setError("");
   };
 
   const clearFormula = () => {
     const box = formulaRef.current;
-    if (box) box.innerHTML = '';
-    setFormula('');
-    setError('');
+    if (box) box.innerHTML = "";
+    setFormula("");
+    setError("");
     focusBoxAtEnd();
   };
 
@@ -487,7 +487,7 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
           range.endOffset > 0
         ) {
           range.endContainer.removeChild(
-            range.endContainer.childNodes[range.endOffset - 1]
+            range.endContainer.childNodes[range.endOffset - 1],
           );
         }
       } else {
@@ -507,7 +507,7 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
       }
     }
     setFormula(serializeBox());
-    setError('');
+    setError("");
   };
 
   const insertFieldRef = (uniqueName) => {
@@ -527,7 +527,7 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
     sel.removeAllRanges();
     sel.addRange(newRange);
     setFormula(serializeBox());
-    setError('');
+    setError("");
   };
 
   const validateFormula = (f) => {
@@ -535,35 +535,35 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
       const patched = f
         .replace(
           /\b(sum|count|avg|min|max|distinctcount|runningsum|running)\s*\(\s*"([^"]+)"\s*\)/gi,
-          '0'
+          "0",
         )
-        .replace(/\^/g, '**')
-        .replace(/\bAND\b/gi, '&&')
-        .replace(/\bOR\b/gi, '||');
+        .replace(/\^/g, "**")
+        .replace(/\bAND\b/gi, "&&")
+        .replace(/\bOR\b/gi, "||");
       // eslint-disable-next-line no-new-func
       Function(
-        'IF',
-        'ABS',
-        'MIN',
-        'MAX',
-        '"use strict"; return (' + patched + ')'
+        "IF",
+        "ABS",
+        "MIN",
+        "MAX",
+        '"use strict"; return (' + patched + ")",
       );
       return null;
     } catch (e) {
-      return `${t?.calculatedField?.invalidFormula || 'Invalid formula'}: ${e.message}`;
+      return `${t?.calculatedField?.invalidFormula || "Invalid formula"}: ${e.message}`;
     }
   };
 
   const handleSave = () => {
     if (!caption.trim()) {
       setError(
-        t?.calculatedField?.errorNameRequired || 'Field name is required.'
+        t?.calculatedField?.errorNameRequired || "Field name is required.",
       );
       return;
     }
     if (!formula.trim()) {
       setError(
-        t?.calculatedField?.errorFormulaRequired || 'Formula is required.'
+        t?.calculatedField?.errorFormulaRequired || "Formula is required.",
       );
       return;
     }
@@ -597,11 +597,11 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
     >
       <DialogTitle sx={{ pr: 6 }}>
         {editField
-          ? t?.calculatedField?.editTitle || 'Edit calculated field'
-          : t?.calculatedField?.createTitle || 'Add calculated field'}
+          ? t?.calculatedField?.editTitle || "Edit calculated field"
+          : t?.calculatedField?.createTitle || "Add calculated field"}
         <IconButton
           onClick={onClose}
-          sx={{ position: 'absolute', top: 8, right: 8 }}
+          sx={{ position: "absolute", top: 8, right: 8 }}
         >
           <CloseIcon />
         </IconButton>
@@ -610,11 +610,11 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
       <DialogContent dividers>
         <Stack spacing={2}>
           <TextField
-            label={t?.calculatedField?.nameLabel || 'Field name'}
+            label={t?.calculatedField?.nameLabel || "Field name"}
             value={caption}
             onChange={(e) => {
               setCaption(e.target.value);
-              setError('');
+              setError("");
             }}
             size="small"
             fullWidth
@@ -628,11 +628,11 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
                 fontWeight: 600,
                 opacity: 0.75,
                 letterSpacing: 0.4,
-                display: 'block',
+                display: "block",
                 mb: 0.5,
               }}
             >
-              {t?.calculatedField?.formulaLabel || 'Formula'}
+              {t?.calculatedField?.formulaLabel || "Formula"}
             </Typography>
             <Box
               ref={formulaRef}
@@ -640,7 +640,7 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
               suppressContentEditableWarning
               onInput={() => {
                 setFormula(serializeBox());
-                setError('');
+                setError("");
               }}
               onDragOver={handleFormulaDragOver}
               onDrop={handleFormulaDrop}
@@ -651,75 +651,75 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
               sx={(theme) => ({
                 minHeight: 72,
                 maxHeight: 220,
-                overflowY: 'auto',
+                overflowY: "auto",
                 px: 1.25,
                 py: 1,
-                fontFamily: 'monospace',
-                fontSize: 13,
+                fontFamily: "monospace",
+                fontSize: theme.typography.body2.fontSize,
                 lineHeight: 1.6,
                 borderRadius: 1,
                 border: `1px solid ${theme.palette.divider}`,
-                outline: 'none',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-                '&:focus-within, &:focus': {
+                outline: "none",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                "&:focus-within, &:focus": {
                   borderColor: theme.palette.primary.main,
                   boxShadow: `0 0 0 1px ${theme.palette.primary.main}`,
                 },
-                '&:empty::before': {
-                  content: 'attr(data-placeholder)',
+                "&:empty::before": {
+                  content: "attr(data-placeholder)",
                   color: theme.palette.text.disabled,
-                  pointerEvents: 'none',
+                  pointerEvents: "none",
                 },
-                '& .pv-calc-chip': {
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  margin: '0 2px',
-                  padding: '0 4px 0 8px',
+                "& .pv-calc-chip": {
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  margin: "0 2px",
+                  padding: "0 4px 0 8px",
                   height: 22,
-                  lineHeight: '22px',
+                  lineHeight: "22px",
                   borderRadius: 11,
-                  backgroundColor: theme.palette.primary.main + '22',
+                  backgroundColor: theme.palette.primary.main + "22",
                   border: `1px solid ${theme.palette.primary.main}66`,
                   color: theme.palette.primary.main,
-                  fontFamily: theme.typography.fontFamily || 'inherit',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  userSelect: 'none',
-                  whiteSpace: 'nowrap',
-                  verticalAlign: 'baseline',
-                  cursor: 'grab',
-                  '&:active': { cursor: 'grabbing' },
+                  fontFamily: theme.typography.fontFamily || "inherit",
+                  fontSize: theme.typography.caption.fontSize,
+                  fontWeight: theme.typography.caption.fontWeight,
+                  userSelect: "none",
+                  whiteSpace: "nowrap",
+                  verticalAlign: "baseline",
+                  cursor: "grab",
+                  "&:active": { cursor: "grabbing" },
                 },
                 '& .pv-calc-chip[data-dragging="1"]': {
                   opacity: 0.5,
                 },
-                '& .pv-calc-chip-label': {
-                  pointerEvents: 'none',
+                "& .pv-calc-chip-label": {
+                  pointerEvents: "none",
                 },
-                '& .pv-calc-chip-remove': {
-                  appearance: 'none',
-                  background: 'transparent',
-                  border: 'none',
+                "& .pv-calc-chip-remove": {
+                  appearance: "none",
+                  background: "transparent",
+                  border: "none",
                   padding: 0,
                   margin: 0,
                   width: 14,
                   height: 14,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: '50%',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  fontSize: 13,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "50%",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  fontSize: theme.typography.caption.fontSize,
                   lineHeight: 1,
-                  fontWeight: 700,
+                  fontWeight: theme.typography.h2.fontWeight,
                   color: theme.palette.primary.main,
                   opacity: 0.65,
-                  '&:hover': {
+                  "&:hover": {
                     opacity: 1,
-                    backgroundColor: theme.palette.primary.main + '33',
+                    backgroundColor: theme.palette.primary.main + "33",
                   },
                 },
               })}
@@ -728,7 +728,7 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
               <Typography
                 variant="caption"
                 color="error"
-                sx={{ mt: 0.5, display: 'block' }}
+                sx={{ mt: 0.5, display: "block" }}
               >
                 {error}
               </Typography>
@@ -736,16 +736,16 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
           </Box>
 
           <Box
-            style={{ display: 'flex', marginBottom: 16 }}
+            style={{ display: "flex", marginBottom: 16 }}
             sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: 'auto 1fr' },
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", sm: "auto 1fr" },
               gap: 2,
-              alignItems: 'start',
+              alignItems: "start",
             }}
           >
             <Calculator
-              title={t?.calculatedField?.groupArithmetic || 'Arithmetic'}
+              title={t?.calculatedField?.groupArithmetic || "Arithmetic"}
               onInsert={insertSnippet}
               onClear={clearFormula}
               onBackspace={backspaceAtCaret}
@@ -760,7 +760,7 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
                       fontWeight: 600,
                       opacity: 0.75,
                       letterSpacing: 0.4,
-                      display: 'block',
+                      display: "block",
                       mb: 0.5,
                     }}
                   >
@@ -776,14 +776,14 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
                           onClick={() =>
                             insertSnippet(b.insert, b.cursorOffset || 0)
                           }
-                          sx={{
+                          sx={(theme) => ({
                             minWidth: 36,
                             height: 28,
                             px: 1,
-                            fontFamily: 'monospace',
-                            fontSize: 12,
-                            textTransform: 'none',
-                          }}
+                            fontFamily: "monospace",
+                            fontSize: theme.typography.caption.fontSize,
+                            textTransform: "none",
+                          })}
                         >
                           {b.label}
                         </Button>
@@ -810,25 +810,25 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
                   fontWeight: 600,
                   opacity: 0.75,
                   letterSpacing: 0.4,
-                  display: 'block',
+                  display: "block",
                   mb: 0.5,
                 }}
               >
                 {t?.calculatedField?.availableFields ||
-                  'Available numeric fields — click to insert into the formula'}
+                  "Available numeric fields — click to insert into the formula"}
               </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                 {availableFields.map((f) => (
                   <Chip
                     key={f.uniqueName}
                     label={f.caption}
                     size="small"
                     onClick={() => insertFieldRef(f.uniqueName)}
-                    sx={{
-                      cursor: 'pointer',
-                      fontFamily: 'monospace',
-                      fontSize: 11,
-                    }}
+                    sx={(theme) => ({
+                      cursor: "pointer",
+                      fontFamily: "monospace",
+                      fontSize: theme.typography.caption.fontSize,
+                    })}
                   />
                 ))}
               </Box>
@@ -843,25 +843,25 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
                   fontWeight: 600,
                   opacity: 0.75,
                   letterSpacing: 0.4,
-                  display: 'block',
+                  display: "block",
                   mb: 0.5,
                 }}
               >
                 {t?.calculatedField?.availableMeasures ||
-                  'Available measures — click to insert into the formula'}
+                  "Available measures — click to insert into the formula"}
               </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                 {availableMeasures.map((m, i) => (
                   <Chip
                     key={`${m.uniqueName}:${m.aggregation}:${i}`}
                     label={m.caption}
                     size="small"
                     onClick={() => insertMeasureRef(m)}
-                    sx={{
-                      cursor: 'pointer',
-                      fontFamily: 'monospace',
-                      fontSize: 11,
-                    }}
+                    sx={(theme) => ({
+                      cursor: "pointer",
+                      fontFamily: "monospace",
+                      fontSize: theme.typography.caption.fontSize,
+                    })}
                   />
                 ))}
               </Box>
@@ -870,12 +870,12 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
         </Stack>
       </DialogContent>
 
-      <DialogActions style={{ padding: '16px' }}>
-        <Button onClick={onClose}>{t?.buttons?.cancel || 'Cancel'}</Button>
+      <DialogActions style={{ padding: "16px" }}>
+        <Button onClick={onClose}>{t?.buttons?.cancel || "Cancel"}</Button>
         <Button onClick={handleSave} variant="contained">
           {editField
-            ? t?.buttons?.saveChanges || 'Save changes'
-            : t?.buttons?.create || 'Create field'}
+            ? t?.buttons?.saveChanges || "Save changes"
+            : t?.buttons?.create || "Create field"}
         </Button>
       </DialogActions>
     </Dialog>
@@ -883,26 +883,26 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
 };
 
 const CALCULATOR_KEYS = [
-  { label: 'C', insert: '', clear: true, variant: 'danger' },
-  { label: '(', insert: '(' },
-  { label: ')', insert: ')' },
-  { label: '⌫', insert: '', backspace: true, variant: 'muted' },
-  { label: '7', insert: '7' },
-  { label: '8', insert: '8' },
-  { label: '9', insert: '9' },
-  { label: '÷', insert: ' / ', variant: 'op' },
-  { label: '4', insert: '4' },
-  { label: '5', insert: '5' },
-  { label: '6', insert: '6' },
-  { label: '×', insert: ' * ', variant: 'op' },
-  { label: '1', insert: '1' },
-  { label: '2', insert: '2' },
-  { label: '3', insert: '3' },
-  { label: '−', insert: ' - ', variant: 'op' },
-  { label: '0', insert: '0' },
-  { label: '.', insert: '.' },
-  { label: '^', insert: ' ^ ', variant: 'op' },
-  { label: '+', insert: ' + ', variant: 'op' },
+  { label: "C", insert: "", clear: true, variant: "danger" },
+  { label: "(", insert: "(" },
+  { label: ")", insert: ")" },
+  { label: "⌫", insert: "", backspace: true, variant: "muted" },
+  { label: "7", insert: "7" },
+  { label: "8", insert: "8" },
+  { label: "9", insert: "9" },
+  { label: "÷", insert: " / ", variant: "op" },
+  { label: "4", insert: "4" },
+  { label: "5", insert: "5" },
+  { label: "6", insert: "6" },
+  { label: "×", insert: " * ", variant: "op" },
+  { label: "1", insert: "1" },
+  { label: "2", insert: "2" },
+  { label: "3", insert: "3" },
+  { label: "−", insert: " - ", variant: "op" },
+  { label: "0", insert: "0" },
+  { label: ".", insert: "." },
+  { label: "^", insert: " ^ ", variant: "op" },
+  { label: "+", insert: " + ", variant: "op" },
 ];
 
 const Calculator = function Calculator({
@@ -919,7 +919,7 @@ const Calculator = function Calculator({
           fontWeight: 600,
           opacity: 0.75,
           letterSpacing: 0.4,
-          display: 'block',
+          display: "block",
           mb: 0.5,
         }}
       >
@@ -927,8 +927,8 @@ const Calculator = function Calculator({
       </Typography>
       <Box
         sx={(theme) => ({
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
           gap: 0.5,
           p: 0.75,
           borderRadius: 1,
@@ -949,24 +949,24 @@ const Calculator = function Calculator({
             }
             onInsert(k.insert, k.cursorOffset || 0);
           };
-          const isOp = k.variant === 'op';
-          const isDanger = k.variant === 'danger';
-          const isMuted = k.variant === 'muted';
+          const isOp = k.variant === "op";
+          const isDanger = k.variant === "danger";
+          const isMuted = k.variant === "muted";
           return (
             <Button
               key={k.label}
               size="small"
-              variant={isOp ? 'contained' : 'outlined'}
-              color={isOp ? 'primary' : isDanger ? 'error' : 'inherit'}
+              variant={isOp ? "contained" : "outlined"}
+              color={isOp ? "primary" : isDanger ? "error" : "inherit"}
               onClick={handleClick}
               sx={(theme) => ({
                 minWidth: 0,
                 height: 36,
                 px: 0,
-                fontFamily: 'monospace',
-                fontSize: 15,
-                fontWeight: 600,
-                textTransform: 'none',
+                fontFamily: "monospace",
+                fontSize: theme.typography.button.fontSize,
+                fontWeight: theme.typography.button.fontWeight,
+                textTransform: "none",
                 backgroundColor: isOp
                   ? undefined
                   : isMuted

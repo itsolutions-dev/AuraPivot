@@ -200,14 +200,14 @@ const SectionLabel = function SectionLabel({ children }) {
   return (
     <Typography
       variant="caption"
-      sx={{
+      sx={(theme) => ({
         display: "block",
-        fontWeight: 600,
+        fontWeight: theme.typography.caption.fontWeight,
         opacity: 0.75,
         letterSpacing: 0.5,
         textTransform: "uppercase",
         my: 1.5,
-      }}
+      })}
     >
       {children}
     </Typography>
@@ -1129,17 +1129,18 @@ const RuleEditor = function RuleEditor({
             {ruleTitle}
           </Typography>
           <Box
-            sx={{
+            sx={(theme) => ({
               px: 1,
               py: 0.25,
               borderRadius: 0.5,
-              fontSize: 12,
+              fontSize:
+                rule.style?.fontSize || theme.typography.caption.fontSize || 13,
               fontFamily: rule.style?.fontFamily || "inherit",
               fontWeight: rule.style?.fontWeight || 400,
               fontStyle: rule.style?.italic ? "italic" : "normal",
               color: rule.style?.textColor || "inherit",
               backgroundColor: rule.style?.backgroundColor || "transparent",
-            }}
+            })}
           >
             {t?.formatDialog?.preview || "preview"}
           </Box>
@@ -1408,7 +1409,8 @@ const RuleEditor = function RuleEditor({
               py: 0.5,
               borderRadius: 1,
               fontFamily: rule.style?.fontFamily || "inherit",
-              fontSize: rule.style?.fontSize || 13,
+              fontSize:
+                rule.style?.fontSize || theme.typography.caption.fontSize || 13,
               fontWeight: rule.style?.fontWeight || 400,
               fontStyle: rule.style?.italic ? "italic" : "normal",
               textAlign: rule.style?.textAlign || "left",
