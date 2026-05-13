@@ -1,5 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import PropTypes from "prop-types";
+
+// Build-time flag injected by rollup `build-flags` plugin. Outside the
+// bundler the token stays unresolved — `typeof` guard prevents
+// ReferenceError.
+const IS_FREEPLAN =
+  typeof __FREEPLAN__ !== "undefined" ? !!__FREEPLAN__ : false;
 import {
   Box,
   Button,
@@ -59,14 +65,20 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
       {
         title: t?.calculatedField?.groupFunctions || "Functions",
         buttons: [
-          {
-            label: "IF",
-            insert: "IF(, , )",
-            cursorOffset: -5,
-            tooltip:
-              t?.calculatedField?.tooltipIF ||
-              "IF(condition, value_if_true, value_if_false)",
-          },
+          // FREEPLAN: IF() is removed from the picker. Evaluation still
+          // throws if a formula references it manually (MatrixComputer).
+          ...(IS_FREEPLAN
+            ? []
+            : [
+                {
+                  label: "IF",
+                  insert: "IF(, , )",
+                  cursorOffset: -5,
+                  tooltip:
+                    t?.calculatedField?.tooltipIF ||
+                    "IF(condition, value_if_true, value_if_false)",
+                },
+              ]),
           {
             label: "ABS",
             insert: "ABS()",

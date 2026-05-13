@@ -23,26 +23,27 @@
     "react-intl": "*"
   },
   "dependencies": {
-    "@mui/icons-material": "^9.0.0",
+    "@mui/icons-material": "^9.0.1",
     "exceljs": "^4.4.0",
     "file-saver": "^2.0.5"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
-    "@babel/preset-env": "^7.29.2",
+    "@babel/preset-env": "^7.29.5",
     "@babel/preset-react": "^7.28.5",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@mui/material": "^9.0.0",
+    "@mui/material": "^9.0.1",
     "@rollup/plugin-babel": "^7.0.0",
     "@rollup/plugin-commonjs": "^29.0.2",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^1.0.0",
-    "javascript-obfuscator": "^4.2.2",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5",
-    "react-virtuoso": "^4.18.6",
-    "rollup": "^4.60.2",
+    "cross-env": "^10.1.0",
+    "javascript-obfuscator": "^5.4.2",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "react-virtuoso": "^4.18.7",
+    "rollup": "^4.60.3",
     "rollup-plugin-obfuscator": "^1.1.0",
     "rollup-plugin-peer-deps-external": "^2.2.4",
     "rollup-plugin-postcss": "^4.0.2"
@@ -50,8 +51,14 @@
   "files": [
     "dist"
   ],
+  "freeplan": {
+    "maxBytes": 1048576,
+    "infoUrl": "https://aurapivot.web.app"
+  },
   "scripts": {
     "build": "rollup -c",
+    "build:freeplan": "cross-env FREEPLAN=1 OBFUSCATOR=1 rollup -c",
+    "build:freeplan2": "cross-env FREEPLAN=1 OBFUSCATOR=0 rollup -c",
     "prepublish": "npm run build"
   }
 }

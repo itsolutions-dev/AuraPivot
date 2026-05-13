@@ -222,7 +222,7 @@
     },
     "rule": "Regola",
     "rulesDesc": "Trascina per riordinare le regole.",
-    "conditionalModeLabel": "Evaluation mode",
+    "conditionalModeLabel": "Metodo di valutazione",
     "conditionalModeInherit": "Eredita",
     "conditionalModeFirst": "Ferma alla prima regola soddisfatta",
     "conditionalModeAll": "Valuta tutte le regole",

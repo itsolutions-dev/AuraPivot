@@ -15,6 +15,12 @@ import {
 } from '../aggregation/Aggregator';
 import { flattenTreeCompact, sortTreeSiblings } from '../slice/TreeBuilder';
 
+// Build-time flag injected by rollup `build-flags` plugin. Outside the
+// bundler the token stays unresolved — `typeof` guard prevents
+// ReferenceError.
+const IS_FREEPLAN =
+  typeof __FREEPLAN__ !== 'undefined' ? !!__FREEPLAN__ : false;
+
 /**
  * Expands a list of axis nodes with per-measure copies. Each produced leaf
  * keeps `.nodeKey` pointing at the original tree node (needed for
@@ -120,7 +126,14 @@ const evalFormula = (formula, resolver, fieldNames = []) => {
       '"use strict"; return (' + patched + ')'
     );
     const result = fn(
-      (cond, a, b) => (cond ? a : b),
+      // FREEPLAN: IF() is disabled. Throwing here surfaces the error
+      // through the existing try/catch as `{ value: null, error: '…' }`
+      // which the cell renderer displays.
+      IS_FREEPLAN
+        ? () => {
+            throw new Error('IF() is not available in the free plan');
+          }
+        : (cond, a, b) => (cond ? a : b),
       (x) => Math.abs(Number(x)),
       (...args) => Math.min(...args.map(Number)),
       (...args) => Math.max(...args.map(Number))

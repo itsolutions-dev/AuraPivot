@@ -1,5 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
+
+// Build-time flag injected by rollup `build-flags` plugin. Outside the
+// bundler the token stays unresolved — `typeof` guard prevents
+// ReferenceError.
+const IS_FREEPLAN =
+  typeof __FREEPLAN__ !== "undefined" ? !!__FREEPLAN__ : false;
 import {
   Accordion,
   AccordionDetails,
@@ -1087,10 +1093,15 @@ const RuleEditor = function RuleEditor({
         value: "between",
         label: t?.formatDialog?.operators?.between || "Between",
       },
-      {
-        value: "expression",
-        label: t?.formatDialog?.operators?.expression || "Expression",
-      },
+      // FREEPLAN: the `expression` operator is removed from the list.
+      ...(IS_FREEPLAN
+        ? []
+        : [
+            {
+              value: "expression",
+              label: t?.formatDialog?.operators?.expression || "Expression",
+            },
+          ]),
     ],
     [t],
   );

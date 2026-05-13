@@ -1,5 +1,11 @@
 import React, { useMemo, useState, useEffect } from "react";
 import PropTypes from "prop-types";
+
+// Build-time flag injected by rollup `build-flags` plugin. Outside the
+// bundler the token stays unresolved — `typeof` guard prevents
+// ReferenceError.
+const IS_FREEPLAN =
+  typeof __FREEPLAN__ !== "undefined" ? !!__FREEPLAN__ : false;
 import {
   Box,
   Dialog,
@@ -1197,37 +1203,39 @@ const FieldList = function FieldList({ open, onClose }) {
         <DialogContent dividers>
           <Box sx={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 2 }}>
             <Box style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0.5,
-                  flexWrap: "wrap",
-                }}
-              >
-                <Typography
-                  variant="caption"
-                  sx={{ fontWeight: 600, opacity: 0.75 }}
+              {IS_FREEPLAN ? null : (
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    flexWrap: "wrap",
+                  }}
                 >
-                  {t?.fieldsList?.allFields || "All fields"}
-                </Typography>
-                <Tooltip
-                  arrow
-                  placement="top"
-                  title={
-                    t?.fieldsList?.drillThroughOrderHint ||
-                    "Tick a field to include it in the drill-through table. Drag rows to reorder — the order here is the column order in the drill-through."
-                  }
-                >
-                  <InfoOutlinedIcon
-                    sx={(theme) => ({
-                      fontSize: theme.typography.caption.fontSize,
-                      opacity: 0.65,
-                      cursor: "help",
-                    })}
-                  />
-                </Tooltip>
-              </Box>
+                  <Typography
+                    variant="caption"
+                    sx={{ fontWeight: 600, opacity: 0.75 }}
+                  >
+                    {t?.fieldsList?.allFields || "All fields"}
+                  </Typography>
+                  <Tooltip
+                    arrow
+                    placement="top"
+                    title={
+                      t?.fieldsList?.drillThroughOrderHint ||
+                      "Tick a field to include it in the drill-through table. Drag rows to reorder — the order here is the column order in the drill-through."
+                    }
+                  >
+                    <InfoOutlinedIcon
+                      sx={(theme) => ({
+                        fontSize: theme.typography.caption.fontSize,
+                        opacity: 0.65,
+                        cursor: "help",
+                      })}
+                    />
+                  </Tooltip>
+                </Box>
+              )}
               <Box
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -1413,23 +1421,25 @@ const FieldList = function FieldList({ open, onClose }) {
                                   <TuneIcon fontSize="inherit" />
                                 </IconButton>
                               </Tooltip>
-                              <Tooltip
-                                title={
-                                  t?.fieldsList?.showInDrillThrough ||
-                                  "Show in drill-through"
-                                }
-                              >
-                                <Checkbox
-                                  size="small"
-                                  checked={isDrillThroughOn(f.uniqueName)}
-                                  onChange={(e) => {
-                                    e.stopPropagation();
-                                    toggleDrillThroughField(f.uniqueName);
-                                  }}
-                                  onClick={(e) => e.stopPropagation()}
-                                  sx={{ p: "2px" }}
-                                />
-                              </Tooltip>
+                              {IS_FREEPLAN ? null : (
+                                <Tooltip
+                                  title={
+                                    t?.fieldsList?.showInDrillThrough ||
+                                    "Show in drill-through"
+                                  }
+                                >
+                                  <Checkbox
+                                    size="small"
+                                    checked={isDrillThroughOn(f.uniqueName)}
+                                    onChange={(e) => {
+                                      e.stopPropagation();
+                                      toggleDrillThroughField(f.uniqueName);
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    sx={{ p: "2px" }}
+                                  />
+                                </Tooltip>
+                              )}
                             </Box>
                           </Tooltip>
                           {isExpanded &&
@@ -1681,25 +1691,27 @@ const FieldList = function FieldList({ open, onClose }) {
                               </IconButton>
                             </Tooltip>
                           )}
-                          {!f.isCalculated && f.uniqueName !== "Measures" && (
-                            <Tooltip
-                              title={
-                                t?.fieldsList?.showInDrillThrough ||
-                                "Show in drill-through"
-                              }
-                            >
-                              <Checkbox
-                                size="small"
-                                checked={isDrillThroughOn(f.uniqueName)}
-                                onChange={(e) => {
-                                  e.stopPropagation();
-                                  toggleDrillThroughField(f.uniqueName);
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                                sx={{ p: "2px" }}
-                              />
-                            </Tooltip>
-                          )}
+                          {!f.isCalculated &&
+                            f.uniqueName !== "Measures" &&
+                            !IS_FREEPLAN && (
+                              <Tooltip
+                                title={
+                                  t?.fieldsList?.showInDrillThrough ||
+                                  "Show in drill-through"
+                                }
+                              >
+                                <Checkbox
+                                  size="small"
+                                  checked={isDrillThroughOn(f.uniqueName)}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    toggleDrillThroughField(f.uniqueName);
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  sx={{ p: "2px" }}
+                                />
+                              </Tooltip>
+                            )}
                           {f.isCalculated && (
                             <>
                               <Tooltip title={t?.buttons?.edit || "Edit"}>
@@ -1761,24 +1773,26 @@ const FieldList = function FieldList({ open, onClose }) {
                 {t?.fieldsList?.addCalculated || "Add calculated value"}
               </Button>
 
-              <Box sx={{ mt: 1.5 }}>
-                <NumericField
-                  fullWidth
-                  size="small"
-                  min={0}
-                  step={1}
-                  value={frozenCount}
-                  onChange={(v) => setFrozenCount(v)}
-                  label={
-                    t?.fieldsList?.freezeColumns ||
-                    "Frozen drill-through columns"
-                  }
-                  helperText={
-                    t?.fieldsList?.freezeColumnsHelp ||
-                    "Number of left-pinned columns"
-                  }
-                />
-              </Box>
+              {IS_FREEPLAN ? null : (
+                <Box sx={{ mt: 1.5 }}>
+                  <NumericField
+                    fullWidth
+                    size="small"
+                    min={0}
+                    step={1}
+                    value={frozenCount}
+                    onChange={(v) => setFrozenCount(v)}
+                    label={
+                      t?.fieldsList?.freezeColumns ||
+                      "Frozen drill-through columns"
+                    }
+                    helperText={
+                      t?.fieldsList?.freezeColumnsHelp ||
+                      "Number of left-pinned columns"
+                    }
+                  />
+                </Box>
+              )}
             </Box>
 
             <Box>
