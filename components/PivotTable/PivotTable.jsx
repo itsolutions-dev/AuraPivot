@@ -467,8 +467,7 @@ const PivotTable = function PivotTable() {
   const aggLabel = useCallback(
     (a) => {
       if (!a) return "";
-      const wdrKey =
-        { distinctcount: "distinctCount", avg: "average" }[a] || a;
+      const wdrKey = { distinctcount: "distinctCount", avg: "average" }[a] || a;
       const raw = t?.aggregations?.[a] ?? t?.aggregations?.[wdrKey];
       if (raw && typeof raw === "object") return raw.caption || a;
       return raw || a;
@@ -710,8 +709,8 @@ const PivotTable = function PivotTable() {
                   backgroundColor:
                     headerStyle?.backgroundColor ||
                     (theme.palette.mode === "dark"
-                      ? theme.palette.grey[900]
-                      : theme.palette.grey[100]),
+                      ? theme.palette.primary[900]
+                      : theme.palette.primary[100]),
                 })}
               >
                 {(rowDimensions.length > 0 || colDimensions.length > 0) && (
@@ -1241,8 +1240,8 @@ const PivotTable = function PivotTable() {
         "& thead tr": {
           backgroundColor:
             theme.palette.mode === "dark"
-              ? theme.palette.grey[900]
-              : theme.palette.grey[100],
+              ? theme.palette.primary[900]
+              : theme.palette.primary[100],
         },
         "& thead th": {
           padding: 0,
@@ -1574,15 +1573,15 @@ const DimensionHeaderCell = function DimensionHeaderCell({
           color:
             style?.color ||
             (theme.palette.mode === "dark"
-              ? theme.palette.grey[500]
-              : theme.palette.grey[600]),
+              ? theme.palette.primary[500]
+              : theme.palette.primary[600]),
           fontStyle: "italic",
           opacity: 0.7,
           backgroundColor:
             style?.backgroundColor ||
             (theme.palette.mode === "dark"
-              ? theme.palette.grey[900]
-              : theme.palette.grey[100]),
+              ? theme.palette.primary[900]
+              : theme.palette.primary[100]),
         })}
       >
         {fallback}
@@ -1603,8 +1602,8 @@ const DimensionHeaderCell = function DimensionHeaderCell({
         backgroundColor:
           style?.backgroundColor ||
           (theme.palette.mode === "dark"
-            ? theme.palette.grey[900]
-            : theme.palette.grey[100]),
+            ? theme.palette.primary[900]
+            : theme.palette.primary[100]),
       })}
     >
       {dims.map((dim) => {
@@ -1715,8 +1714,8 @@ const HeaderCell = function HeaderCell({
         backgroundColor:
           style?.backgroundColor ||
           (theme.palette.mode === "dark"
-            ? theme.palette.grey[900]
-            : theme.palette.grey[100]),
+            ? theme.palette.primary[900]
+            : theme.palette.primary[100]),
         fontFamily: style?.fontFamily || "inherit",
         fontWeight: style?.fontWeight || 600,
         fontStyle: style?.fontStyle || "normal",
@@ -1822,6 +1821,7 @@ const ChevronCell = function ChevronCell({
   isGrandTotal,
   isTotal,
   shade,
+  style,
   density,
   indent,
 }) {
@@ -1867,12 +1867,17 @@ const ChevronCell = function ChevronCell({
             width: 18,
             height: 18,
             "& svg": { fontSize: theme.typography.body2.fontSize },
+            backgroundColor:
+              style?.backgroundColor ||
+              (theme.palette.mode === "dark"
+                ? theme.palette.primary[900]
+                : theme.palette.primary[100]),
           })}
         >
           {expanded ? (
             <ExpandMoreIcon fontSize="inherit" />
           ) : (
-            <ChevronRightIcon fontSize="inherit" />
+            <ExpandLessIcon fontSize="inherit" />
           )}
         </IconButton>
       )}
