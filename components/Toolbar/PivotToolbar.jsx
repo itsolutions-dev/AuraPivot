@@ -20,6 +20,8 @@ import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import TuneIcon from "@mui/icons-material/Tune";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
+import GridOnIcon from "@mui/icons-material/GridOn";
+import { ListItemIcon, ListItemText } from "@mui/material";
 import { usePivot } from "../../context/PivotContext";
 import { usePortalContainer } from "../../hooks/usePortalContainer";
 
@@ -56,6 +58,7 @@ const buildDefaultTabs = ({
       {
         id: "wdr-tab-export-excel",
         title: t?.toolbar?.exportExcel || "Export to Excel",
+        icon: "excel",
         handler: onExportExcel,
       },
     ],
@@ -76,6 +79,8 @@ const IconFor = function IconFor({ name }) {
   if (name === "fields") return <ViewColumnIcon fontSize="small" />;
   if (name === "format") return <TuneIcon fontSize="small" />;
   if (name === "export") return <FileDownloadIcon fontSize="small" />;
+  if (name === "excel")
+    return <GridOnIcon fontSize="small" sx={{ color: "#1D6F42" }} />;
   if (name === "filter") return <FilterListIcon fontSize="small" />;
   if (name === "fullscreen") return <FullscreenIcon fontSize="small" />;
   if (name === "fullscreenExit") return <FullscreenExitIcon fontSize="small" />;
@@ -155,7 +160,12 @@ const ToolbarButton = function ToolbarButton({ tab }) {
                 if (typeof item.handler === "function") item.handler();
               }}
             >
-              {item.title}
+              {item.icon ? (
+                <ListItemIcon sx={{ minWidth: 32 }}>
+                  {renderIcon(item.icon)}
+                </ListItemIcon>
+              ) : null}
+              <ListItemText primary={item.title} />
             </MenuItem>
           ))}
         </Menu>
