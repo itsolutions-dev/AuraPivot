@@ -148,8 +148,10 @@ const DEFAULT_GRAND_TOTALS_FORMAT = {
 };
 
 const DEFAULT_LAYOUT = {
-  totalsRowsPosition: "before", // 'before' | 'after'
-  totalsColumnsPosition: "before", // 'before' | 'after'
+  totalsRowsPosition: "before", // 'before' | 'after' | 'none'
+  totalsRowsSticky: false, // pin grand-total row(s) during vertical scroll
+  totalsColumnsPosition: "before", // 'before' | 'after' | 'none'
+  totalsColumnsSticky: false, // pin grand-total column(s) during horizontal scroll
   alternateRows: false,
 };
 

@@ -559,6 +559,19 @@ const TotalsPositionEditor = function TotalsPositionEditor({
             {t?.formatDialog?.noTotals || "None"}
           </ToggleButton>
         </ToggleButtonGroup>
+        {(layout.totalsRowsPosition || "before") !== "none" && (
+          <FormControlLabel
+            sx={{ ml: 1 }}
+            control={
+              <Switch
+                size="small"
+                checked={!!layout.totalsRowsSticky}
+                onChange={(e) => patch({ totalsRowsSticky: e.target.checked })}
+              />
+            }
+            label={t?.formatDialog?.stickyTotals || "Pin during scroll"}
+          />
+        )}
       </Stack>
 
       <Stack
@@ -1758,7 +1771,9 @@ const DEFAULTS = {
   },
   layout: {
     totalsRowsPosition: "before",
+    totalsRowsSticky: false,
     totalsColumnsPosition: "before",
+    totalsColumnsSticky: false,
     alternateRows: false,
     enableDrillThrough: true,
     density: "Standard",

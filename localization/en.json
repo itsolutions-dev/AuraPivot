@@ -198,6 +198,7 @@
     "beforeData": "Before data",
     "afterData": "After data",
     "noTotals": "None",
+    "stickyTotals": "Pin during scroll",
     "readability": "READABILITY",
     "alternateRows": "Alternating rows (zebra stripes for easier reading)",
     "density": "DENSITY",

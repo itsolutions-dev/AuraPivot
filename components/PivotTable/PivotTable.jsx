@@ -1,4 +1,11 @@
-import React, { useMemo, useCallback, useEffect, useState } from "react";
+import React, {
+  useMemo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import PropTypes from "prop-types";
 import {
   Box,
@@ -216,18 +223,53 @@ const PivotTable = function PivotTable() {
     return leaves.filter((r) => !measureKeyHidden(r.measureKey));
   }, [matrix?.rowLeaves, hiddenMeasures]);
 
+  // Sticky grand totals — read the layout flags once.
+  const stickyRowTotals = !!format?.layout?.totalsRowsSticky;
+  const stickyColTotals = !!format?.layout?.totalsColumnsSticky;
+  const rowsTotalsPosition = format?.layout?.totalsRowsPosition || "before";
+  const colsTotalsPosition = format?.layout?.totalsColumnsPosition || "before";
+
+  // When totalsRowsSticky is on, pin the grand-total row(s) (depth -1).
+  // "before": they are already the leading rows — keep them in the data and
+  // pin via Virtuoso's `topItemCount`. "after": pull them out and render them
+  // in the fixed (sticky) footer. Stuffing a data row into the sticky <thead>
+  // breaks Virtuoso's header measurement, so `topItemCount` is used instead.
+  const { dataRows, gtRows, gtSlot, topItemCount } = useMemo(() => {
+    const off = {
+      dataRows: rowLeaves,
+      gtRows: [],
+      gtSlot: null,
+      topItemCount: 0,
+    };
+    if (!stickyRowTotals || rowsTotalsPosition === "none") return off;
+    const isGT = (r) => !!(r?.isTotal && r.depth === -1);
+    if (rowsTotalsPosition === "before") {
+      let n = 0;
+      while (n < rowLeaves.length && isGT(rowLeaves[n])) n += 1;
+      return n > 0 ? { ...off, topItemCount: n } : off;
+    }
+    const gt = [];
+    const body = [];
+    for (const r of rowLeaves) {
+      if (isGT(r)) gt.push(r);
+      else body.push(r);
+    }
+    if (gt.length === 0) return off;
+    return { dataRows: body, gtRows: gt, gtSlot: "footer", topItemCount: 0 };
+  }, [rowLeaves, stickyRowTotals, rowsTotalsPosition]);
+
   // In perRow layout every data-context leaf expands into N consecutive
   // measure rows. The zebra needs to shade each group distinctly while still
   // alternating measures inside the group, yielding four shade levels instead
   // of two. For layouts without measures-on-rows the meta collapses to the
   // usual one-stripe-per-row pattern.
   const rowMeta = useMemo(() => {
-    const hasMeasuresOnRows = rowLeaves.some((l) => l?.measureKey);
-    const meta = new Array(rowLeaves.length);
+    const hasMeasuresOnRows = dataRows.some((l) => l?.measureKey);
+    const meta = new Array(dataRows.length);
     let groupIndex = -1;
     let groupStart = 0;
-    for (let i = 0; i < rowLeaves.length; i++) {
-      const r = rowLeaves[i];
+    for (let i = 0; i < dataRows.length; i++) {
+      const r = dataRows[i];
       const isFirstOfGroup = !r?.measureKey || r.isFirstMeasure === true;
       if (isFirstOfGroup) {
         groupIndex += 1;
@@ -236,7 +278,7 @@ const PivotTable = function PivotTable() {
       meta[i] = { groupIndex, measureIdx: i - groupStart };
     }
     return { hasMeasuresOnRows, meta };
-  }, [rowLeaves]);
+  }, [dataRows]);
 
   // Chevron column grows with the deepest row so the chevron icon can be
   // indented per depth and never overlaps the sticky label column.
@@ -257,6 +299,97 @@ const PivotTable = function PivotTable() {
   ).length;
   const hideChevronCol = !!matrix?.measuresOnRows && rowDimensionCount <= 1;
   const chevronColWidth = hideChevronCol ? 0 : CHEVRON_COL_WIDTH + maxRowIndent;
+
+  // Sticky grand-total columns keep their normal width — forcing a width
+  // shrinks them. Instead every data-column header carries a `data-pvt-ci`
+  // attribute; after layout its real `offsetLeft` is measured and the sticky
+  // cell is pinned to that exact device-pixel offset, so the columns neither
+  // overlap nor leave seams while scrolling, at any width.
+  const scrollerElRef = useRef(null);
+  const scrollerObsRef = useRef(null);
+  const [measureTick, setMeasureTick] = useState(0);
+  const handleScrollerRef = useCallback((node) => {
+    if (scrollerObsRef.current) {
+      scrollerObsRef.current.disconnect();
+      scrollerObsRef.current = null;
+    }
+    scrollerElRef.current =
+      node && typeof node.querySelectorAll === "function" ? node : null;
+    if (!scrollerElRef.current) return;
+    const ro = new ResizeObserver(() => setMeasureTick((t) => t + 1));
+    ro.observe(scrollerElRef.current);
+    scrollerObsRef.current = ro;
+    setMeasureTick((t) => t + 1);
+  }, []);
+
+  // `colGeom` maps each data-column index to its measured natural offsetLeft,
+  // plus `__cw` (the table's full content width). `null` when sticky is off.
+  const [colGeom, setColGeom] = useState(null);
+  useLayoutEffect(() => {
+    const scroller = scrollerElRef.current;
+    if (!scroller || !stickyColTotals || colsTotalsPosition === "none") {
+      setColGeom((prev) => (prev === null ? prev : null));
+      return;
+    }
+    const ths = scroller.querySelectorAll("thead th[data-pvt-ci]");
+    if (!ths.length) return;
+    const geom = {};
+    let contentWidth = 0;
+    ths.forEach((th) => {
+      geom[th.getAttribute("data-pvt-ci")] = th.offsetLeft;
+      const right = th.offsetLeft + th.offsetWidth;
+      if (right > contentWidth) contentWidth = right;
+    });
+    geom.__cw = contentWidth;
+    setColGeom((prev) => {
+      if (prev) {
+        const keys = Object.keys(geom);
+        const same =
+          keys.length === Object.keys(prev).length &&
+          keys.every((k) => prev[k] === geom[k]);
+        if (same) return prev;
+      }
+      return geom;
+    });
+  }, [
+    colLeaves,
+    measureTick,
+    stickyColTotals,
+    colsTotalsPosition,
+    chevronColWidth,
+  ]);
+
+  // Sticky grand-total column — grand-total col leaves (depth -1) pin to the
+  // left ("before") or right ("after") edge during horizontal scroll, at the
+  // exact measured offset. Returns a style fragment, or null.
+  const stickyColStyle = useCallback(
+    (col, ci, isHeader) => {
+      if (!stickyColTotals || colsTotalsPosition === "none") return null;
+      if (!(col?.isTotal && col.depth === -1)) return null;
+      if (!colGeom || colGeom[String(ci)] == null) return null;
+      // Header cells live inside Virtuoso's own <thead> stacking context, so a
+      // high zIndex there is safe — and necessary, because the scrolling
+      // column headers carry positioned content (MUI IconButtons are
+      // `position: relative`) that would otherwise paint over them.
+      // Body cells must stay below the pinned grand-total row (topItemCount /
+      // fixed footer, both zIndex 1) when totalsRowsSticky is on, so they drop
+      // to zIndex 0 then; otherwise zIndex 1 to cover positioned cell content.
+      const zIndex = isHeader ? 3 : stickyRowTotals ? 0 : 1;
+      if (colsTotalsPosition === "after") {
+        // Right offset = distance from this column's right edge (== the next
+        // column's measured left) to the table's content right edge.
+        const nextLeft = colGeom[String(ci + 1)];
+        const rightEdge = nextLeft == null ? colGeom.__cw : nextLeft;
+        return {
+          position: "sticky",
+          right: colGeom.__cw - rightEdge,
+          zIndex,
+        };
+      }
+      return { position: "sticky", left: colGeom[String(ci)], zIndex };
+    },
+    [stickyColTotals, colsTotalsPosition, colGeom, stickyRowTotals],
+  );
 
   const totalWidth = useMemo(
     () =>
@@ -787,7 +920,8 @@ const PivotTable = function PivotTable() {
               {/*               {t?.fieldsList?.rows || 'Rows'} */}
             </HeaderCell>
           </th>
-          {colLeaves.map((col) => {
+          {colLeaves.map((col, ci) => {
+            const colSticky = stickyColStyle(col, ci, true);
             const isSorted = sort && sort.colKey === col.key;
             // Hover tooltip describes the active sort criteria — column,
             // measure (when measures live on rows and the user picked one),
@@ -823,9 +957,12 @@ const PivotTable = function PivotTable() {
             return (
               <th
                 key={col.key}
+                data-pvt-ci={ci}
+                className={colSticky ? "pvt-sticky-col" : undefined}
                 style={{
                   minWidth: CELL_MIN_WIDTH,
                   boxSizing: "border-box",
+                  ...colSticky,
                 }}
               >
                 <HeaderCell
@@ -893,6 +1030,7 @@ const PivotTable = function PivotTable() {
       compact,
       hideChevronCol,
       chevronColWidth,
+      stickyColStyle,
     ],
   );
 
@@ -922,8 +1060,7 @@ const PivotTable = function PivotTable() {
   );
 
   const renderRow = useCallback(
-    (index) => {
-      const rowNode = rowLeaves[index];
+    (rowNode, index) => {
       if (!rowNode) return null;
 
       const hasChildren = rowNode.children && rowNode.children.length > 0;
@@ -965,6 +1102,7 @@ const PivotTable = function PivotTable() {
             <td
               className={`pvt-chevron${showChevron ? "" : " pvt-chevron-empty"}`}
               style={{
+                position: "sticky",
                 left: 0,
                 zIndex: 1,
                 minWidth: chevronColWidth,
@@ -1047,8 +1185,9 @@ const PivotTable = function PivotTable() {
               onSortClick={(e) => handleLabelClick(rowNode.key, rowNode, e)}
             />
           </td>
-          {colLeaves.map((col) => {
+          {colLeaves.map((col, ci) => {
             const cell = matrix.cells.get(`${rowNode.key}::${col.key}`);
+            const colSticky = stickyColStyle(col, ci, false);
             const measureKey = cell?.measureKey || col.measureKey || null;
             const getMeasureValue = (target) => {
               if (!target) return null;
@@ -1139,9 +1278,11 @@ const PivotTable = function PivotTable() {
             return (
               <td
                 key={col.key}
+                className={colSticky ? "pvt-sticky-col" : undefined}
                 style={{
                   minWidth: CELL_MIN_WIDTH,
                   boxSizing: "border-box",
+                  ...colSticky,
                 }}
               >
                 <BodyValueCell
@@ -1176,9 +1317,9 @@ const PivotTable = function PivotTable() {
       );
     },
     [
-      rowLeaves,
       rowMeta,
       colLeaves,
+      stickyColStyle,
       matrix,
       hiddenMeasures,
       getHiddenMeasureItems,
@@ -1201,6 +1342,21 @@ const PivotTable = function PivotTable() {
       hideChevronCol,
       options?.enableDrillThrough,
     ],
+  );
+
+  // totalsRowsSticky "after" — render the grand-total row(s) in the fixed
+  // (sticky) footer.
+  const renderFooterTotals = useCallback(
+    () => (
+      <>
+        {gtRows.map((r, i) => (
+          <tr key={`gt-row-${r.key}`} style={{ height: density.rowHeight }}>
+            {renderRow(r, i)}
+          </tr>
+        ))}
+      </>
+    ),
+    [gtRows, renderRow, density.rowHeight],
   );
 
   if (!matrix) return null;
@@ -1252,6 +1408,22 @@ const PivotTable = function PivotTable() {
           fontSize: theme.typography.button.fontSize,
           color: theme.palette.text.secondary,
         },
+        // Sticky grand-total column header: a plain <th> is transparent (only
+        // <thead tr> carries a background), so once it detaches as a sticky
+        // cell the scrolling column headers bleed through it. Give it an
+        // opaque background matching the header row.
+        "& thead th.pvt-sticky-col": {
+          backgroundColor:
+            theme.palette.mode === "dark"
+              ? theme.palette.primary[900]
+              : theme.palette.primary[100],
+        },
+        // Sticky grand-total column body cells must stay opaque even on row
+        // hover — `action.hover` is translucent, so otherwise the
+        // horizontally-scrolled data cells bleed through them.
+        "& tbody td.pvt-sticky-col, & tbody tr:hover td.pvt-sticky-col": {
+          backgroundColor: theme.palette.background.paper,
+        },
         "& tbody td": {
           padding: 0,
           borderBottom: `1px solid ${theme.palette.divider}`,
@@ -1275,11 +1447,25 @@ const PivotTable = function PivotTable() {
         },
         "& tbody td.pvt-chevron-empty, & tbody tr:hover td.pvt-chevron-empty": {
           borderTop: "none",
-          backgroundColor: "transparent",
+          // Opaque (not transparent): the chevron col is sticky, so a
+          // see-through cell would let data cells bleed under it on
+          // horizontal scroll.
+          backgroundColor: theme.palette.background.paper,
           pointerEvents: "none",
         },
         "& tbody td.pvt-label": {
           borderLeft: `1px solid ${theme.palette.divider}`,
+        },
+        // The fixed-footer grand-total row ("after") lives in <tfoot>, which
+        // the `& tbody td` rules never reach — give it the same padding,
+        // borders and opaque background so it matches the body and stays
+        // opaque while rows scroll underneath.
+        "& tfoot td": {
+          padding: 0,
+          borderTop: `1px solid ${theme.palette.divider}`,
+          borderRight: `1px solid ${theme.palette.divider}`,
+          fontSize: theme.typography.body2.fontSize,
+          backgroundColor: theme.palette.background.paper,
         },
       })}
     >
@@ -1302,9 +1488,14 @@ const PivotTable = function PivotTable() {
       <TableVirtuoso
         key={colLeaves.map((c) => c.key).join("|")}
         style={{ height: "100%" }}
-        data={rowLeaves}
+        scrollerRef={handleScrollerRef}
+        data={dataRows}
+        topItemCount={topItemCount}
         fixedHeaderContent={renderHeader}
-        itemContent={renderRow}
+        fixedFooterContent={
+          gtSlot === "footer" ? renderFooterTotals : undefined
+        }
+        itemContent={(index, row) => renderRow(row, index)}
       />
       <DimensionFilterDialog
         open={!!dimensionFilter}

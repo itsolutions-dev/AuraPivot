@@ -59,16 +59,21 @@ const estimateDatasetBytes = (data) => {
  *   - ref.auraPivot.getReport() / .setReport()
  *   - reportChange event prop
  *   - beforeToolbarCreated event prop receiving a `{ getTabs }` API
- *   - global.options:
- *       - toolbar: { visible, showFields, showFormat, showExport, showFullscreen, showReset } — toolbar visibility
- *       - enableDrillThrough (default true) — gates the data-cell click that
- *         opens the DrillThroughDialog.
- *       - reset, export, fullscreen, format, fields (default true) — toolbar
- *         button visibility flags. Set to `false` to hide the corresponding
- *         tab from the toolbar.
- *       - formats, calculatedFields, fields (array), slides — caller-supplied
- *         data wiring. `fields` accepts an array of `{ uniqueName, caption }`;
- *         when boolean it is treated as the toolbar visibility flag.
+ *   - global.toolbar: { visible, showFields, showFormat, showExport, showFullscreen, showReset } — toolbar visibility
+ *   - global.reset, global.export, global.fullscreen, global.format,
+ *     global.fields (default true) — toolbar button visibility flags. Set to
+ *     `false` to hide the corresponding tab from the toolbar.
+ *   - global.formats, global.calculatedFields, global.fields (array),
+ *     global.slides — caller-supplied data wiring. `fields` accepts an array
+ *     of `{ uniqueName, caption }`; when boolean it is treated as the toolbar
+ *     visibility flag.
+ *   - global.layout — { density, alternateRows, enableDrillThrough,
+ *     totalsRowsPosition, totalsColumnsPosition, title, notes }. Routed to
+ *     setFormat (format concern). `totalsRowsPosition` /
+ *     `totalsColumnsPosition` accept "before" | "after" | "none".
+ *     `enableDrillThrough` (default true) gates the data-cell click that
+ *     opens the DrillThroughDialog; it is also mirrored into engine options
+ *     so the grid and the FormatDialog stay in sync.
  *   - global.dataSource.data in the auraPivot `[metadata, ...rows]` shape
  *   - global.fields.measuresAxis ("rows" | "columns") — which axis the
  *     Measures pseudo-field sits on.
@@ -90,7 +95,7 @@ const Pivot = forwardRef(function Pivot(props, ref) {
     theme,
   } = props;
 
-  const toolbar = globalProps?.options?.toolbar?.visible ?? true;
+  const toolbar = globalProps?.toolbar?.visible ?? true;
 
   const engineRef = useRef(null);
   if (engineRef.current === null) {
@@ -204,17 +209,31 @@ const Pivot = forwardRef(function Pivot(props, ref) {
   }, [engine, globalProps?.dataSource?.data]);
 
   useEffect(() => {
-    const opts = globalProps?.options;
-    if (!opts) return;
-    const { formats, calculatedFields, fields, slides, ...display } = opts;
+    if (!globalProps) return;
+    const { formats, layout, calculatedFields, fields, slides, ...display } =
+      globalProps;
+    // `dataSource` is consumed by the setData effect above — drop it so it
+    // never leaks into engine.setOptions.
+    delete display.dataSource;
     // `fields` is dual-purpose: boolean → toolbar visibility, array → data
     // override list. Only forward the boolean form to engine options so the
     // toolbar can read it; the array goes through engine.setFields below.
     if (typeof fields === "boolean") display.fields = fields;
+    // `enableDrillThrough` lives under `layout` (the FormatDialog edits it
+    // there) but the grid gates the drill-through click on engine options —
+    // mirror the layout value into options so both surfaces stay in sync.
+    if (layout && layout.enableDrillThrough !== undefined) {
+      display.enableDrillThrough = layout.enableDrillThrough;
+    }
     // FREEPLAN: drillthrough is always disabled regardless of caller intent.
     if (IS_FREEPLAN) display.enableDrillThrough = false;
     engine.setOptions(display);
     if (formats) engine.setFormat(formats);
+    // `layout` (density, alternating rows, totals placement) is a format
+    // concern — MatrixComputer reads format.layout — so route it through
+    // setFormat. `totalsRowsPosition` / `totalsColumnsPosition` accept
+    // "before" | "after" | "none".
+    if (layout) engine.setFormat({ layout });
     if (Array.isArray(calculatedFields))
       engine.setCalculatedFields(calculatedFields);
     if (Array.isArray(fields)) engine.setFields(fields);
@@ -224,7 +243,7 @@ const Pivot = forwardRef(function Pivot(props, ref) {
     // Bump tick so context useMemo re-runs and consumers (toolbar, table)
     // re-read engine.getOptions() with the fresh values.
     setOptsTick((t) => t + 1);
-  }, [engine, globalProps?.options]);
+  }, [engine, globalProps]);
 
   // Wire the reportChange event through to the caller prop.
   useEffect(() => {

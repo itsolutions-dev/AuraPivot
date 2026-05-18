@@ -198,6 +198,7 @@
     "beforeData": "Prima dei dati",
     "afterData": "Dopo i dati",
     "noTotals": "Nessuno",
+    "stickyTotals": "Blocca durante lo scorrimento",
     "readability": "LEGGIBILITÀ",
     "alternateRows": "Righe alternate (effetto zebra per facilitare la lettura)",
     "density": "DENSITÀ",
