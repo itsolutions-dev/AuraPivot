@@ -70,6 +70,8 @@ const estimateDatasetBytes = (data) => {
  *         data wiring. `fields` accepts an array of `{ uniqueName, caption }`;
  *         when boolean it is treated as the toolbar visibility flag.
  *   - global.dataSource.data in the auraPivot `[metadata, ...rows]` shape
+ *   - global.fields.measuresAxis ("rows" | "columns") — which axis the
+ *     Measures pseudo-field sits on.
  *
  * Optional `theme` prop accepts a MUI theme object (or a function `(outer) =>
  * theme` for partial overrides). When provided the entire pivot subtree is
@@ -365,7 +367,11 @@ const Pivot = forwardRef(function Pivot(props, ref) {
             {layoutFormat.note}
           </Typography>
         ) : null}
-        <FieldList open={fieldsOpen} onClose={() => setFieldsOpen(false)} />
+        <FieldList
+          open={fieldsOpen}
+          onClose={() => setFieldsOpen(false)}
+          measuresAxis={globalProps?.fields?.measuresAxis}
+        />
         <FormatDialog open={formatOpen} onClose={() => setFormatOpen(false)} />
         {IS_FREEPLAN && (
           <Box

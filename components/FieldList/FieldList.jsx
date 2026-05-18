@@ -509,7 +509,7 @@ NumericField.propTypes = {
   fullWidth: PropTypes.bool,
 };
 
-const FieldList = function FieldList({ open, onClose }) {
+const FieldList = function FieldList({ open, onClose, measuresAxis }) {
   const { engine, localization: t } = usePivot();
   const portalContainer = usePortalContainer();
   const [slice, setSliceState] = useState(engine.getSlice());
@@ -563,7 +563,10 @@ const FieldList = function FieldList({ open, onClose }) {
       const inRows = (s.rows || []).some((f) => f.uniqueName === "Measures");
       const inCols = (s.columns || []).some((f) => f.uniqueName === "Measures");
       if (inRows || inCols) return s;
-      // Default placement: on columns (matches the "Per colonna" toggle default).
+      // Default placement honors the `measuresAxis` prop; columns otherwise.
+      if (measuresAxis === "rows") {
+        return { ...s, rows: [...(s.rows || []), { uniqueName: "Measures" }] };
+      }
       return {
         ...s,
         columns: [...(s.columns || []), { uniqueName: "Measures" }],
@@ -592,7 +595,7 @@ const FieldList = function FieldList({ open, onClose }) {
       engine.off("dataChange", syncCalc);
       engine.off("formatChange", syncDateFormats);
     };
-  }, [engine, open]);
+  }, [engine, open, measuresAxis]);
 
   // Filter-slot fields are intentionally NOT removed from the available list:
   // a user may want the same dimension both as a page-level filter AND as a
@@ -733,14 +736,14 @@ const FieldList = function FieldList({ open, onClose }) {
 
   // Derive the current "Mostra i totali" axis from the slice. The Measures
   // anchor lives on either rows or columns; default to columns when missing.
-  const measuresAxis = useMemo(() => {
+  const currentMeasuresAxis = useMemo(() => {
     if ((slice.rows || []).some((f) => f.uniqueName === "Measures"))
       return "rows";
     return "columns";
   }, [slice]);
 
   const handleMeasuresAxisChange = (_e, value) => {
-    if (!value || value === measuresAxis) return;
+    if (!value || value === currentMeasuresAxis) return;
     const next = { ...slice };
     next.rows = (next.rows || []).filter((f) => f.uniqueName !== "Measures");
     next.columns = (next.columns || []).filter(
@@ -1820,7 +1823,7 @@ const FieldList = function FieldList({ open, onClose }) {
                 <ToggleButtonGroup
                   size="small"
                   exclusive
-                  value={measuresAxis}
+                  value={currentMeasuresAxis}
                   onChange={handleMeasuresAxisChange}
                   sx={{ ml: "auto" }}
                 >
@@ -1977,6 +1980,7 @@ const FieldList = function FieldList({ open, onClose }) {
 FieldList.propTypes = {
   open: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
+  measuresAxis: PropTypes.oneOf(["rows", "columns"]),
 };
 
 export default FieldList;

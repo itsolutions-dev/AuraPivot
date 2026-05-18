@@ -24,6 +24,7 @@ import {
   Select,
   Slider,
   Stack,
+  Switch,
   Tab,
   Tabs,
   TextField,
@@ -434,7 +435,7 @@ const SectionEditor = function SectionEditor({
             <FormControlLabel
               sx={{ alignSelf: "flex-end", flex: 1, ml: 0 }}
               control={
-                <Checkbox
+                <Switch
                   checked={!!section.percentage}
                   onChange={(e) => patch({ percentage: e.target.checked })}
                 />
@@ -660,7 +661,7 @@ const LayoutTab = function LayoutTab({ layout, setLayout }) {
         </SectionLabel>
         <FormControlLabel
           control={
-            <Checkbox
+            <Switch
               checked={!!layout.alternateRows}
               onChange={(e) => patch({ alternateRows: e.target.checked })}
             />
@@ -668,6 +669,29 @@ const LayoutTab = function LayoutTab({ layout, setLayout }) {
           label={
             t?.formatDialog?.alternateRows ||
             "Alternate rows (zebra stripes for easier reading)"
+          }
+        />
+      </Stack>
+      <Divider
+        sx={{
+          marginTop: (theme) => theme.spacing(2),
+          marginBottom: (theme) => theme.spacing(1),
+        }}
+      />
+      <Stack gap={0.5}>
+        <SectionLabel>
+          {t?.formatDialog?.enableDrillThrough || "DRILLTHROUGH"}
+        </SectionLabel>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={layout.enableDrillThrough !== false}
+              onChange={(e) => patch({ enableDrillThrough: e.target.checked })}
+            />
+          }
+          label={
+            t?.formatDialog?.enableDrillThroughToggle ||
+            "Enable drill-through (double-click a cell to see underlying rows)"
           }
         />
       </Stack>
@@ -1736,6 +1760,7 @@ const DEFAULTS = {
     totalsRowsPosition: "before",
     totalsColumnsPosition: "before",
     alternateRows: false,
+    enableDrillThrough: true,
     density: "Standard",
     title: "",
     note: "",
