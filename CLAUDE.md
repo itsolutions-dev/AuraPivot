@@ -39,23 +39,24 @@ Dirty flag: every setter that affects the matrix sets `_dirty = true`; `processM
 
 ### React layer
 
-- `AuraPivot.jsx` — `forwardRef` wrapper. Creates one `PivotEngine` per mount, pushes props into it via `useEffect`, and exposes the legacy API through `useImperativeHandle`:
-  - `ref.AuraPivot.getReport()` / `ref.AuraPivot.setReport(report)` — AuraPivot-compatible
+- `AuraPivot.jsx` — `forwardRef` wrapper. Creates one `PivotEngine` per mount. Configured through the `options` prop (a structured schema — see `docs/options-guide.en.md`) plus a separate `dataSource` rows prop; in-component edits are emitted back via the `onOptionsChange` callback. The `options`↔engine mapping lives in `options/optionsAdapter.js`. Exposes via `useImperativeHandle`:
+  - `ref.auraPivot.getOptions()` — the current `options` schema
   - `ref.engine` — escape hatch to the raw engine
 - `context/PivotContext.jsx` — shares `{ engine, localization, locale, options }` with descendant components. Export names reachable from the public surface are aliased in `index.js` (`AuraPivotProvider`, `useAuraPivot`).
 - `hooks/usePivotMatrix.js` — subscribes to `datachange`/`reportchange`/`formatchange` and returns `{ matrix, loading }`. Above `WORKER_THRESHOLD = 5000` rows the recompute is deferred one microtask so the loader can paint first. The header comment mentions a Web Worker bridge — this is aspirational, the current implementation stays on the main thread.
 - `components/` — UI: `PivotTable` (react-virtuoso virtualized grid), `Toolbar/PivotToolbar`, `FieldList`, `FormatDialog`, `FilterBar`, plus the `CalculatedFieldDialog`, `DimensionFilterDialog`, and `DrillThroughDialog` one-offs.
 
-## Compatibility contract
+## Public API contract
 
-The whole `AuraPivot.jsx` top comment is a spec — read it before changing anything that touches the public surface. Highlights that are easy to break:
+The `<AuraPivot>` component is configured through the structured `options` prop (plus a separate `dataSource` rows prop) and reports in-component edits via the `onOptionsChange` callback. The schema and the round-trip model are documented in `docs/options-guide.en.md` / `docs/options-guide.it.md`; the `options`↔engine mapping is `options/optionsAdapter.js`. Points that are easy to break:
 
-- `setReport` must NOT emit `reportchange` (consumers call `setReport` from a `useEffect` that listens to their own report copy — re-emitting causes an infinite loop). `setFormat` inside `setReport` IS emitted on purpose so the grid's local format snapshot syncs.
-- `global.dataSource.data` arrives in AuraPivot `[metadata, ...rows]` shape; `getReport()` round-trips in the same shape.
+- `options` is applied **seed-on-change**: re-applied only when the object reference changes. `onOptionsChange` hands the host the component's own emitted object — feeding it straight back is a no-op (loop guard in `AuraPivot.jsx`).
+- `dataSource` is a plain rows array; the engine's `[metadata, ...rows]` shape is assembled inside `options/optionsAdapter.js` from `options.data.fields` + `dataSource`.
 - The top-level `localization` prop carries the dictionary. No bundled fallback: if the consumer passes nothing, the engine receives `{}` and emits empty captions. Consumers either statically import a JSON file from `@its/aura-pivot/locales/<lang>.json` or load one at runtime (e.g. via i18next + i18next-http-backend) and pass the resulting object in. `mergeLocalization` from `localization/merge.js` is exposed for layering per-instance overrides — the component itself no longer merges. `locale` prop is BCP-47 and is threaded to every Intl call (`localeCompare`, `Intl.NumberFormat`, `Intl.DateTimeFormat`); `undefined` means "defer to browser default" and must stay `undefined` (not `""`).
 - `format` accepts both `values` and the legacy alias `general` (read paths expose both for back-compat).
 - Aggregation label localization: engine's internal key `avg` maps to the dictionary key `average` (see `AGG_LOCALE_KEY` in `PivotEngine.js`).
 - `Measures` is a reserved `uniqueName` used as a pseudo-field to place the measure axis on rows or columns — filter it out before passing row/column fields to the tree builder.
+- The engine still has `getReport()` / `setReport()` methods, used internally and reachable through the `ref.engine` escape hatch, but they are no longer part of the component's public prop/ref surface.
 
 ## Conventions
 
