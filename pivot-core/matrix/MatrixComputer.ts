@@ -14,7 +14,7 @@ import {
   formatMeasureValue,
 } from '../aggregation/Aggregator';
 import { flattenTreeCompact, sortTreeSiblings } from '../slice/TreeBuilder';
-import type { DataRow, TreeNode, SliceMeasure, MatrixCell, MetadataRow } from '../types';
+import type { DataRow, TreeNode, MatrixCell, MetadataRow, AggregationType } from '../types';
 import type { RichSliceField } from '../slice/TreeBuilder';
 
 // Build-time flag injected by rollup `build-flags` plugin. Outside the
@@ -30,7 +30,7 @@ interface EnrichedMeasure {
   caption?: string;
   grandTotalCaption?: string;
   formula?: string;
-  availableAggregations?: import('../types').AggregationType[];
+  availableAggregations?: AggregationType[];
 }
 
 /** A calculated field definition carrying its formula string. */
@@ -58,7 +58,7 @@ interface LayoutOptions {
 }
 
 /** A TreeNode expanded to an axis leaf, with measure metadata. */
-interface AxisLeaf extends TreeNode {
+export interface AxisLeaf extends TreeNode {
   nodeKey: string;
   measureKey: string | null;
   measureCaption?: string;

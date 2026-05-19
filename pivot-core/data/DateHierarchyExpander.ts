@@ -14,14 +14,14 @@
 import type { MetadataRow, DataRow, FieldType } from "../types";
 
 /** Extended FieldMeta that includes an optional subpart marker for hierarchy fields. */
-interface ExpandedFieldMeta {
+export interface ExpandedFieldMeta {
   type: FieldType | string;
   caption: string;
   subpart?: string;
 }
 
 /** The metadata map that may contain both base and synthetic hierarchy entries. */
-type ExpandedMetadataRow = Record<string, ExpandedFieldMeta>;
+export type ExpandedMetadataRow = Record<string, ExpandedFieldMeta>;
 
 /** Localization shape accepted by expandHierarchies. */
 interface HierarchyLocalization {
