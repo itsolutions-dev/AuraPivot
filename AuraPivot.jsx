@@ -205,6 +205,8 @@ const Pivot = forwardRef(function Pivot(props, ref) {
         applyingRef.current = true;
         try {
           optionsToEngine(engine, options, undefined);
+          // FREEPLAN: drill-through is always disabled regardless of intent.
+          engine.setOptions({ enableDrillThrough: false });
         } finally {
           applyingRef.current = false;
         }
@@ -216,6 +218,8 @@ const Pivot = forwardRef(function Pivot(props, ref) {
     applyingRef.current = true;
     try {
       optionsToEngine(engine, options, dataSource);
+      // FREEPLAN: drill-through is always disabled regardless of caller intent.
+      if (IS_FREEPLAN) engine.setOptions({ enableDrillThrough: false });
     } finally {
       applyingRef.current = false;
     }
@@ -228,8 +232,11 @@ const Pivot = forwardRef(function Pivot(props, ref) {
   // coalesced into a single microtask.
   useEffect(() => {
     let scheduled = false;
+    let cancelled = false;
     const emit = () => {
       scheduled = false;
+      // A microtask enqueued just before unmount must not fire afterwards.
+      if (cancelled) return;
       const next = engineToOptions(engine);
       lastEmittedRef.current = next;
       if (typeof onOptionsChangeRef.current === "function") {
@@ -246,6 +253,7 @@ const Pivot = forwardRef(function Pivot(props, ref) {
     engine.on("reportChange", schedule);
     engine.on("formatChange", schedule);
     return () => {
+      cancelled = true;
       engine.off("dataChange", schedule);
       engine.off("reportChange", schedule);
       engine.off("formatChange", schedule);
