@@ -22,6 +22,8 @@ import PivotTable from "./components/PivotTable/PivotTable";
 import FieldList from "./components/FieldList/FieldList";
 import FormatDialog from "./components/FormatDialog/FormatDialog";
 import FilterBar from "./components/FilterBar/FilterBar";
+import { optionsToEngine, engineToOptions } from "./options/optionsAdapter";
+import optionsPropType from "./options/optionsPropType";
 
 // Build-time flags injected by rollup `build-flags` plugin. The `typeof`
 // guards keep the source runnable outside the bundler (tests, sibling-package
@@ -53,35 +55,26 @@ const estimateDatasetBytes = (data) => {
 };
 
 /**
- * Drop-in replacement for `<Pivot>` from @auraPivot/react-auraPivot.
+ * AuraPivot — a configurable React pivot table.
  *
- * Preserves:
- *   - ref.auraPivot.getReport() / .setReport()
- *   - reportChange event prop
- *   - beforeToolbarCreated event prop receiving a `{ getTabs }` API
- *   - global.toolbar: { visible, showFields, showFormat, showExport, showFullscreen, showReset } — toolbar visibility
- *   - global.reset, global.export, global.fullscreen, global.format,
- *     global.fields (default true) — toolbar button visibility flags. Set to
- *     `false` to hide the corresponding tab from the toolbar.
- *   - global.formats, global.calculatedFields, global.fields (array),
- *     global.slides — caller-supplied data wiring. `fields` accepts an array
- *     of `{ uniqueName, caption }`; when boolean it is treated as the toolbar
- *     visibility flag.
- *   - global.layout — { density, alternateRows, enableDrillThrough,
- *     totalsRowsPosition, totalsColumnsPosition, title, notes }. Routed to
- *     setFormat (format concern). `totalsRowsPosition` /
- *     `totalsColumnsPosition` accept "before" | "after" | "none".
- *     `enableDrillThrough` (default true) gates the data-cell click that
- *     opens the DrillThroughDialog; it is also mirrored into engine options
- *     so the grid and the FormatDialog stay in sync.
- *   - global.dataSource.data in the auraPivot `[metadata, ...rows]` shape
- *   - global.fields.measuresAxis ("rows" | "columns") — which axis the
- *     Measures pseudo-field sits on.
+ * Props:
+ *   - options:        the configuration schema (toolbar / layout / data /
+ *                     format). Applied seed-on-change: re-applied only when
+ *                     the object reference changes. See Library/docs/
+ *                     options-guide.en.md for the full schema.
+ *   - dataSource:     a plain array of row objects (data only — the schema
+ *                     for those rows lives in options.data.fields).
+ *   - onOptionsChange(nextOptions): fired after every in-component edit with
+ *                     the complete updated `options` object.
+ *   - localization / locale / theme / beforeToolbarCreated / width / height:
+ *                     unchanged.
  *
- * Optional `theme` prop accepts a MUI theme object (or a function `(outer) =>
- * theme` for partial overrides). When provided the entire pivot subtree is
- * wrapped in a `<ThemeProvider>`, isolating its look from the host theme.
- * When omitted the component inherits the ambient MUI theme.
+ * Ref API: `ref.auraPivot.getOptions()` returns the current schema;
+ * `ref.engine` is the raw PivotEngine escape hatch.
+ *
+ * Optional `theme` prop accepts a MUI theme object (or `(outer) => theme` for
+ * partial overrides); when provided the subtree is wrapped in a
+ * `<ThemeProvider>`.
  */
 const Pivot = forwardRef(function Pivot(props, ref) {
   const {
@@ -89,13 +82,23 @@ const Pivot = forwardRef(function Pivot(props, ref) {
     height = "100%",
     locale,
     localization: localizationProp,
-    global: globalProps,
-    reportChange,
+    options,
+    dataSource,
+    onOptionsChange,
     beforeToolbarCreated,
     theme,
   } = props;
 
-  const toolbar = globalProps?.toolbar?.visible ?? true;
+  const toolbar = options?.toolbar?.visible ?? true;
+
+  // Loop guard: the object last handed to `onOptionsChange`. When the host
+  // feeds it straight back as `options`, the inbound effect skips it.
+  const lastEmittedRef = useRef(null);
+  // True while an inbound apply is running, so its engine events do not
+  // bounce back out through `onOptionsChange`.
+  const applyingRef = useRef(false);
+  const onOptionsChangeRef = useRef(onOptionsChange);
+  onOptionsChangeRef.current = onOptionsChange;
 
   const engineRef = useRef(null);
   if (engineRef.current === null) {
@@ -188,80 +191,75 @@ const Pivot = forwardRef(function Pivot(props, ref) {
     engine.setLocalization(localization);
   }, [engine, localization]);
 
-  // Apply data / options from props whenever they change. Under FREEPLAN the
-  // dataset must fit within FREEPLAN_MAX_BYTES; if it doesn't, skip setData
-  // and render the upgrade panel instead.
+  // Inbound: apply the `options` schema (+ `dataSource` rows) to the engine
+  // whenever either object reference changes (seed-on-change model). A
+  // reference-equal `options` — including the object we last emitted — is a
+  // no-op, so a host that echoes `onOptionsChange` back never loops.
   useEffect(() => {
-    const data = globalProps?.dataSource?.data;
-    if (!data) {
-      setFreeplanBlock(null);
-      return;
-    }
-    if (IS_FREEPLAN) {
-      const bytes = estimateDatasetBytes(data);
+    if (options && options === lastEmittedRef.current) return;
+    // FREEPLAN: reject an oversized dataset, apply config without the rows.
+    if (IS_FREEPLAN && dataSource) {
+      const bytes = estimateDatasetBytes(dataSource);
       if (bytes > FREEPLAN_MAX_BYTES) {
         setFreeplanBlock({ bytes, limit: FREEPLAN_MAX_BYTES });
+        applyingRef.current = true;
+        try {
+          optionsToEngine(engine, options, undefined);
+        } finally {
+          applyingRef.current = false;
+        }
+        setOptsTick((t) => t + 1);
         return;
       }
     }
     setFreeplanBlock(null);
-    engine.setData(data);
-  }, [engine, globalProps?.dataSource?.data]);
-
-  useEffect(() => {
-    if (!globalProps) return;
-    const { formats, layout, calculatedFields, fields, slides, ...display } =
-      globalProps;
-    // `dataSource` is consumed by the setData effect above — drop it so it
-    // never leaks into engine.setOptions.
-    delete display.dataSource;
-    // `fields` is dual-purpose: boolean → toolbar visibility, array → data
-    // override list. Only forward the boolean form to engine options so the
-    // toolbar can read it; the array goes through engine.setFields below.
-    if (typeof fields === "boolean") display.fields = fields;
-    // `enableDrillThrough` lives under `layout` (the FormatDialog edits it
-    // there) but the grid gates the drill-through click on engine options —
-    // mirror the layout value into options so both surfaces stay in sync.
-    if (layout && layout.enableDrillThrough !== undefined) {
-      display.enableDrillThrough = layout.enableDrillThrough;
+    applyingRef.current = true;
+    try {
+      optionsToEngine(engine, options, dataSource);
+    } finally {
+      applyingRef.current = false;
     }
-    // FREEPLAN: drillthrough is always disabled regardless of caller intent.
-    if (IS_FREEPLAN) display.enableDrillThrough = false;
-    engine.setOptions(display);
-    if (formats) engine.setFormat(formats);
-    // `layout` (density, alternating rows, totals placement) is a format
-    // concern — MatrixComputer reads format.layout — so route it through
-    // setFormat. `totalsRowsPosition` / `totalsColumnsPosition` accept
-    // "before" | "after" | "none".
-    if (layout) engine.setFormat({ layout });
-    if (Array.isArray(calculatedFields))
-      engine.setCalculatedFields(calculatedFields);
-    if (Array.isArray(fields)) engine.setFields(fields);
-    // Prop-driven slice mirrors the caller's own state — silence the
-    // reportChange emission to avoid feedback loops in the consumer.
-    if (slides) engine.setSlice(slides, { silent: true });
-    // Bump tick so context useMemo re-runs and consumers (toolbar, table)
-    // re-read engine.getOptions() with the fresh values.
     setOptsTick((t) => t + 1);
-  }, [engine, globalProps]);
+  }, [engine, options, dataSource]);
 
-  // Wire the reportChange event through to the caller prop.
+  // Outbound: when an internal edit mutates the engine, hand the host a fresh
+  // `options` object. Engine events fired during an inbound apply are ignored
+  // (the host already has that state). Multiple events from one edit are
+  // coalesced into a single microtask.
   useEffect(() => {
-    if (typeof reportChange !== "function") return undefined;
-    const handler = () => reportChange();
-    engine.on("reportChange", handler);
-    return () => engine.off("reportChange", handler);
-  }, [engine, reportChange]);
+    let scheduled = false;
+    const emit = () => {
+      scheduled = false;
+      const next = engineToOptions(engine);
+      lastEmittedRef.current = next;
+      if (typeof onOptionsChangeRef.current === "function") {
+        onOptionsChangeRef.current(next);
+      }
+    };
+    const schedule = () => {
+      if (applyingRef.current) return;
+      if (scheduled) return;
+      scheduled = true;
+      queueMicrotask(emit);
+    };
+    engine.on("dataChange", schedule);
+    engine.on("reportChange", schedule);
+    engine.on("formatChange", schedule);
+    return () => {
+      engine.off("dataChange", schedule);
+      engine.off("reportChange", schedule);
+      engine.off("formatChange", schedule);
+    };
+  }, [engine]);
 
-  // Expose the legacy ref API.
+  // Expose the ref API: `getOptions()` returns the current schema, `engine`
+  // is the raw escape hatch.
   useImperativeHandle(
     ref,
     () => ({
       auraPivot: {
-        getReport: () => engine.getReport(),
-        setReport: (report) => engine.setReport(report),
+        getOptions: () => engineToOptions(engine),
       },
-      // Also expose the raw engine for consumers that want richer access.
       engine,
     }),
     [engine],
@@ -393,7 +391,7 @@ const Pivot = forwardRef(function Pivot(props, ref) {
         <FieldList
           open={fieldsOpen}
           onClose={() => setFieldsOpen(false)}
-          measuresAxis={globalProps?.fields?.measuresAxis}
+          measuresAxis={options?.layout?.measuresAxis}
         />
         <FormatDialog open={formatOpen} onClose={() => setFormatOpen(false)} />
         {IS_FREEPLAN && (
@@ -469,8 +467,9 @@ Pivot.propTypes = {
   height: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   locale: PropTypes.string,
   localization: PropTypes.object,
-  global: PropTypes.object,
-  reportChange: PropTypes.func,
+  options: optionsPropType,
+  dataSource: PropTypes.array,
+  onOptionsChange: PropTypes.func,
   beforeToolbarCreated: PropTypes.func,
   theme: PropTypes.oneOfType([PropTypes.object, PropTypes.func]),
 };
