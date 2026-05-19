@@ -3,6 +3,8 @@
  * Single source of truth for all shared interfaces and the public AuraPivot API.
  */
 
+import "@mui/material/styles"; // side-effect import — required so the `declare module` augmentation below merges
+
 // ---------------------------------------------------------------------------
 // Core engine types (ported from JSDoc typedefs)
 // ---------------------------------------------------------------------------
@@ -108,6 +110,7 @@ export type Aggregation = "sum" | "count" | "distinctcount" | "avg" | "min" | "m
 export type Operator = "eq" | "ne" | "gt" | "gte" | "lt" | "lte" | "between";
 export type ConditionalMode = "first" | "all";
 export type DataType = "number" | "string" | "date" | "time" | "month";
+/** Wired into the section-format maps (values/headers/dimensions/grandTotals) in Task 6. */
 export type TextAlign = "left" | "center" | "right";
 
 // --- toolbar section (from optionsPropType.js toolbar shape) ---
@@ -186,7 +189,9 @@ export interface AuraPivotDataOptions {
 // --- format section element shapes (from optionsPropType.js format shape) ---
 
 export interface AuraPivotCellStyle {
+  /** Hex `#RRGGBB`; `""` means inherit/reset, `null` means unset (see `hexColor` validator in optionsPropType.js). */
   textColor?: string | null;
+  /** Hex `#RRGGBB`; `""` means inherit/reset, `null` means unset. */
   backgroundColor?: string | null;
   fontWeight?: number;
   italic?: boolean;
@@ -242,9 +247,8 @@ export interface AuraPivotProps {
 
 // ---------------------------------------------------------------------------
 // MUI theme augmentation — custom tokens consumed by AuraPivot.jsx
+// (side-effect import lives at the top of the file)
 // ---------------------------------------------------------------------------
-
-import "@mui/material/styles";
 
 declare module "@mui/material/styles" {
   interface Theme {
