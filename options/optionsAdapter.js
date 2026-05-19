@@ -107,3 +107,102 @@ export function optionsToEngine(engine, options, dataSource) {
     enableDrillThrough: o.layout?.enableDrillThrough,
   });
 }
+
+/**
+ * Read a PivotEngine instance back into an `options` schema object. The
+ * inverse of `optionsToEngine`. The raw `dataSource` rows are intentionally
+ * not included — `options` carries configuration only.
+ *
+ * @param {object} engine - a PivotEngine instance
+ * @returns {object} an `options` schema object
+ */
+export function engineToOptions(engine) {
+  const slice = engine.getSlice() || {};
+  const format = engine.getFormat() || {};
+  const meta = engine.getMetadata() || {};
+  const dt = engine.getDrillThroughConfig() || { fields: {}, frozenCount: 0 };
+  const dateFormats = engine.getDateFormats() || {};
+  const fieldOrder = engine.getFieldOrder() || [];
+  const engOpts = engine.getOptions() || {};
+  const rows = slice.rows || [];
+  const columns = slice.columns || [];
+
+  // Base fields only — virtual date-hierarchy columns carry a `subpart`.
+  const orderOf = (name) => {
+    const i = fieldOrder.indexOf(name);
+    return i < 0 ? null : i + 1;
+  };
+  const fields = Object.entries(meta)
+    .filter(([, m]) => !m.subpart)
+    .map(([uniqueName, m]) => ({
+      fieldName: uniqueName,
+      uniqueName,
+      dataType: m.type,
+      caption: m.caption || uniqueName,
+      showInDrillThrough:
+        dt.fields?.[uniqueName] === undefined ? true : !!dt.fields[uniqueName],
+      drillThroughOrder: orderOf(uniqueName),
+      dateFormat: dateFormats[uniqueName] || null,
+    }));
+
+  const dimensions = [];
+  rows.forEach((f) => {
+    if (f.uniqueName !== "Measures") {
+      dimensions.push({
+        axis: "row",
+        uniqueName: f.uniqueName,
+        fieldSort: f.fieldSort || null,
+      });
+    }
+  });
+  columns.forEach((f) => {
+    if (f.uniqueName !== "Measures") {
+      dimensions.push({
+        axis: "column",
+        uniqueName: f.uniqueName,
+        fieldSort: f.fieldSort || null,
+      });
+    }
+  });
+
+  const measuresAxis = rows.some((f) => f.uniqueName === "Measures")
+    ? "rows"
+    : "columns";
+
+  const toolbar = engOpts.toolbar || {};
+
+  return {
+    toolbar: {
+      visible: toolbar.visible !== false,
+      showFields: toolbar.showFields !== false,
+      showFormat: toolbar.showFormat !== false,
+      showExport: toolbar.showExport !== false,
+      showFullscreen: toolbar.showFullscreen !== false,
+    },
+    layout: {
+      ...(format.layout || {}),
+      measuresAxis,
+      drillThroughStickyColumns: dt.frozenCount || 0,
+    },
+    data: {
+      fields,
+      calculatedFields: engine.getCalculatedFields() || [],
+      dimensions,
+      measures: (slice.measures || []).map((m) => ({
+        uniqueName: m.uniqueName,
+        aggregation: m.aggregation,
+        hidden: !!m.hidden,
+      })),
+      filters: slice.filters || [],
+    },
+    format: {
+      conditionalMode: format.conditionalMode || "first",
+      conditional: format.conditional || [],
+      values: format.values || {},
+      valuesByMeasure: format.valuesByMeasure || {},
+      headers: format.headers || {},
+      dimensions: format.dimensions || {},
+      grandTotals: format.grandTotals || {},
+    },
+  };
+}
