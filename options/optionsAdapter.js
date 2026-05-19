@@ -22,7 +22,9 @@ export function optionsToEngine(engine, options, dataSource) {
   if (fields.length) {
     const metadata = {};
     fields.forEach((f) => {
-      metadata[keyOf(f)] = { type: f.dataType, caption: f.caption };
+      // `dataType` is optional in the schema — default an untyped field to
+      // "string" so the engine never receives `type: undefined`.
+      metadata[keyOf(f)] = { type: f.dataType || "string", caption: f.caption };
     });
     engine.setData([metadata, ...(dataSource || [])]);
   } else {
@@ -102,8 +104,10 @@ export function optionsToEngine(engine, options, dataSource) {
   });
 
   // ---- engine options: toolbar visibility + mirrored enableDrillThrough ----
+  // `engine.setOptions` shallow-merges, so a partial `toolbar` would wipe the
+  // engine's other toolbar flags — merge over the current toolbar instead.
   engine.setOptions({
-    toolbar: o.toolbar || {},
+    toolbar: { ...(engine.getOptions()?.toolbar || {}), ...(o.toolbar || {}) },
     enableDrillThrough: o.layout?.enableDrillThrough,
   });
 }
