@@ -16,7 +16,7 @@
     "title": "Campi",
     "subtitle": "Trascina i campi per riordinarli",
     "addCalculated": "Aggiungi valore calcolato",
-    "measuresAxisTooltip": "Campo speciale aggregazioni — trascinalo in Righe o Colonne per scegliere l’asse dei valori",
+    "measuresAxisTooltip": "Campo speciale aggregazioni - trascinalo in Righe o Colonne per scegliere l’asse dei valori",
     "calculatedFieldTooltip": "Campo calcolato",
     "showTotals": "Mostra totali",
     "perRow": "Per riga",
@@ -24,11 +24,11 @@
     "dateFormat": "Formato data",
     "dateFormatHelp": "Token: yyyy yy MMMM MMM MM M dd d EEEE EEE HH H mm m ss s",
     "showInDrillThrough": "Mostra in drill-through",
-    "drillThroughOrder": "Seleziona un campo per includerlo nella tabella drill-through. Trascina le righe per riordinare — l'ordine qui è l'ordine delle colonne nel drill-through.",
+    "drillThroughOrder": "Seleziona un campo per includerlo nella tabella drill-through. Trascina le righe per riordinare - l'ordine qui è l'ordine delle colonne nel drill-through.",
     "drillThroughStickyColumns": "Colonne bloccate nel drill-through",
     "drillThroughStickyColumnsHelp": "Numero di colonne fissate a sinistra",
     "reorderHint": "Trascina per riordinare",
-    "fieldUsedTooltip": "Campo già utilizzato — rimuovilo da righe/colonne/filtri per trascinarlo altrove",
+    "fieldUsedTooltip": "Campo già utilizzato - rimuovilo da righe/colonne/filtri per trascinarlo altrove",
     "dateFormats": {
       "localeDate": "Locale browser (data)",
       "localeDateTime": "Locale browser (data e ora)",
@@ -164,7 +164,7 @@
     "nameLabel": "Nome campo",
     "formulaLabel": "Formula",
     "formulaPlaceholder": "Esempio: sum(\"revenue\") / count(\"orders\") * 100",
-    "availableFields": "Campi numerici disponibili — clicca per inserire nella formula"
+    "availableFields": "Campi numerici disponibili - clicca per inserire nella formula"
   },
   "formatDialog": {
     "subtitle": "Personalizza l’aspetto delle celle e le regole di formattazione condizionale.",
@@ -229,7 +229,7 @@
     "conditionalModeFirst": "Ferma alla prima regola soddisfatta",
     "conditionalModeAll": "Valuta tutte le regole",
     "conditionalModeFirstDesc": "Le regole vengono valutate dall'alto verso il basso; viene applicata la prima che soddisfa la condizione.",
-    "conditionalModeAllDesc": "Le regole vengono valutate dall'alto verso il basso; ogni regola soddisfatta viene applicata — le regole successive sovrascrivono le precedenti per le proprietà che impostano.",
+    "conditionalModeAllDesc": "Le regole vengono valutate dall'alto verso il basso; ogni regola soddisfatta viene applicata - le regole successive sovrascrivono le precedenti per le proprietà che impostano.",
     "allMeasures": "Tutte le misure",
     "ruleValue": "Valore",
     "ruleValueAnd": "e",
