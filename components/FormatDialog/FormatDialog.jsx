@@ -1829,7 +1829,7 @@ const FormatDialog = function FormatDialog({ open, onClose }) {
   // the full measureKey (`uniqueName:aggregation`) so per-measure overrides
   // and conditional rules can target a single aggregation.
   const aggLabel = (a) => {
-    const wdrKey = { distinctcount: "distinctCount", avg: "average" }[a] || a;
+    const wdrKey = { distinctCount: "distinctCount", avg: "average" }[a] || a;
     const raw = t?.aggregations?.[a] ?? t?.aggregations?.[wdrKey];
     if (raw && typeof raw === "object") return raw.caption || a;
     return raw || a;

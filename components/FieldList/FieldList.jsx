@@ -64,7 +64,7 @@ import CalculatedFieldDialog from "../CalculatedFieldDialog/CalculatedFieldDialo
 const AGGREGATION_LABELS_FALLBACK = {
   sum: "Sum",
   count: "Count",
-  distinctcount: "Distinct count",
+  distinctCount: "Distinct count",
   avg: "Average",
   min: "Min",
   max: "Max",
@@ -81,7 +81,7 @@ const AGGREGATION_LABELS_FALLBACK = {
 const WDR_AGGREGATION_KEY = {
   sum: "sum",
   count: "count",
-  distinctcount: "distinctCount",
+  distinctCount: "distinctCount",
   avg: "average",
   min: "min",
   max: "max",
@@ -612,7 +612,7 @@ const FieldList = function FieldList({ open, onClose, measuresAxis }) {
   const DEFAULT_NUMERIC_AGGS = [
     "sum",
     "count",
-    "distinctcount",
+    "distinctCount",
     "avg",
     "min",
     "max",
@@ -1045,7 +1045,7 @@ const FieldList = function FieldList({ open, onClose, measuresAxis }) {
         : item.availableAggregations || [
             "sum",
             "count",
-            "distinctcount",
+            "distinctCount",
             "avg",
             "min",
             "max",
@@ -1225,7 +1225,7 @@ const FieldList = function FieldList({ open, onClose, measuresAxis }) {
                     arrow
                     placement="top"
                     title={
-                      t?.fieldsList?.drillThroughOrderHint ||
+                      t?.fieldsList?.drillThroughOrder ||
                       "Tick a field to include it in the drill-through table. Drag rows to reorder — the order here is the column order in the drill-through."
                     }
                   >
@@ -1790,11 +1790,11 @@ const FieldList = function FieldList({ open, onClose, measuresAxis }) {
                     value={frozenCount}
                     onChange={(v) => setFrozenCount(v)}
                     label={
-                      t?.fieldsList?.freezeColumns ||
+                      t?.fieldsList?.drillThroughStickyColumns ||
                       "Frozen drill-through columns"
                     }
                     helperText={
-                      t?.fieldsList?.freezeColumnsHelp ||
+                      t?.fieldsList?.drillThroughStickyColumnsHelp ||
                       "Number of left-pinned columns"
                     }
                   />

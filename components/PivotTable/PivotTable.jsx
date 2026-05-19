@@ -1424,6 +1424,14 @@ const PivotTable = function PivotTable() {
         "& tbody td.pvt-sticky-col, & tbody tr:hover td.pvt-sticky-col": {
           backgroundColor: theme.palette.background.paper,
         },
+        // Same guard for the left-frozen row-header columns (`pvt-label` and
+        // `pvt-chevron` carrying an icon): the row-hover rule below repaints
+        // every cell with translucent `action.hover`, which would let the
+        // horizontally-scrolled data cells bleed through these sticky cells
+        // on mouseover. Mirrors `pvt-sticky-col` / `pvt-chevron-empty`.
+        "& tbody tr:hover td.pvt-label, & tbody tr:hover td.pvt-chevron": {
+          backgroundColor: theme.palette.background.paper,
+        },
         "& tbody td": {
           padding: 0,
           borderBottom: `1px solid ${theme.palette.divider}`,
@@ -1526,7 +1534,7 @@ const PivotTable = function PivotTable() {
           }}
         >
           <Typography
-            variant="caption"
+            variant="body2"
             sx={(theme) => ({
               fontWeight: theme.typography.button.fontWeight,
               flex: 1,
@@ -1598,7 +1606,11 @@ const PivotTable = function PivotTable() {
                 );
                 setSortPicker(null);
               }}
-              sx={{ fontWeight: isActive ? 700 : 400 }}
+              variant="caption"
+              sx={(theme) => ({
+                fontSize: theme.typography.fontSize,
+                fontWeight: isActive ? 700 : 200,
+              })}
             >
               {m.caption || m.uniqueName}
             </MenuItem>
@@ -1610,7 +1622,13 @@ const PivotTable = function PivotTable() {
               engine.setSort(null, null);
               setSortPicker(null);
             }}
-            sx={{ color: "error.main", borderTop: 1, borderColor: "divider" }}
+            variant="caption"
+            sx={(theme) => ({
+              fontSize: theme.typography.fontSize,
+              color: "error.main",
+              borderTop: 1,
+              borderColor: "divider",
+            })}
           >
             {t?.grid?.removeSort || "Remove sort"}
           </MenuItem>
@@ -1633,7 +1651,7 @@ const PivotTable = function PivotTable() {
           }}
         >
           <Typography
-            variant="caption"
+            variant="body2"
             sx={(theme) => ({
               fontWeight: theme.typography.button.fontWeight,
               flex: 1,
@@ -1705,7 +1723,11 @@ const PivotTable = function PivotTable() {
                 );
                 setRowSortPicker(null);
               }}
-              sx={{ fontWeight: isActive ? 700 : 400 }}
+              variant="caption"
+              sx={(theme) => ({
+                fontSize: theme.typography.fontSize,
+                fontWeight: isActive ? 700 : 200,
+              })}
             >
               {m.caption || m.uniqueName}
             </MenuItem>
@@ -1717,7 +1739,13 @@ const PivotTable = function PivotTable() {
               engine.setSortByRow(null, null);
               setRowSortPicker(null);
             }}
-            sx={{ color: "error.main", borderTop: 1, borderColor: "divider" }}
+            variant="caption"
+            sx={(theme) => ({
+              fontSize: theme.typography.fontSize,
+              color: "error.main",
+              borderTop: 1,
+              borderColor: "divider",
+            })}
           >
             {t?.grid?.removeSort || "Remove sort"}
           </MenuItem>

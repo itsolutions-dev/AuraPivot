@@ -24,9 +24,9 @@
     "dateFormat": "Formato data",
     "dateFormatHelp": "Token: yyyy yy MMMM MMM MM M dd d EEEE EEE HH H mm m ss s",
     "showInDrillThrough": "Mostra in drill-through",
-    "drillThroughOrderHint": "Seleziona un campo per includerlo nella tabella drill-through. Trascina le righe per riordinare — l'ordine qui è l'ordine delle colonne nel drill-through.",
-    "freezeColumns": "Colonne bloccate nel drill-through",
-    "freezeColumnsHelp": "Numero di colonne fissate a sinistra",
+    "drillThroughOrder": "Seleziona un campo per includerlo nella tabella drill-through. Trascina le righe per riordinare — l'ordine qui è l'ordine delle colonne nel drill-through.",
+    "drillThroughStickyColumns": "Colonne bloccate nel drill-through",
+    "drillThroughStickyColumnsHelp": "Numero di colonne fissate a sinistra",
     "reorderHint": "Trascina per riordinare",
     "fieldUsedTooltip": "Campo già utilizzato — rimuovilo da righe/colonne/filtri per trascinarlo altrove",
     "dateFormats": {
@@ -78,7 +78,7 @@
   "aggregations": {
     "sum": "Somma",
     "count": "Conteggio",
-    "distinctcount": "Conteggio distinti",
+    "distinctCount": "Conteggio distinti",
     "average": "Media",
     "min": "Minimo",
     "max": "Massimo",
