@@ -87,10 +87,11 @@ passes `--emitDeclarationOnly`.
 
 ## Typing the hard parts
 
-**Event bus** (`PivotEngine` `on`/`off`) — an event-name → payload map type with generic
-`on<K extends keyof EngineEvents>`. No loose `string` event names.
+**Event bus** (`PivotEngine` `on`/`off`/`_emit`) — a string-union event type with generic
+`on<K extends EngineEvent>`. No loose `string` event names. Event names are camelCase in the
+existing code:
 ```ts
-type EngineEvents = { datachange: void; reportchange: void; formatchange: void };
+type EngineEvent = "dataChange" | "reportChange" | "formatChange";
 ```
 
 **`AuraPivotOptions`** — a real exported interface for the `options` prop, the most
