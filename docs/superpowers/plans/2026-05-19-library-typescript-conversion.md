@@ -6,7 +6,7 @@
 
 **Architecture:** Big-bang conversion of all 30 source files to `.ts`/`.tsx`, ordered bottom-up by the import graph so `tsc --noEmit` stays green after every task (no `allowJs`). Babel keeps producing the JS bundle (`@babel/preset-typescript` strips types); a separate `tsc` pass typechecks and emits declarations, bundled into one `dist/index.d.ts` via `rollup-plugin-dts`.
 
-**Tech Stack:** TypeScript 5, Rollup, Babel (`@babel/preset-react` + `@babel/preset-typescript`), `rollup-plugin-dts`, React 18/19, MUI v9.
+**Tech Stack:** TypeScript 6 (`^6.0.3`), Rollup, Babel (`@babel/preset-react` + `@babel/preset-typescript`), `rollup-plugin-dts`, React 18/19, MUI v9.
 
 ---
 
