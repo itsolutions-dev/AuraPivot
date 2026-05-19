@@ -14,6 +14,8 @@ import {
   formatMeasureValue,
 } from '../aggregation/Aggregator';
 import { flattenTreeCompact, sortTreeSiblings } from '../slice/TreeBuilder';
+import type { DataRow, TreeNode, SliceMeasure, MatrixCell, MetadataRow } from '../types';
+import type { RichSliceField } from '../slice/TreeBuilder';
 
 // Build-time flag injected by rollup `build-flags` plugin. Outside the
 // bundler the token stays unresolved — `typeof` guard prevents
@@ -21,13 +23,70 @@ import { flattenTreeCompact, sortTreeSiblings } from '../slice/TreeBuilder';
 const IS_FREEPLAN =
   typeof __FREEPLAN__ !== 'undefined' ? !!__FREEPLAN__ : false;
 
+/** A measure enriched with optional engine-level fields. aggregation is wider than AggregationType to include internal kinds. */
+interface EnrichedMeasure {
+  uniqueName: string;
+  aggregation: string; // wider than AggregationType: includes 'formula', 'ratioTotal', 'currentRatio'
+  caption?: string;
+  grandTotalCaption?: string;
+  formula?: string;
+  availableAggregations?: import('../types').AggregationType[];
+}
+
+/** A calculated field definition carrying its formula string. */
+interface CalculatedField {
+  uniqueName: string;
+  caption?: string;
+  formula: string;
+}
+
+/** Sort config for column-driven row sort or row-driven column sort. */
+interface SortConfig {
+  rowKey?: string;
+  rowDirection?: 'asc' | 'desc';
+  rowMeasure?: { uniqueName: string; aggregation: string };
+  colKey?: string;
+  colDirection?: 'asc' | 'desc';
+  colMeasure?: { uniqueName: string; aggregation: string };
+}
+
+/** Layout options passed to computeMatrix. */
+interface LayoutOptions {
+  totalsRowsPosition?: string;
+  totalsColumnsPosition?: string;
+  alternateRows?: boolean;
+}
+
+/** A TreeNode expanded to an axis leaf, with measure metadata. */
+interface AxisLeaf extends TreeNode {
+  nodeKey: string;
+  measureKey: string | null;
+  measureCaption?: string;
+  isFirstMeasure: boolean;
+}
+
+/** The extended matrix returned by computeMatrix (superset of PivotMatrix). */
+export interface ComputedMatrix {
+  rowLeaves: AxisLeaf[];
+  colLeaves: AxisLeaf[];
+  rowRoot: TreeNode;
+  colRoot: TreeNode;
+  cells: Map<string, MatrixCell & { error?: string | null }>;
+  sourceRows: DataRow[];
+  measures: EnrichedMeasure[];
+  sort: SortConfig | null;
+  layout: { totalsRowsPosition: string; totalsColumnsPosition: string; alternateRows: boolean };
+  measuresOnRows: boolean;
+  measuresOnColumns: boolean;
+}
+
 /**
  * Expands a list of axis nodes with per-measure copies. Each produced leaf
  * keeps `.nodeKey` pointing at the original tree node (needed for
  * expand/collapse toggling) while `.key` becomes an axis-unique composite
  * that matches the cell storage key.
  */
-const buildAxisLeaves = (visible, measures, hasMeasures) => {
+const buildAxisLeaves = (visible: TreeNode[], measures: EnrichedMeasure[], hasMeasures: boolean): AxisLeaf[] => {
   if (!hasMeasures || !measures || measures.length === 0) {
     return visible.map((leaf) => ({
       ...leaf,
@@ -36,7 +95,7 @@ const buildAxisLeaves = (visible, measures, hasMeasures) => {
       isFirstMeasure: true,
     }));
   }
-  const out = [];
+  const out: AxisLeaf[] = [];
   visible.forEach((leaf) => {
     measures.forEach((measure, mIdx) => {
       const measureKey = `${measure.uniqueName}:${measure.aggregation}`;
@@ -62,11 +121,11 @@ const buildAxisLeaves = (visible, measures, hasMeasures) => {
   return out;
 };
 
-const intersectIndexes = (a, b) => {
+const intersectIndexes = (a: number[], b: number[]): number[] => {
   if (a.length === 0 || b.length === 0) return [];
   const [small, large] = a.length < b.length ? [a, b] : [b, a];
   const set = new Set(small);
-  const out = [];
+  const out: number[] = [];
   for (const idx of large) {
     if (set.has(idx)) out.push(idx);
   }
@@ -90,11 +149,11 @@ const intersectIndexes = (a, b) => {
  * @param {Function} resolver (aggregation, uniqueName) => number | null
  * @param {string[]} fieldNames known data-field uniqueNames used to detect bare references
  */
-const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const evalFormula = (formula, resolver, fieldNames = []) => {
+const evalFormula = (formula: string, resolver: (agg: string, fieldName: string) => number | null, fieldNames: string[] = []): { value: number | null; error: string | null } => {
   try {
-    const resolveValue = (agg, fieldName) => {
+    const resolveValue = (agg: string, fieldName: string): string => {
       const val = resolver(agg, fieldName);
       return val === null || val === undefined ? '0' : String(Number(val));
     };
@@ -133,10 +192,10 @@ const evalFormula = (formula, resolver, fieldNames = []) => {
         ? () => {
             throw new Error('IF() is not available in the free plan');
           }
-        : (cond, a, b) => (cond ? a : b),
-      (x) => Math.abs(Number(x)),
-      (...args) => Math.min(...args.map(Number)),
-      (...args) => Math.max(...args.map(Number))
+        : (cond: unknown, a: unknown, b: unknown) => (cond ? a : b),
+      (x: unknown) => Math.abs(Number(x)),
+      (...args: unknown[]) => Math.min(...args.map(Number)),
+      (...args: unknown[]) => Math.max(...args.map(Number))
     );
     if (typeof result === 'number' && Number.isFinite(result)) {
       return { value: result, error: null };
@@ -150,9 +209,25 @@ const evalFormula = (formula, resolver, fieldNames = []) => {
     return { value: null, error: null };
   } catch (ex) {
     console.error('Error evaluating formula:', ex);
-    return { value: null, error: ex?.message || String(ex) };
+    return { value: null, error: (ex as Error)?.message || String(ex) };
   }
 };
+
+interface ComputeMatrixOptions {
+  rows: DataRow[];
+  rowRoot: TreeNode;
+  colRoot: TreeNode;
+  rowFields?: RichSliceField[];
+  colFields?: RichSliceField[];
+  measures: EnrichedMeasure[];
+  calculatedFields?: CalculatedField[];
+  hasMeasuresOnColumns: boolean;
+  hasMeasuresOnRows?: boolean;
+  sort?: SortConfig | null;
+  layout?: LayoutOptions;
+  metadata?: MetadataRow;
+  locale?: string;
+}
 
 export const computeMatrix = ({
   rows,
@@ -168,7 +243,7 @@ export const computeMatrix = ({
   layout = {},
   metadata = {},
   locale,
-}) => {
+}: ComputeMatrixOptions): ComputedMatrix => {
   const rowsTotalsPosition = layout.totalsRowsPosition || 'before';
   const colsTotalsPosition = layout.totalsColumnsPosition || 'before';
 
@@ -220,13 +295,13 @@ export const computeMatrix = ({
     measuresOnRows
   );
 
-  const cells = new Map();
+  const cells = new Map<string, MatrixCell & { error?: string | null }>();
 
   // Pre-compute ratio denominators (grand total across the whole dataset)
   // for every measure using the 'ratioTotal' aggregation. For numeric
   // fields the denominator is the sum of the field; for non-numeric
   // fields it's the total record count.
-  const ratioDenominators = new Map();
+  const ratioDenominators = new Map<string, number>();
   effectiveMeasures.forEach((m) => {
     if (m.aggregation !== 'ratioTotal') return;
     const fieldName = m.uniqueName;
@@ -312,7 +387,7 @@ export const computeMatrix = ({
           }
           value = den > 0 ? num / den : 0;
         } else {
-          const den = ratioDenominators.get(measureKey) || 0;
+          const den = (measureKey ? ratioDenominators.get(measureKey) : undefined) || 0;
           value = den > 0 ? num / den : 0;
         }
       } else if (intersection.length > 0) {
@@ -353,12 +428,12 @@ export const computeMatrix = ({
   if (calcMeasures.length > 0) {
     // runningSum state per (colLeaf × field). Rows are walked in display
     // order; total rows read the cumulative value without advancing it.
-    const runningTotals = new Map();
-    const runningCellCache = new Map();
+    const runningTotals = new Map<string, number>();
+    const runningCellCache = new Map<string, number>();
     // Harvest every field present anywhere in the dataset so bare field
     // references in a formula (inserted as chips, no aggregator) can be
     // resolved. Sampling a handful of rows guards against sparse first rows.
-    const fieldNameSet = new Set();
+    const fieldNameSet = new Set<string>();
     const sampleCount = Math.min(rows.length, 20);
     for (let i = 0; i < sampleCount; i++) {
       Object.keys(rows[i] || {}).forEach((k) => fieldNameSet.add(k));
@@ -383,13 +458,13 @@ export const computeMatrix = ({
         const cf = allCalcFields.find(
           (c) => c.uniqueName === measure.uniqueName
         );
-        if (!cf) return;
+        if (!cf || !cf.formula) return;
 
-        const resolver = (agg, fieldName) => {
+        const resolver = (agg: string, fieldName: string): number | null => {
           if (agg === 'runningsum') {
             const cellKey = `${rowLeaf.key}::${colLeaf.key}::${fieldName}`;
             if (runningCellCache.has(cellKey))
-              return runningCellCache.get(cellKey);
+              return runningCellCache.get(cellKey) ?? null;
             const accKey = `${colLeaf.key}::${fieldName}`;
             if (rowLeaf.isTotal) {
               const v = runningTotals.get(accKey) || 0;
@@ -447,7 +522,7 @@ export const computeMatrix = ({
   // `fieldSort` of shape { mode: 'measure', measure: { uniqueName,
   // aggregation }, direction }. We walk each tree and sort a node's
   // children using the cell value at the grand-total of the opposite axis.
-  const applyDimensionSort = (root, fields, axis) => {
+  const applyDimensionSort = (root: TreeNode, fields: RichSliceField[], axis: 'row' | 'col'): void => {
     const fieldByDepth = (fields || []).filter(
       (f) => f && f.uniqueName !== 'Measures'
     );
@@ -462,7 +537,7 @@ export const computeMatrix = ({
     const oppositeMeasuresOn = axis === 'row' ? measuresOnCols : measuresOnRows;
     const sameAxisMeasuresOn = axis === 'row' ? measuresOnRows : measuresOnCols;
 
-    const walk = (node, depth) => {
+    const walk = (node: TreeNode, depth: number): void => {
       const field = fieldByDepth[depth];
       const fs = field?.fieldSort;
       if (
@@ -478,7 +553,7 @@ export const computeMatrix = ({
           ? `${oppositeRootKey}||M:${measureKey}`
           : oppositeRootKey;
         const dir = fs.direction === 'asc' ? 1 : -1;
-        const readValue = (child) => {
+        const readValue = (child: TreeNode): number | null => {
           const sameKey = sameAxisMeasuresOn
             ? `${child.key}||M:${measureKey}`
             : child.key;
@@ -487,7 +562,7 @@ export const computeMatrix = ({
               ? `${sameKey}::${oppositeKey}`
               : `${oppositeKey}::${sameKey}`;
           const v = cells.get(cellKey)?.value;
-          return Number.isFinite(v) ? v : null;
+          return Number.isFinite(v) ? (v as number) : null;
         };
         node.children.sort((a, b) => {
           const va = readValue(a);
@@ -539,8 +614,8 @@ export const computeMatrix = ({
       if (!a.isTotal && b.isTotal) return 0;
       const va = cells.get(`${sort.rowKey}::${a.key}${colKeySuffix}`)?.value;
       const vb = cells.get(`${sort.rowKey}::${b.key}${colKeySuffix}`)?.value;
-      const aNum = Number.isFinite(va) ? va : null;
-      const bNum = Number.isFinite(vb) ? vb : null;
+      const aNum = Number.isFinite(va) ? (va as number) : null;
+      const bNum = Number.isFinite(vb) ? (vb as number) : null;
       if (aNum !== null && bNum !== null) return (aNum - bNum) * dir;
       if (aNum !== null) return -1 * dir;
       if (bNum !== null) return 1 * dir;
@@ -584,8 +659,8 @@ export const computeMatrix = ({
       if (!a.isTotal && b.isTotal) return 0;
       const va = cells.get(`${a.key}${rowKeySuffix}::${sort.colKey}`)?.value;
       const vb = cells.get(`${b.key}${rowKeySuffix}::${sort.colKey}`)?.value;
-      const aNum = Number.isFinite(va) ? va : null;
-      const bNum = Number.isFinite(vb) ? vb : null;
+      const aNum = Number.isFinite(va) ? (va as number) : null;
+      const bNum = Number.isFinite(vb) ? (vb as number) : null;
       if (aNum !== null && bNum !== null) return (aNum - bNum) * dir;
       if (aNum !== null) return -1 * dir;
       if (bNum !== null) return 1 * dir;
@@ -628,9 +703,9 @@ export const computeMatrix = ({
   const standaloneCalc = allCalcFields.filter(
     (cf) => !calcMeasures.some((m) => m.uniqueName === cf.uniqueName)
   );
-  const allMeasures = [
+  const allMeasures: EnrichedMeasure[] = [
     ...effectiveMeasures,
-    ...standaloneCalc.map((cf) => ({
+    ...standaloneCalc.map((cf): EnrichedMeasure => ({
       uniqueName: cf.uniqueName,
       caption: cf.caption,
       aggregation: 'formula',

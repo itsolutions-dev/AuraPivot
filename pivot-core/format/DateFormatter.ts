@@ -16,19 +16,19 @@
  *     characters are emitted verbatim.
  */
 
-const parseDate = (value) => {
+const parseDate = (value: unknown): Date | null => {
   if (value === null || value === undefined || value === '') return null;
   if (value instanceof Date)
     return Number.isNaN(value.getTime()) ? null : value;
-  const d = new Date(value);
+  const d = new Date(value as string | number);
   return Number.isNaN(d.getTime()) ? null : d;
 };
 
-const pad = (n, width = 2) => String(n).padStart(width, '0');
+const pad = (n: number, width = 2): string => String(n).padStart(width, '0');
 
 const TOKEN_RE = /yyyy|yy|MMMM|MMM|MM|M|dd|d|EEEE|EEE|HH|H|mm|m|ss|s/g;
 
-const applyPattern = (d, pattern, { monthNames, weekdayNames }) => {
+const applyPattern = (d: Date, pattern: string, { monthNames, weekdayNames }: { monthNames: string[]; weekdayNames: string[] }): string => {
   return pattern.replace(TOKEN_RE, (tok) => {
     switch (tok) {
       case 'yyyy':
@@ -69,14 +69,20 @@ const applyPattern = (d, pattern, { monthNames, weekdayNames }) => {
   });
 };
 
-const resolveLocale = (explicit) => {
+const resolveLocale = (explicit: string | undefined): string => {
   if (explicit) return explicit;
   if (typeof navigator !== 'undefined' && navigator.language)
     return navigator.language;
   return 'en-US';
 };
 
-export const formatDateValue = (value, format, options = {}) => {
+interface FormatDateOptions {
+  locale?: string;
+  monthNames?: string[];
+  weekdayNames?: string[];
+}
+
+export const formatDateValue = (value: unknown, format: string | null | undefined, options: FormatDateOptions = {}): string => {
   const d = parseDate(value);
   if (!d) return value === null || value === undefined ? '' : String(value);
 
@@ -138,7 +144,15 @@ export const DATE_FORMAT_PRESETS = [
  *   - weekday : 'name-full' (default) | 'name-short'
  *   - week    : 'number' (default)    | 'long'
  */
-export const formatSubpartValue = (value, subpart, format, options = {}) => {
+interface FormatSubpartOptions {
+  monthNames?: string[];
+  weekdayNames?: string[];
+  quarterLabel?: string;
+  quarterShortPrefix?: string;
+  weekLabel?: string;
+}
+
+export const formatSubpartValue = (value: unknown, subpart: string, format: string | null | undefined, options: FormatSubpartOptions = {}): string => {
   if (value === null || value === undefined || value === '') return '';
   const monthNames = options.monthNames;
   const weekdayNames = options.weekdayNames;

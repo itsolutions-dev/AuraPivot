@@ -7,7 +7,21 @@
  * bucket with a column bucket in O(n).
  */
 
-const compare = (a, b, direction, locale) => {
+import type { DataRow, TreeNode, MetadataRow, SortDirection } from "../types";
+
+/** Extended SliceField that may carry a richer per-dimension sort config. */
+export interface RichSliceField {
+  uniqueName: string;
+  sort?: SortDirection;
+  caption?: string;
+  fieldSort?: {
+    mode?: string;
+    direction?: SortDirection;
+    measure?: { uniqueName: string; aggregation?: string };
+  };
+}
+
+const compare = (a: unknown, b: unknown, direction: string, locale: string | undefined): number => {
   if (a === null || a === undefined) return 1;
   if (b === null || b === undefined) return -1;
   const isNumeric = typeof a === 'number' && typeof b === 'number';
@@ -22,6 +36,16 @@ const compare = (a, b, direction, locale) => {
   return direction === 'desc' ? -result : result;
 };
 
+interface MakeNodeArgs {
+  key: string;
+  caption: string;
+  value?: string | number | null;
+  field?: string | null;
+  depth: number;
+  rowIndexes: number[];
+  isTotal?: boolean;
+}
+
 const makeNode = ({
   key,
   caption,
@@ -30,11 +54,11 @@ const makeNode = ({
   depth,
   rowIndexes,
   isTotal = false,
-}) => ({
+}: MakeNodeArgs): TreeNode => ({
   key,
   caption,
   value: value ?? null,
-  field: field ?? null,
+  field: field ?? undefined,
   depth,
   rowIndexes,
   isExpanded: true,
@@ -42,7 +66,17 @@ const makeNode = ({
   children: [],
 });
 
-const isMeasuresField = (field) => field && field.uniqueName === 'Measures';
+const isMeasuresField = (field: RichSliceField): boolean => field && field.uniqueName === 'Measures';
+
+export interface BuildTreeOptions {
+  rows: DataRow[];
+  fields: RichSliceField[];
+  metadata: MetadataRow;
+  expands?: { expandAll?: boolean; expandedMembers?: string[] };
+  rootCaption?: string;
+  formatValue?: (field: RichSliceField, value: string | number | null, metadata: MetadataRow) => string | undefined;
+  locale?: string;
+}
 
 export const buildTree = ({
   rows,
@@ -52,8 +86,8 @@ export const buildTree = ({
   rootCaption = 'Total',
   formatValue,
   locale,
-}) => {
-  const rootIndexes = rows.map((_, idx) => idx);
+}: BuildTreeOptions): TreeNode => {
+  const rootIndexes = rows.map((_: DataRow, idx: number) => idx);
   const root = makeNode({
     key: '__root__',
     caption: rootCaption,
@@ -77,7 +111,7 @@ export const buildTree = ({
     return root;
   }
 
-  const recurse = (node, remainingFields) => {
+  const recurse = (node: TreeNode, remainingFields: RichSliceField[]): void => {
     if (remainingFields.length === 0) return;
     const [field, ...rest] = remainingFields;
 
@@ -88,8 +122,8 @@ export const buildTree = ({
     }
 
     // Group parent's rows by the current field value.
-    const buckets = new Map();
-    node.rowIndexes.forEach((rowIdx) => {
+    const buckets = new Map<string, { value: string | number | null; indexes: number[] }>();
+    node.rowIndexes.forEach((rowIdx: number) => {
       const row = rows[rowIdx];
       const rawValue = row?.[field.uniqueName];
       const bucketKey = rawValue === null || rawValue === undefined
@@ -98,7 +132,7 @@ export const buildTree = ({
       if (!buckets.has(bucketKey)) {
         buckets.set(bucketKey, { value: rawValue, indexes: [] });
       }
-      buckets.get(bucketKey).indexes.push(rowIdx);
+      buckets.get(bucketKey)!.indexes.push(rowIdx);
     });
 
     const bucketEntries = Array.from(buckets.entries());
@@ -160,12 +194,12 @@ export const buildTree = ({
  * The setting is applied at every depth, so intermediate subtotals move too.
  */
 export const flattenTreeCompact = (
-  root,
-  { includeRoot = true, totalsPosition = 'before' } = {}
-) => {
-  const out = [];
+  root: TreeNode,
+  { includeRoot = true, totalsPosition = 'before' }: { includeRoot?: boolean; totalsPosition?: string } = {}
+): TreeNode[] => {
+  const out: TreeNode[] = [];
   if (totalsPosition === 'none') {
-    const walk = (node) => {
+    const walk = (node: TreeNode): void => {
       const hasKids = node.children && node.children.length > 0;
       if (hasKids) {
         if (node.isExpanded !== false) node.children.forEach(walk);
@@ -177,11 +211,11 @@ export const flattenTreeCompact = (
     return out;
   }
   const after = totalsPosition === 'after';
-  const walk = (node) => {
-    const emitSelf = () => {
+  const walk = (node: TreeNode): void => {
+    const emitSelf = (): void => {
       if (node !== root || includeRoot) out.push(node);
     };
-    const emitChildren = () => {
+    const emitChildren = (): void => {
       if (node.isExpanded !== false) node.children.forEach(walk);
     };
     if (after && node.children && node.children.length > 0) {
@@ -200,8 +234,8 @@ export const flattenTreeCompact = (
  * Sorts sibling groups in the tree according to a comparator receiving each
  * child node. Mutates in place and returns the root for chaining.
  */
-export const sortTreeSiblings = (root, comparator) => {
-  const walk = (node) => {
+export const sortTreeSiblings = (root: TreeNode, comparator: (a: TreeNode, b: TreeNode) => number): TreeNode => {
+  const walk = (node: TreeNode): void => {
     if (!node.children || node.children.length === 0) return;
     node.children.sort(comparator);
     node.children.forEach(walk);
@@ -210,7 +244,7 @@ export const sortTreeSiblings = (root, comparator) => {
   return root;
 };
 
-export const findNodeByKey = (root, key) => {
+export const findNodeByKey = (root: TreeNode, key: string): TreeNode | null => {
   if (root.key === key) return root;
   for (const child of root.children) {
     const found = findNodeByKey(child, key);

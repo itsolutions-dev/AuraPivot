@@ -21,7 +21,94 @@
  * The first matching rule wins.
  */
 
-const resolveOperand = (kind, constVal, measureRef, getMeasureValue) => {
+import type { MatrixCell } from "../types";
+
+/** A single clause inside an expression-type conditional rule. */
+interface ConditionalClause {
+  kind?: string;
+  target?: string;
+  operator: string;
+  value?: unknown;
+  value2?: unknown;
+  not?: boolean;
+}
+
+/** An expression-type conditional (compound AND/OR clauses). */
+interface ConditionalExpression {
+  join?: 'and' | 'or';
+  clauses: ConditionalClause[];
+}
+
+/** Style override applied when a conditional rule matches. */
+interface ConditionalStyle {
+  textColor?: string;
+  backgroundColor?: string;
+  fontWeight?: number | string;
+  italic?: boolean;
+}
+
+/** A single conditional formatting rule. */
+interface ConditionalRule {
+  id?: string;
+  measure?: string;
+  operator: string;
+  value?: unknown;
+  value2?: unknown;
+  valueKind?: string;
+  valueRef?: string;
+  value2Kind?: string;
+  value2Ref?: string;
+  expression?: ConditionalExpression;
+  style?: ConditionalStyle;
+  mode?: string;
+}
+
+/** A format section (values / headers / dimensions) with display options. */
+interface FormatSection {
+  fontFamily?: string;
+  fontSize?: number | string;
+  fontWeight?: number;
+  italic?: boolean;
+  textColor?: string;
+  backgroundColor?: string;
+  textAlign?: string;
+  nullValue?: string;
+  thousandSeparator?: string;
+  thousandsSeparator?: boolean;
+  decimalSeparator?: string;
+  numberOfDecimals?: number | string;
+  decimalPlaces?: number;
+  currencySymbol?: string | null;
+  currencyOther?: string;
+  currencyAlignment?: string;
+  percentage?: boolean;
+  [key: string]: unknown;
+}
+
+/** The full format object stored on the engine. */
+export interface FormatObject {
+  values?: FormatSection;
+  general?: FormatSection;
+  headers?: FormatSection;
+  dimensions?: FormatSection;
+  grandTotals?: FormatSection;
+  valuesByMeasure?: Record<string, FormatSection>;
+  conditional?: ConditionalRule[];
+  conditionalMode?: string;
+}
+
+/** The resolved CSS-like style returned by resolveCellStyle. */
+export interface CellStyle {
+  fontFamily: string;
+  fontSize: string;
+  fontWeight: number | string;
+  fontStyle: string;
+  color: string | undefined;
+  backgroundColor: string | undefined;
+  textAlign: string;
+}
+
+const resolveOperand = (kind: string | undefined, constVal: unknown, measureRef: string | undefined, getMeasureValue: ((ref: string) => number | null) | undefined): number => {
   if (kind === 'measure') {
     if (!measureRef || typeof getMeasureValue !== 'function') return NaN;
     const resolved = getMeasureValue(measureRef);
@@ -30,7 +117,7 @@ const resolveOperand = (kind, constVal, measureRef, getMeasureValue) => {
   return Number(constVal);
 };
 
-const cmpString = (operator, value, target) => {
+const cmpString = (operator: string, value: unknown, target: unknown): boolean => {
   const a = value === null || value === undefined ? '' : String(value);
   const b = target === null || target === undefined ? '' : String(target);
   switch (operator) {
@@ -47,7 +134,7 @@ const cmpString = (operator, value, target) => {
   }
 };
 
-const cmpNumeric = (operator, value, target, target2) => {
+const cmpNumeric = (operator: string, value: number, target: number, target2?: number): boolean => {
   if (!Number.isFinite(value)) return false;
   if (!Number.isFinite(target)) return false;
   switch (operator) {
@@ -64,7 +151,7 @@ const cmpNumeric = (operator, value, target, target2) => {
     case 'neq':
       return value !== target;
     case 'between':
-      if (!Number.isFinite(target2)) return false;
+      if (target2 === undefined || !Number.isFinite(target2)) return false;
       return (
         value >= Math.min(target, target2) &&
         value <= Math.max(target, target2)
@@ -74,11 +161,11 @@ const cmpNumeric = (operator, value, target, target2) => {
   }
 };
 
-const evaluateClause = (clause, cellValue, getMeasureValue, dimensionValues) => {
+const evaluateClause = (clause: ConditionalClause, cellValue: number | null | undefined, getMeasureValue: ((ref: string) => number | null) | undefined, dimensionValues: Record<string, unknown> | undefined): boolean => {
   if (!clause) return false;
   let result;
   if (clause.kind === 'dim') {
-    const dv = dimensionValues ? dimensionValues[clause.target] : undefined;
+    const dv = dimensionValues && clause.target ? dimensionValues[clause.target] : undefined;
     result = cmpString(clause.operator, dv, clause.value);
   } else {
     const ref = clause.target;
@@ -101,11 +188,11 @@ const evaluateClause = (clause, cellValue, getMeasureValue, dimensionValues) => 
 };
 
 const evaluateExpression = (
-  expression,
-  cellValue,
-  getMeasureValue,
-  dimensionValues
-) => {
+  expression: ConditionalExpression | undefined,
+  cellValue: number | null | undefined,
+  getMeasureValue: ((ref: string) => number | null) | undefined,
+  dimensionValues: Record<string, unknown> | undefined
+): boolean => {
   if (!expression || !Array.isArray(expression.clauses)) return false;
   if (expression.clauses.length === 0) return false;
   const join = expression.join === 'or' ? 'or' : 'and';
@@ -115,7 +202,7 @@ const evaluateExpression = (
   return join === 'or' ? results.some(Boolean) : results.every(Boolean);
 };
 
-const evaluate = (rule, value, getMeasureValue, dimensionValues) => {
+const evaluate = (rule: ConditionalRule, value: number | null | undefined, getMeasureValue: ((ref: string) => number | null) | undefined, dimensionValues: Record<string, unknown> | undefined): boolean => {
   if (rule.operator === 'expression') {
     return evaluateExpression(
       rule.expression,
@@ -149,7 +236,7 @@ const evaluate = (rule, value, getMeasureValue, dimensionValues) => {
  *   - 'dimensions' → row label / dimension cells
  * Falls back to the legacy `general` key for back-compat.
  */
-const pickSection = (format, scope, measureKey) => {
+const pickSection = (format: FormatObject, scope: string, measureKey: string | null | undefined): FormatSection | null => {
   if (!format) return null;
   if (scope === 'headers') return format.headers || format.general || null;
   if (scope === 'dimensions')
@@ -164,7 +251,7 @@ const pickSection = (format, scope, measureKey) => {
  * per-measure override (if any) over the default values section. The measure
  * uniqueName is extracted from the `<uniqueName>:<aggregation>` measureKey.
  */
-export const getValuesSection = (format, measureKey) => {
+export const getValuesSection = (format: FormatObject | null | undefined, measureKey: string | null | undefined): FormatSection | null => {
   if (!format) return null;
   const base = format.values || format.general || {};
   if (!measureKey) return base;
@@ -173,6 +260,15 @@ export const getValuesSection = (format, measureKey) => {
   return byKey ? { ...base, ...byKey } : base;
 };
 
+interface ResolveCellStyleArgs {
+  format: FormatObject | null | undefined;
+  cell?: MatrixCell | null;
+  measureKey?: string | null;
+  scope?: string;
+  getMeasureValue?: (ref: string) => number | null;
+  dimensionValues?: Record<string, unknown>;
+}
+
 export const resolveCellStyle = ({
   format,
   cell,
@@ -180,7 +276,7 @@ export const resolveCellStyle = ({
   scope = 'values',
   getMeasureValue,
   dimensionValues,
-}) => {
+}: ResolveCellStyleArgs): CellStyle | null => {
   if (!format) return null;
   const section = pickSection(format, scope, measureKey);
   const { conditional, conditionalMode } = format;
@@ -203,7 +299,7 @@ export const resolveCellStyle = ({
   // rules need a live cell value to compare against.
   const cellValue = cell?.value;
 
-  const matches = (r) => {
+  const matches = (r: ConditionalRule): boolean => {
     if (!r) return false;
     if (r.operator !== 'expression' && !cell) return false;
     if (r.measure && measureKey) {
@@ -224,7 +320,7 @@ export const resolveCellStyle = ({
   // Unified walk: apply each matching rule in order, stop when a matching
   // rule's effective mode is 'first'. A rule's own `mode` ('first' | 'all')
   // overrides the global mode; `'inherit'` (or missing) falls back to it.
-  let style = { ...baseStyle };
+  let style: CellStyle = { ...baseStyle };
   let matched = false;
   for (const r of conditional) {
     if (!matches(r)) continue;
@@ -260,7 +356,7 @@ const getSystemSeparators = () => {
   }
 };
 
-const LOCALE_CURRENCY = {
+const LOCALE_CURRENCY: Record<string, string> = {
   'en-US': '$',
   'en-CA': '$',
   'en-GB': '£',
@@ -302,7 +398,7 @@ const getSystemCurrency = () => {
  * The legacy flags (thousandsSeparator bool, decimalPlaces, currencySymbol as a
  * plain string) are still honored for back-compat with saved formats.
  */
-export const formatNumberWithFormat = (value, section) => {
+export const formatNumberWithFormat = (value: number | null | undefined, section: FormatSection | null | undefined): string => {
   const s = section || {};
   const nullText = s.nullValue ?? '';
   if (value === null || value === undefined || !Number.isFinite(value)) {

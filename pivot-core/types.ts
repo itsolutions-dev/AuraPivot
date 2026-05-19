@@ -68,7 +68,7 @@ export interface TreeNode {
   isExpanded: boolean;
   isTotal?: boolean;
   children: TreeNode[];
-  rowIndexes: string[];
+  rowIndexes: number[];
   field?: string;
   value?: string | number | null;
 }
@@ -78,7 +78,7 @@ export interface MatrixCell {
   formattedValue: string;
   rowKey: string;
   colKey: string;
-  measureKey: string;
+  measureKey: string | null;
 }
 
 export interface PivotMatrix {

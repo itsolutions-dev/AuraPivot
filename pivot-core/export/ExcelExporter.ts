@@ -5,25 +5,34 @@
 
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import type { MetadataRow } from '../types';
+import type { ComputedMatrix } from '../matrix/MatrixComputer';
 
-const HEADER_FILL = {
+const HEADER_FILL: ExcelJS.Fill = {
   type: 'pattern',
   pattern: 'solid',
   fgColor: { argb: 'FF1D5B9D' },
 };
-const HEADER_FONT = { color: { argb: 'FFFFFFFF' }, bold: true };
-const TOTAL_FILL = {
+const HEADER_FONT: Partial<ExcelJS.Font> = { color: { argb: 'FFFFFFFF' }, bold: true };
+const TOTAL_FILL: ExcelJS.Fill = {
   type: 'pattern',
   pattern: 'solid',
   fgColor: { argb: 'FFE3E8F1' },
 };
+
+interface ExportMatrixOptions {
+  matrix: ComputedMatrix;
+  filename?: string;
+  sheetName?: string;
+  metadata?: MetadataRow;
+}
 
 export const exportMatrixToExcel = async ({
   matrix,
   filename = 'pivot.xlsx',
   sheetName = 'Pivot',
   metadata = {},
-}) => {
+}: ExportMatrixOptions): Promise<void> => {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Databeasy';
   workbook.created = new Date();
@@ -42,7 +51,7 @@ export const exportMatrixToExcel = async ({
 
   rowLeaves.forEach((rowNode) => {
     const prefix = '  '.repeat(Math.max(0, rowNode.depth));
-    const rowData = [`${prefix}${rowNode.caption}`];
+    const rowData: (string | number | null)[] = [`${prefix}${rowNode.caption}`];
     colLeaves.forEach((colNode) => {
       const cell = matrix.cells.get(`${rowNode.key}::${colNode.key}`);
       rowData.push(cell ? cell.value ?? '' : '');
@@ -58,8 +67,9 @@ export const exportMatrixToExcel = async ({
 
   // Auto width (capped).
   sheet.columns.forEach((col) => {
+    if (!col) return;
     let maxLength = 10;
-    col.eachCell({ includeEmpty: true }, (cell) => {
+    col.eachCell?.({ includeEmpty: true }, (cell) => {
       const len = cell.value ? String(cell.value).length : 0;
       if (len > maxLength) maxLength = len;
     });

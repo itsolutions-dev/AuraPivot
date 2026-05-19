@@ -12,17 +12,31 @@
  * filters on the same field produce an AND across the respective predicates.
  */
 
-const toComparable = (value) => {
+import type { DataRow } from "../types";
+
+/** Full runtime filter shape accepted by the engine (superset of SliceFilter). */
+interface FilterEntry {
+  uniqueName: string;
+  members?: string[];
+  exclude?: string[];
+  value?: unknown;
+  range?: { min?: unknown; max?: unknown };
+  search?: string;
+}
+
+type Comparable = number | string | null;
+
+const toComparable = (value: unknown): Comparable => {
   if (value === null || value === undefined || value === '') return null;
   if (value instanceof Date) return value.getTime();
   const n = Number(value);
   if (Number.isFinite(n)) return n;
-  const t = Date.parse(value);
+  const t = Date.parse(String(value));
   if (Number.isFinite(t)) return t;
   return String(value);
 };
 
-const evaluateFilter = (filter, row) => {
+const evaluateFilter = (filter: FilterEntry, row: DataRow): boolean => {
   const raw = row?.[filter.uniqueName];
 
   if (Array.isArray(filter.members) && filter.members.length > 0) {
@@ -51,10 +65,10 @@ const evaluateFilter = (filter, row) => {
   return true;
 };
 
-export const applyFilters = (rows, filters) => {
+export const applyFilters = (rows: DataRow[], filters: FilterEntry[] | null | undefined): DataRow[] => {
   if (!filters || filters.length === 0) return rows;
   const active = filters.filter(
-    (f) =>
+    (f: FilterEntry) =>
       f &&
       f.uniqueName &&
       ((Array.isArray(f.members) && f.members.length > 0) ||
@@ -65,7 +79,7 @@ export const applyFilters = (rows, filters) => {
   );
   if (active.length === 0) return rows;
 
-  return rows.filter((row) => {
+  return rows.filter((row: DataRow) => {
     for (const filter of active) {
       if (!evaluateFilter(filter, row)) return false;
     }

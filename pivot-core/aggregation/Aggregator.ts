@@ -4,37 +4,39 @@
  * the input set is empty).
  */
 
-const sum = (values) =>
-  values.reduce((acc, v) => acc + (Number.isFinite(v) ? v : 0), 0);
+import type { AggregationType } from "../types";
 
-const count = (values) => values.length;
+const sum = (values: number[]): number =>
+  values.reduce((acc: number, v: number) => acc + (Number.isFinite(v) ? v : 0), 0);
 
-const distinctcount = (values) => new Set(values).size;
+const count = (values: number[]): number => values.length;
 
-const avg = (values) => {
+const distinctcount = (values: number[]): number => new Set(values).size;
+
+const avg = (values: number[]): number | null => {
   if (values.length === 0) return null;
   return sum(values) / values.length;
 };
 
-const min = (values) => {
+const min = (values: number[]): number | null => {
   if (values.length === 0) return null;
   let m = Infinity;
-  values.forEach((v) => {
+  values.forEach((v: number) => {
     if (Number.isFinite(v) && v < m) m = v;
   });
   return m === Infinity ? null : m;
 };
 
-const max = (values) => {
+const max = (values: number[]): number | null => {
   if (values.length === 0) return null;
   let m = -Infinity;
-  values.forEach((v) => {
+  values.forEach((v: number) => {
     if (Number.isFinite(v) && v > m) m = v;
   });
   return m === -Infinity ? null : m;
 };
 
-export const AGGREGATIONS = {
+export const AGGREGATIONS: Record<string, (values: number[]) => number | null> = {
   sum,
   count,
   distinctcount,
@@ -43,12 +45,12 @@ export const AGGREGATIONS = {
   max,
 };
 
-export const applyAggregation = (type, values) => {
+export const applyAggregation = (type: AggregationType | string, values: number[]): number | null => {
   const fn = AGGREGATIONS[type] || count;
   return fn(values);
 };
 
-export const formatMeasureValue = (value, aggregation, locale) => {
+export const formatMeasureValue = (value: number | null | undefined, aggregation: string, locale?: string): string => {
   if (value === null || value === undefined) return '';
   if (!Number.isFinite(value)) return '';
   // `locale || undefined` lets Intl fall back to the browser's default

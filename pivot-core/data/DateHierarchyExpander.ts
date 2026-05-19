@@ -11,6 +11,25 @@
  * supplied, English names are used.
  */
 
+import type { MetadataRow, DataRow, FieldType } from "../types";
+
+/** Extended FieldMeta that includes an optional subpart marker for hierarchy fields. */
+interface ExpandedFieldMeta {
+  type: FieldType | string;
+  caption: string;
+  subpart?: string;
+}
+
+/** The metadata map that may contain both base and synthetic hierarchy entries. */
+type ExpandedMetadataRow = Record<string, ExpandedFieldMeta>;
+
+/** Localization shape accepted by expandHierarchies. */
+interface HierarchyLocalization {
+  monthNames?: string[];
+  weekdayNames?: string[];
+  hierarchyParts?: Partial<typeof DEFAULT_HIERARCHY_PARTS>;
+}
+
 const DEFAULT_MONTH_NAMES = [
   'January',
   'February',
@@ -49,7 +68,7 @@ const DEFAULT_HIERARCHY_PARTS = {
 
 // ISO-8601 week number: weeks start on Monday; week 1 is the week containing
 // the first Thursday of the year.
-const getISOWeek = (d) => {
+const getISOWeek = (d: Date): number => {
   const target = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
   const dayNr = (target.getUTCDay() + 6) % 7;
   target.setUTCDate(target.getUTCDate() - dayNr + 3);
@@ -61,17 +80,17 @@ const getISOWeek = (d) => {
   return 1 + Math.round((firstThursday - target.getTime()) / 604800000);
 };
 
-const pad = (n) => String(n).padStart(2, '0');
+const pad = (n: number): string => String(n).padStart(2, '0');
 
-const parseDate = (value) => {
+const parseDate = (value: unknown): Date | null => {
   if (value === null || value === undefined || value === '') return null;
   if (value instanceof Date)
     return Number.isNaN(value.getTime()) ? null : value;
-  const d = new Date(value);
+  const d = new Date(value as string | number);
   return Number.isNaN(d.getTime()) ? null : d;
 };
 
-const formatTime = (value) => {
+const formatTime = (value: string | number | null | undefined): string | null => {
   if (value === null || value === undefined || value === '') return null;
   // Supports: number of seconds, "HH:mm", "HH:mm:ss" or Date.
   if (typeof value === 'number') {
@@ -88,7 +107,11 @@ const formatTime = (value) => {
   return str;
 };
 
-export const expandHierarchies = (metadata, rows, localization) => {
+export const expandHierarchies = (
+  metadata: MetadataRow,
+  rows: DataRow[],
+  localization?: HierarchyLocalization
+): { metadata: ExpandedMetadataRow; rows: DataRow[] } => {
   const monthNames =
     (Array.isArray(localization?.monthNames) &&
       localization.monthNames.length === 12 &&
@@ -104,11 +127,11 @@ export const expandHierarchies = (metadata, rows, localization) => {
     ...(localization?.hierarchyParts || {}),
   };
 
-  const expandedMeta = { ...metadata };
-  const dateFields = [];
-  const timeFields = [];
-  const monthFields = [];
-  const weekdayFields = [];
+  const expandedMeta: ExpandedMetadataRow = { ...metadata };
+  const dateFields: string[] = [];
+  const timeFields: string[] = [];
+  const monthFields: string[] = [];
+  const weekdayFields: string[] = [];
 
   Object.entries(metadata).forEach(([name, meta]) => {
     if (!meta) return;
