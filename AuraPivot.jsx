@@ -270,6 +270,10 @@ const Pivot = forwardRef(function Pivot(props, ref) {
   const handleExportExcel = async () => {
     try {
       await engine.exportExcel("pivot.xlsx");
+      setSnack({
+        severity: "success",
+        message: localization?.toolbar?.exportSuccess || "Export complete",
+      });
     } catch (err) {
       setSnack({ severity: "error", message: err?.message || "Export error" });
     }

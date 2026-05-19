@@ -206,8 +206,14 @@ const DrillThroughDialog = function DrillThroughDialog({
           background: theme.palette.background.paper,
           boxShadow:
             theme.palette.mode === "dark"
-              ? "0 30px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04)"
-              : "0 30px 80px rgba(15,23,42,0.18), 0 0 0 1px rgba(15,23,42,0.04)",
+              ? `0 30px 80px ${alpha(
+                  theme.palette.common.black,
+                  0.55,
+                )}, 0 0 0 1px ${alpha(theme.palette.common.white, 0.04)}`
+              : `0 30px 80px ${alpha(
+                  theme.palette.common.black,
+                  0.18,
+                )}, 0 0 0 1px ${alpha(theme.palette.common.black, 0.04)}`,
           fontFamily: theme.font?.primary || theme.typography.fontFamily,
         }),
       }}

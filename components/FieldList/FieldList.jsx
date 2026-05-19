@@ -1620,10 +1620,14 @@ const FieldList = function FieldList({ open, onClose, measuresAxis }) {
                             mt: "4px",
                             borderRadius: 1.5,
                             backgroundColor: f.isCalculated
-                              ? theme.palette.primary.main + "18"
+                              ? (theme.palette.tertiary?.main ||
+                                  theme.palette.primary.main) + "18"
                               : theme.palette.action.hover,
                             border: f.isCalculated
-                              ? `1px solid ${theme.palette.primary.main}40`
+                              ? `1px solid ${
+                                  theme.palette.tertiary?.main ||
+                                  theme.palette.primary.main
+                                }40`
                               : "1px solid transparent",
                             opacity: isUsedAsDim ? 0.55 : 1,
                             "&:hover": {

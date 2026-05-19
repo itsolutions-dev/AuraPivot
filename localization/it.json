@@ -103,6 +103,7 @@
     "format": "Formato",
     "export": "Esporta",
     "exportExcel": "Esporta in Excel",
+    "exportSuccess": "Esportazione completata",
     "fullscreen": "Schermo intero",
     "exitFullscreen": "Esci da schermo intero"
   },

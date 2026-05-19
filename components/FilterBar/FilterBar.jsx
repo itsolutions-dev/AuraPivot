@@ -449,7 +449,7 @@ const FilterBar = function FilterBar() {
           <Chip
             key={`${filter.uniqueName}-${idx}`}
             size="small"
-            color={isActive ? 'primary' : 'default'}
+            color={isActive ? 'secondary' : 'default'}
             variant={isActive ? 'filled' : 'outlined'}
             clickable
             onClick={(e) => {

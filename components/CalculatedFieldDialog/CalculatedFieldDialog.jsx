@@ -692,9 +692,14 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
                   height: 22,
                   lineHeight: "22px",
                   borderRadius: 11,
-                  backgroundColor: theme.palette.primary.main + "22",
-                  border: `1px solid ${theme.palette.primary.main}66`,
-                  color: theme.palette.primary.main,
+                  backgroundColor:
+                    (theme.palette.tertiary?.main ||
+                      theme.palette.primary.main) + "22",
+                  border: `1px solid ${
+                    theme.palette.tertiary?.main || theme.palette.primary.main
+                  }66`,
+                  color:
+                    theme.palette.tertiary?.main || theme.palette.primary.main,
                   fontFamily: theme.typography.fontFamily || "inherit",
                   fontSize: theme.typography.caption.fontSize,
                   fontWeight: theme.typography.caption.fontWeight,
