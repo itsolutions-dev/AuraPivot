@@ -75,7 +75,7 @@ const buildFlags = () => {
     name: "build-flags",
     transform(code, id) {
       if (id.includes("node_modules")) return null;
-      if (!/\.(jsx?|mjs)$/.test(id)) return null;
+      if (!/\.([jt]sx?|mjs)$/.test(id)) return null;
       if (!pattern.test(code)) return null;
       pattern.lastIndex = 0;
       return {
@@ -157,7 +157,7 @@ export default {
     buildFlags(),
     peerDepsExternal(),
     resolve({
-      extensions: [".js", ".jsx", ".json"],
+      extensions: [".js", ".jsx", ".ts", ".tsx", ".json"],
       // Honor the `browser` field in package.json so deps like exceljs
       // resolve to their pre-built browser bundle instead of the Node
       // entry that pulls in graceful-fs / fs / stream and crashes at
@@ -168,8 +168,9 @@ export default {
     commonjs(),
     babel({
       exclude: "node_modules/**",
+      extensions: [".js", ".jsx", ".ts", ".tsx", ".mjs"],
       babelHelpers: "bundled",
-      presets: ["@babel/preset-react"],
+      presets: ["@babel/preset-react", "@babel/preset-typescript"],
     }),
     finalizer,
     copyLocales(),
