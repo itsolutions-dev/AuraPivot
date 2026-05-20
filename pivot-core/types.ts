@@ -252,12 +252,12 @@ export interface AuraPivotProps {
 
 declare module "@mui/material/styles" {
   interface Theme {
-    font?: { primary?: string; mono?: string; display?: string };
+    font?: { primary?: string };
     /** Custom border-radius token (unitless number, like shape.borderRadius). */
     borderRadius?: number;
   }
   interface ThemeOptions {
-    font?: { primary?: string; mono?: string; display?: string };
+    font?: { primary?: string };
     borderRadius?: number;
   }
 }
