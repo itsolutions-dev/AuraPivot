@@ -13,12 +13,17 @@ import {
   CONDITIONAL_MODES,
   DATA_TYPES,
   TEXT_ALIGNS,
-} from "./optionsSchema.js";
+} from "./optionsSchema";
+
+// Local alias for the prop-types custom validator signature.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type CustomValidator = (props: Record<string, any>, propName: string, componentName: string) => Error | null;
 
 const HEX_RE = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
 // A colour cell: a hex string, or null/"" to mean "inherit".
-const hexColor = (props, key, comp) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const hexColor: CustomValidator = (props: Record<string, any>, key: string, comp: string): Error | null => {
   const v = props[key];
   if (v == null || v === "") return null;
   if (typeof v !== "string" || !HEX_RE.test(v)) {
@@ -38,7 +43,8 @@ const styleShape = PropTypes.shape({
 });
 
 // One conditional-format rule. `between` requires a non-null `value2`.
-const conditionalRule = (props, key, comp) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const conditionalRule: CustomValidator = (props: Record<string, any>, key: string, comp: string): Error | null => {
   const rule = props[key];
   if (rule == null) return null;
   if (typeof rule !== "object") {
@@ -58,7 +64,7 @@ const conditionalRule = (props, key, comp) => {
   // Validate style colours if present.
   if (rule.style != null && typeof rule.style === "object") {
     for (const colorKey of ["textColor", "backgroundColor"]) {
-      const err = hexColor(rule.style, colorKey, comp);
+      const err = hexColor(rule.style as Record<string, unknown>, colorKey, comp);
       if (err) return err;
     }
   }
@@ -66,7 +72,8 @@ const conditionalRule = (props, key, comp) => {
 };
 
 // One report filter: exactly one of members / value / range.
-const filterEntry = (props, key, comp) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const filterEntry: CustomValidator = (props: Record<string, any>, key: string, comp: string): Error | null => {
   const f = props[key];
   if (f == null) return null;
   if (typeof f !== "object") {
@@ -86,7 +93,7 @@ const filterEntry = (props, key, comp) => {
 
 const sectionFormat = PropTypes.object;
 
-const optionsPropType = PropTypes.shape({
+const optionsPropType: PropTypes.Requireable<object> = PropTypes.shape({
   toolbar: PropTypes.shape({
     visible: PropTypes.bool,
     showFields: PropTypes.bool,
@@ -101,7 +108,8 @@ const optionsPropType = PropTypes.shape({
     density: PropTypes.oneOf(DENSITIES),
     alternateRows: PropTypes.bool,
     enableDrillThrough: PropTypes.bool,
-    drillThroughStickyColumns: (props, key, comp) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    drillThroughStickyColumns: ((props: Record<string, any>, key: string, comp: string): Error | null => {
       const v = props[key];
       if (v == null) return null;
       if (!Number.isInteger(v) || v < 0) {
@@ -110,7 +118,7 @@ const optionsPropType = PropTypes.shape({
         );
       }
       return null;
-    },
+    }) as CustomValidator,
     totalsRowsPosition: PropTypes.oneOf(TOTALS_POSITIONS),
     totalsRowsSticky: PropTypes.bool,
     totalsColumnsPosition: PropTypes.oneOf(TOTALS_POSITIONS),

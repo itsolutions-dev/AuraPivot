@@ -1,11 +1,13 @@
 // Enum constants for the `options` prop schema. Single source of truth for
-// both the runtime adapter (optionsAdapter.js) and the PropTypes validator
-// (optionsPropType.js).
+// both the runtime adapter (optionsAdapter.ts) and the PropTypes validator
+// (optionsPropType.ts).
 
-export const DENSITIES = ["Compact", "Standard", "Comfortable"];
-export const TOTALS_POSITIONS = ["before", "after", "none"];
-export const MEASURES_AXES = ["rows", "columns"];
-export const DIMENSION_AXES = ["row", "column"];
+import type { AuraPivotOptions } from "../pivot-core/types";
+
+export const DENSITIES = ["Compact", "Standard", "Comfortable"] as const;
+export const TOTALS_POSITIONS = ["before", "after", "none"] as const;
+export const MEASURES_AXES = ["rows", "columns"] as const;
+export const DIMENSION_AXES = ["row", "column"] as const;
 export const AGGREGATIONS = [
   "sum",
   "count",
@@ -14,15 +16,15 @@ export const AGGREGATIONS = [
   "min",
   "max",
   "formula",
-];
-export const OPERATORS = ["eq", "ne", "gt", "gte", "lt", "lte", "between"];
-export const CONDITIONAL_MODES = ["first", "all"];
-export const DATA_TYPES = ["number", "string", "date", "time", "month"];
-export const TEXT_ALIGNS = ["left", "center", "right"];
+] as const;
+export const OPERATORS = ["eq", "ne", "gt", "gte", "lt", "lte", "between"] as const;
+export const CONDITIONAL_MODES = ["first", "all"] as const;
+export const DATA_TYPES = ["number", "string", "date", "time", "month"] as const;
+export const TEXT_ALIGNS = ["left", "center", "right"] as const;
 
 // Canonical default schema. A host may pass a partial object; the adapter
 // treats missing branches as empty.
-export const DEFAULT_OPTIONS = {
+export const DEFAULT_OPTIONS: AuraPivotOptions = {
   toolbar: {
     visible: true,
     showFields: true,
