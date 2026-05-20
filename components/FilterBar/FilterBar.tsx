@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import PropTypes from 'prop-types';
 import {
   Box,
   Button,
@@ -19,6 +18,7 @@ import ClearIcon from '@mui/icons-material/Clear';
 import CloseIcon from '@mui/icons-material/Close';
 import { usePivot } from '../../context/PivotContext';
 import { usePortalContainer } from '../../hooks/usePortalContainer';
+import type { FilterEntry } from '../../pivot-core/slice/FilterEngine';
 
 /**
  * Horizontal bar rendered above the grid. Shows one chip per field dropped
@@ -33,7 +33,18 @@ import { usePortalContainer } from '../../hooks/usePortalContainer';
  * triggers the normal reportChange → matrix recomputation cycle.
  */
 
-const MODES_BY_TYPE = {
+// ---------------------------------------------------------------------------
+// Internal types
+// ---------------------------------------------------------------------------
+
+type FilterMode = 'single' | 'multi' | 'range';
+
+interface ModeOption {
+  value: FilterMode;
+  label: string;
+}
+
+const MODES_BY_TYPE: Record<string, ModeOption[]> = {
   string: [
     { value: 'single', label: 'Single value' },
     { value: 'multi', label: 'Multiple values' },
@@ -58,44 +69,61 @@ const MODES_BY_TYPE = {
   ],
 };
 
-const inferInitialMode = (filter, type) => {
-  if (filter?.range) return 'range';
+interface FieldMeta {
+  type?: string;
+  caption?: string;
+}
+
+interface FilterEditorProps {
+  filter: FilterEntry;
+  meta?: FieldMeta;
+  onApply: (next: FilterEntry) => void;
+  onClose: () => void;
+}
+
+// ---------------------------------------------------------------------------
+// Utility functions
+// ---------------------------------------------------------------------------
+
+const inferInitialMode = (filter: FilterEntry, type: string): FilterMode => {
+  if ((filter as unknown as Record<string, unknown>).range) return 'range';
   if (Array.isArray(filter?.members) && filter.members.length > 1)
     return 'multi';
-  if (
-    filter?.value !== undefined &&
-    filter?.value !== null &&
-    filter.value !== ''
-  ) {
+  const f = filter as unknown as Record<string, unknown>;
+  if (f.value !== undefined && f.value !== null && f.value !== '') {
     return 'single';
   }
   const modes = MODES_BY_TYPE[type] || MODES_BY_TYPE.string;
   return modes[0]?.value || 'multi';
 };
 
-const filterSummary = (filter, t) => {
-  if (filter?.range && (filter.range.min != null || filter.range.max != null)) {
-    const { min, max } = filter.range;
+const filterSummary = (filter: FilterEntry, t: Record<string, unknown>): string => {
+  const f = filter as unknown as Record<string, unknown>;
+  const range = f.range as { min?: unknown; max?: unknown } | undefined;
+  // dynamic boundary: localization values are unknown
+  const tb = (t as Record<string, Record<string, string>>)?.filterBar ?? {};
+  if (range && (range.min != null || range.max != null)) {
+    const { min, max } = range;
     if (min != null && max != null) return `${min} … ${max}`;
     if (min != null) return `≥ ${min}`;
     return `≤ ${max}`;
   }
   if (Array.isArray(filter?.members) && filter.members.length > 0) {
     if (filter.members.length === 1) return String(filter.members[0]);
-    return `${filter.members.length} ${t?.filterBar?.values || 'values'}`;
+    return `${filter.members.length} ${tb.values || 'values'}`;
   }
-  if (
-    filter?.value !== undefined &&
-    filter?.value !== null &&
-    filter?.value !== ''
-  ) {
-    return `= ${filter.value}`;
+  if (f.value !== undefined && f.value !== null && f.value !== '') {
+    return `= ${f.value}`;
   }
-  return t?.filterBar?.all || 'All';
+  return tb.all || 'All';
 };
 
-const distinctValuesFor = (engine, uniqueName, locale) => {
-  const seen = new Map();
+const distinctValuesFor = (
+  engine: { getRows: () => Record<string, unknown>[] },
+  uniqueName: string,
+  locale: string | undefined,
+): unknown[] => {
+  const seen = new Map<string, unknown>();
   engine.getRows().forEach((row) => {
     const v = row?.[uniqueName];
     if (v === null || v === undefined || v === '') return;
@@ -110,32 +138,44 @@ const distinctValuesFor = (engine, uniqueName, locale) => {
   });
 };
 
-const toDateInputValue = (value) => {
+const toDateInputValue = (value: unknown): string => {
   if (!value) return '';
   // Accept ISO strings, timestamps, or `dd/mm/yyyy`.
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
     return value.slice(0, 10);
   }
-  const t = Date.parse(value);
-  if (Number.isFinite(t)) return new Date(t).toISOString().slice(0, 10);
+  const ts = Date.parse(String(value));
+  if (Number.isFinite(ts)) return new Date(ts).toISOString().slice(0, 10);
   return '';
 };
 
-const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }) {
+// ---------------------------------------------------------------------------
+// FilterEditor sub-component
+// ---------------------------------------------------------------------------
+
+const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }: FilterEditorProps): React.ReactElement {
   const { engine, localization: t, locale } = usePivot();
   const type = meta?.type || 'string';
-  const [mode, setMode] = useState(() => inferInitialMode(filter, type));
-  const [members, setMembers] = useState(() =>
+  const [mode, setMode] = useState<FilterMode>(() => inferInitialMode(filter, type));
+  const [members, setMembers] = useState<string[]>(() =>
     Array.isArray(filter?.members) ? filter.members.map(String) : []
   );
-  const [value, setValue] = useState(() =>
-    filter?.value != null ? String(filter.value) : ''
-  );
-  const [range, setRange] = useState(() => ({
-    min: filter?.range?.min ?? '',
-    max: filter?.range?.max ?? '',
-  }));
-  const [search, setSearch] = useState('');
+  const [value, setValue] = useState<string>(() => {
+    const f = filter as unknown as Record<string, unknown>;
+    return f.value != null ? String(f.value) : '';
+  });
+  const [range, setRange] = useState<{ min: string; max: string }>(() => {
+    const f = filter as unknown as Record<string, unknown>;
+    const r = f.range as { min?: unknown; max?: unknown } | undefined;
+    return {
+      min: r?.min != null ? String(r.min) : '',
+      max: r?.max != null ? String(r.max) : '',
+    };
+  });
+  const [search, setSearch] = useState<string>('');
+
+  // dynamic boundary: localization is Record<string,unknown>
+  const tb = (t as Record<string, Record<string, string>>)?.filterEditor ?? {};
 
   const distinct = useMemo(
     () => distinctValuesFor(engine, filter.uniqueName, locale),
@@ -164,7 +204,7 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }) {
     }
   };
 
-  const toggleOne = (v) => {
+  const toggleOne = (v: unknown) => {
     const s = String(v);
     if (mode === 'single') {
       setMembers([s]);
@@ -177,7 +217,7 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }) {
   };
 
   const handleApply = () => {
-    const next = { uniqueName: filter.uniqueName };
+    const next: Record<string, unknown> = { uniqueName: filter.uniqueName };
     if (mode === 'multi') {
       if (members.length > 0) next.members = [...members];
     } else if (mode === 'single') {
@@ -187,30 +227,30 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }) {
       const max = range.max === '' ? null : range.max;
       if (min != null || max != null) next.range = { min, max };
     }
-    onApply(next);
+    onApply(next as unknown as FilterEntry);
   };
 
   const handleClear = () => {
-    onApply({ uniqueName: filter.uniqueName });
+    onApply({ uniqueName: filter.uniqueName } as FilterEntry);
   };
 
   const availableModes = MODES_BY_TYPE[type] || MODES_BY_TYPE.string;
   const isDateLike = type === 'date' || type === 'time';
 
-  const getModeLabel = (value, fallback) => {
-    if (value === 'single' && isDateLike)
-      return t?.filterEditor?.modeSingleDate || fallback;
-    const map = {
-      single: t?.filterEditor?.modeSingle,
-      multi: t?.filterEditor?.modeMulti,
-      range: t?.filterEditor?.modeRange,
+  const getModeLabel = (modeVal: string, fallback: string): string => {
+    if (modeVal === 'single' && isDateLike)
+      return tb.modeSingleDate || fallback;
+    const map: Record<string, string | undefined> = {
+      single: tb.modeSingle,
+      multi: tb.modeMulti,
+      range: tb.modeRange,
     };
-    return map[value] || fallback;
+    return map[modeVal] || fallback;
   };
 
   return (
     <Box sx={{ p: 2, width: 340 }}>
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
         <Typography variant="subtitle2" sx={{ flex: 1 }}>
           {meta?.caption || filter.uniqueName}
         </Typography>
@@ -225,7 +265,7 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }) {
           exclusive
           fullWidth
           value={mode}
-          onChange={(_, v) => v && setMode(v)}
+          onChange={(_, v: FilterMode | null) => v && setMode(v)}
           sx={{ mb: 1.5 }}
         >
           {availableModes.map((m) => (
@@ -244,20 +284,20 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }) {
         <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
           <TextField
             size="small"
-            label={t?.filterEditor?.rangeFrom || 'From'}
+            label={tb.rangeFrom || 'From'}
             type={isDateLike ? 'date' : 'number'}
             value={isDateLike ? toDateInputValue(range.min) : range.min}
-            onChange={(e) => setRange({ ...range, min: e.target.value })}
-            InputLabelProps={{ shrink: true }}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRange({ ...range, min: e.target.value })}
+            slotProps={{ inputLabel: { shrink: true } }}
             fullWidth
           />
           <TextField
             size="small"
-            label={t?.filterEditor?.rangeTo || 'To'}
+            label={tb.rangeTo || 'To'}
             type={isDateLike ? 'date' : 'number'}
             value={isDateLike ? toDateInputValue(range.max) : range.max}
-            onChange={(e) => setRange({ ...range, max: e.target.value })}
-            InputLabelProps={{ shrink: true }}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRange({ ...range, max: e.target.value })}
+            slotProps={{ inputLabel: { shrink: true } }}
             fullWidth
           />
         </Stack>
@@ -267,9 +307,9 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }) {
         <TextField
           size="small"
           fullWidth
-          label={t?.filterEditor?.value || 'Value'}
+          label={tb.value || 'Value'}
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setValue(e.target.value)}
           sx={{ mb: 1 }}
         />
       )}
@@ -279,10 +319,10 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }) {
           size="small"
           fullWidth
           type="date"
-          label={t?.filterEditor?.date || 'Date'}
+          label={tb.date || 'Date'}
           value={toDateInputValue(value)}
-          onChange={(e) => setValue(e.target.value)}
-          InputLabelProps={{ shrink: true }}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setValue(e.target.value)}
+          slotProps={{ inputLabel: { shrink: true } }}
           sx={{ mb: 1 }}
         />
       )}
@@ -292,9 +332,9 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }) {
           <TextField
             size="small"
             fullWidth
-            placeholder={t?.filterEditor?.search || 'Search…'}
+            placeholder={tb.search || 'Search…'}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
             sx={{ mb: 1 }}
           />
           <Box
@@ -319,7 +359,7 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }) {
                 }
                 label={
                   <Typography variant="caption">
-                    {t?.filterEditor?.selectAll || 'Select all'}
+                    {tb.selectAll || 'Select all'}
                   </Typography>
                 }
               />
@@ -348,7 +388,7 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }) {
                 variant="caption"
                 sx={{ p: 1, opacity: 0.6, fontStyle: 'italic' }}
               >
-                {t?.filterEditor?.noValues || 'No values.'}
+                {tb.noValues || 'No values.'}
               </Typography>
             )}
           </Box>
@@ -357,33 +397,37 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }) {
 
       <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
         <Button size="small" onClick={handleClear}>
-          {t?.buttons?.removeFilter || 'Remove filter'}
+          {(t as Record<string, Record<string, string>>)?.buttons?.removeFilter || 'Remove filter'}
         </Button>
         <Box sx={{ flex: 1 }} />
         <Button size="small" onClick={onClose}>
-          {t?.buttons?.cancel || 'Cancel'}
+          {(t as Record<string, Record<string, string>>)?.buttons?.cancel || 'Cancel'}
         </Button>
         <Button size="small" variant="contained" onClick={handleApply}>
-          {t?.buttons?.apply || 'Apply'}
+          {(t as Record<string, Record<string, string>>)?.buttons?.apply || 'Apply'}
         </Button>
       </Stack>
     </Box>
   );
 };
 
-FilterEditor.propTypes = {
-  filter: PropTypes.object.isRequired,
-  meta: PropTypes.object,
-  onApply: PropTypes.func.isRequired,
-  onClose: PropTypes.func.isRequired,
-};
+// ---------------------------------------------------------------------------
+// FilterBar — main exported component (no props)
+// ---------------------------------------------------------------------------
 
-const FilterBar = function FilterBar() {
+export interface FilterBarProps {
+  // no props — reads from PivotContext
+}
+
+const FilterBar = function FilterBar(): React.ReactElement | null {
   const { engine, localization: t } = usePivot();
   const portalContainer = usePortalContainer();
-  const [slice, setSliceState] = useState(() => engine.getSlice());
-  const [activeIdx, setActiveIdx] = useState(null);
-  const [anchorEl, setAnchorEl] = useState(null);
+  const [slice, setSliceState] = useState<{ filters?: FilterEntry[]; [key: string]: unknown }>(() => engine.getSlice());
+  const [activeIdx, setActiveIdx] = useState<number | null>(null);
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+
+  // dynamic boundary: localization is Record<string,unknown>
+  const tb = (t as Record<string, Record<string, string>>)?.filterBar ?? {};
 
   useEffect(() => {
     const sync = () => setSliceState({ ...engine.getSlice() });
@@ -395,10 +439,10 @@ const FilterBar = function FilterBar() {
     };
   }, [engine]);
 
-  const filters = slice.filters || [];
+  const filters: FilterEntry[] = (slice.filters as FilterEntry[]) || [];
   if (filters.length === 0) return null;
 
-  const updateFilter = (idx, next) => {
+  const updateFilter = (idx: number, next: FilterEntry) => {
     const nextSlice = { ...slice };
     nextSlice.filters = filters.map((f, i) => (i === idx ? next : f));
     engine.setSlice(nextSlice);
@@ -406,13 +450,13 @@ const FilterBar = function FilterBar() {
     setAnchorEl(null);
   };
 
-  const removeFilter = (idx) => {
+  const removeFilter = (idx: number) => {
     const nextSlice = { ...slice };
     nextSlice.filters = filters.filter((_, i) => i !== idx);
     engine.setSlice(nextSlice);
   };
 
-  const metadata = engine.getMetadata();
+  const metadata = engine.getMetadata() as Record<string, { type?: string; caption?: string } | undefined>;
 
   return (
     <Box
@@ -432,19 +476,19 @@ const FilterBar = function FilterBar() {
         variant="caption"
         sx={{ fontWeight: 600, opacity: 0.7, mr: 0.5 }}
       >
-        {t?.filterBar?.title || 'Filters'}
+        {tb.title || 'Filters'}
       </Typography>
       {filters.map((filter, idx) => {
         const meta = metadata[filter.uniqueName];
         const caption = meta?.caption || filter.uniqueName;
         const summary = filterSummary(filter, t);
+        const f = filter as unknown as Record<string, unknown>;
         const isActive =
           (Array.isArray(filter.members) && filter.members.length > 0) ||
-          (filter.value !== undefined &&
-            filter.value !== null &&
-            filter.value !== '') ||
-          (filter.range &&
-            (filter.range.min != null || filter.range.max != null));
+          (f.value !== undefined && f.value !== null && f.value !== '') ||
+          ((f.range as Record<string, unknown> | undefined) &&
+            ((f.range as Record<string, unknown>).min != null ||
+              (f.range as Record<string, unknown>).max != null));
         return (
           <Chip
             key={`${filter.uniqueName}-${idx}`}
@@ -452,7 +496,7 @@ const FilterBar = function FilterBar() {
             color={isActive ? 'secondary' : 'default'}
             variant={isActive ? 'filled' : 'outlined'}
             clickable
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent<HTMLDivElement>) => {
               setActiveIdx(idx);
               setAnchorEl(e.currentTarget);
             }}
