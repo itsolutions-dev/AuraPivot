@@ -50,6 +50,7 @@ interface InternalSliceField {
   uniqueName: string;
   sort?: string;
   caption?: string;
+  fieldSort?: Record<string, unknown>;
   [key: string]: unknown;
 }
 

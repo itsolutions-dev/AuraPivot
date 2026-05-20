@@ -20,7 +20,10 @@ export function optionsToEngine(
   const o: AuraPivotOptions = options || {};
   const data = o.data || {};
   const fields: AuraPivotFieldEntry[] = Array.isArray(data.fields) ? data.fields : [];
-  const keyOf = (f: AuraPivotFieldEntry): string => f.uniqueName || f.fieldName || "";
+  // `uniqueName` is required on AuraPivotFieldEntry (PropTypes .isRequired); the
+  // `as string` matches the original JS contract — fall back through to fieldName
+  // without injecting an empty-string sentinel for the (unreachable) all-falsy case.
+  const keyOf = (f: AuraPivotFieldEntry): string => (f.uniqueName || f.fieldName) as string;
 
   // ---- dataset: build [metadata, ...rows] from data.fields + dataSource ----
   if (fields.length) {
@@ -160,21 +163,19 @@ export function engineToOptions(engine: PivotEngine): AuraPivotOptions {
   }> = [];
   rows.forEach((f) => {
     if (f.uniqueName !== "Measures") {
-      const rf = f as { uniqueName: string; fieldSort?: Record<string, unknown> };
       dimensions.push({
         axis: "row",
-        uniqueName: rf.uniqueName,
-        fieldSort: rf.fieldSort || null,
+        uniqueName: f.uniqueName,
+        fieldSort: f.fieldSort || null,
       });
     }
   });
   columns.forEach((f) => {
     if (f.uniqueName !== "Measures") {
-      const cf = f as { uniqueName: string; fieldSort?: Record<string, unknown> };
       dimensions.push({
         axis: "column",
-        uniqueName: cf.uniqueName,
-        fieldSort: cf.fieldSort || null,
+        uniqueName: f.uniqueName,
+        fieldSort: f.fieldSort || null,
       });
     }
   });
