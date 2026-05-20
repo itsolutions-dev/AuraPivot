@@ -1,4 +1,7 @@
-export const mergeLocalization = (base, override) => {
+export const mergeLocalization = (
+  base: Record<string, unknown> | null | undefined,
+  override: Record<string, unknown> | null | undefined,
+): Record<string, unknown> => {
   if (!override) return base || {};
   if (!base) return override;
   const out = { ...base };

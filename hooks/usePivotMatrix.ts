@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import type PivotEngine from '../pivot-core/PivotEngine';
+import type { ComputedMatrix } from '../pivot-core/matrix/MatrixComputer';
 
 /**
  * Subscribes to the PivotEngine lifecycle and returns the latest computed
@@ -12,11 +14,13 @@ import { useEffect, useState } from 'react';
  */
 const WORKER_THRESHOLD = 5000;
 
-const usePivotMatrix = (engine) => {
-  const [matrix, setMatrix] = useState(() =>
+const usePivotMatrix = (
+  engine: InstanceType<typeof PivotEngine> | null | undefined,
+): { matrix: ComputedMatrix | null; loading: boolean } => {
+  const [matrix, setMatrix] = useState<ComputedMatrix | null>(() =>
     engine ? engine.processMatrix() : null
   );
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
     if (!engine) return undefined;

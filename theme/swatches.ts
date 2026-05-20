@@ -3,9 +3,9 @@
 // theme.palette.primary / .secondary / .tertiary so PivotTable (and any other
 // consumer) can read theme.palette.<role>[<tone>] from the ambient MUI theme.
 
-export const TONE_STOPS = [900, 800, 700, 600, 500, 400, 300, 200, 100, 50];
+export const TONE_STOPS: number[] = [900, 800, 700, 600, 500, 400, 300, 200, 100, 50];
 
-const TONE_LIGHTNESS = {
+const TONE_LIGHTNESS: Record<number, number> = {
   50: 96,
   100: 90,
   200: 80,
@@ -18,7 +18,7 @@ const TONE_LIGHTNESS = {
   900: 18,
 };
 
-function hexToRgb(hex) {
+function hexToRgb(hex: string): [number, number, number] {
   const h = String(hex || "").replace("#", "");
   const v = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
   if (v.length !== 6) return [0, 0, 0];
@@ -26,7 +26,7 @@ function hexToRgb(hex) {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-function rgbToHsl(r, g, b) {
+function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
   r /= 255;
   g /= 255;
   b /= 255;
@@ -53,24 +53,24 @@ function rgbToHsl(r, g, b) {
   return [h, s * 100, l * 100];
 }
 
-function hslToHex(h, s, l) {
+function hslToHex(h: number, s: number, l: number): string {
   s /= 100;
   l /= 100;
-  const k = (n) => (n + h / 30) % 12;
+  const k = (n: number) => (n + h / 30) % 12;
   const a = s * Math.min(l, 1 - l);
-  const f = (n) =>
+  const f = (n: number) =>
     l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
-  const to = (x) =>
+  const to = (x: number) =>
     Math.round(x * 255)
       .toString(16)
       .padStart(2, "0");
   return `#${to(f(0))}${to(f(8))}${to(f(4))}`;
 }
 
-export function buildSwatches(hex) {
+export function buildSwatches(hex: string): Record<number, string> {
   const [r, g, b] = hexToRgb(hex);
   const [h, s] = rgbToHsl(r, g, b);
-  const out = {};
+  const out: Record<number, string> = {};
   for (const stop of TONE_STOPS) {
     out[stop] = hslToHex(h, s, TONE_LIGHTNESS[stop]);
   }
@@ -78,7 +78,9 @@ export function buildSwatches(hex) {
 }
 
 // Variant shape: { palette: { primary, secondary, tertiary, ... }, ... }
-export function variantSwatches(variant) {
+export function variantSwatches(variant: {
+  palette: { primary: string; secondary: string; tertiary: string };
+}): Record<string, Record<number, string>> {
   return {
     primary: buildSwatches(variant.palette.primary),
     secondary: buildSwatches(variant.palette.secondary),
