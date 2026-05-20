@@ -15,7 +15,7 @@
 import type { DataRow } from "../types";
 
 /** Full runtime filter shape accepted by the engine (superset of SliceFilter). */
-interface FilterEntry {
+export interface FilterEntry {
   uniqueName: string;
   members?: string[];
   exclude?: string[];

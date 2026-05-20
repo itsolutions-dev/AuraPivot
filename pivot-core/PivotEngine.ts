@@ -23,12 +23,13 @@ import type {
   TreeNode,
 } from "./types";
 import type { ExpandedMetadataRow } from "./data/DateHierarchyExpander";
-import type { ComputedMatrix } from "./matrix/MatrixComputer";
+import type { ComputedMatrix, EnrichedMeasure } from "./matrix/MatrixComputer";
 import { normalizeDataset } from "./data/DataNormalizer";
 import { expandHierarchies } from "./data/DateHierarchyExpander";
 import type { RichSliceField } from "./slice/TreeBuilder";
 import { buildTree, findNodeByKey } from "./slice/TreeBuilder";
 import { applyFilters } from "./slice/FilterEngine";
+import type { FilterEntry } from "./slice/FilterEngine";
 import { computeMatrix } from "./matrix/MatrixComputer";
 import { exportMatrixToExcel } from "./export/ExcelExporter";
 import { formatDateValue, formatSubpartValue } from "./format/DateFormatter";
@@ -42,17 +43,6 @@ interface InternalCalculatedField {
   uniqueName: string;
   caption: string;
   formula: string;
-}
-
-/** An enriched measure with resolved captions, as passed to computeMatrix. */
-interface InternalEnrichedMeasure {
-  uniqueName: string;
-  aggregation: string; // wider than AggregationType: includes 'formula', 'ratioTotal', 'currentRatio'
-  caption?: string;
-  grandTotalCaption?: string;
-  formula?: string;
-  availableAggregations?: string[];
-  [key: string]: unknown; // allow passthrough of any extra slice measure fields
 }
 
 /** Engine-internal slice field (may have extra fields beyond SliceField). */
@@ -69,14 +59,6 @@ interface InternalSliceMeasure {
   aggregation: string;
   caption?: string;
   availableAggregations?: string[];
-  [key: string]: unknown;
-}
-
-/** Engine-internal filter entry. */
-interface InternalSliceFilter {
-  uniqueName: string;
-  members?: string[];
-  exclude?: string[];
   [key: string]: unknown;
 }
 
@@ -104,7 +86,7 @@ interface InternalSlice {
   columns: InternalSliceField[];
   measures: InternalSliceMeasure[];
   expands: InternalExpands;
-  filters: InternalSliceFilter[];
+  filters: FilterEntry[];
   sort?: InternalSort | null;
   [key: string]: unknown;
 }
@@ -203,6 +185,44 @@ interface DateLocalization {
 
 /** Drill-through per-field visibility config. */
 type DrillThroughFieldsMap = Record<string, boolean>;
+
+/**
+ * Typed snapshot returned by `getFormat()`. Keys match exactly what the method
+ * returns; `general` is a back-compat alias for `values`.
+ */
+export interface FormatSnapshot {
+  values: CellStyleFormat;
+  valuesByMeasure: Record<string, CellStyleFormat>;
+  headers: CellStyleFormat;
+  grandTotals: CellStyleFormat;
+  dimensions: CellStyleFormat;
+  layout: LayoutFormat;
+  /** Back-compat alias for `values` — several call sites still read `general`. */
+  general: CellStyleFormat;
+  conditional: ConditionalRule[];
+  conditionalMode: "first" | "all";
+}
+
+/**
+ * Typed snapshot returned by `getReport()`. Mirrors the shape consumed by
+ * `setReport()` so the round-trip is type-safe.
+ */
+export interface ReportSnapshot {
+  slice: InternalSlice;
+  options: InternalOptions;
+  formats: FormatSnapshot;
+  dateFormats: Record<string, string>;
+  fieldOrder: string[];
+  drillThrough: {
+    fields: DrillThroughFieldsMap;
+    frozenCount: number;
+  };
+  calculatedFields: InternalCalculatedField[];
+  dataSource: {
+    dataSourceType: string;
+    data: [MetadataRow, ...DataRow[]];
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Module-level constants
@@ -361,7 +381,7 @@ class PivotEngine {
   /** Calculated fields defined by the user. */
   private _calculatedFields: InternalCalculatedField[];
   /** Event listeners map. */
-  private _listeners: Map<EngineEvent, Set<EngineEventHandler>>;
+  private readonly _listeners: Map<EngineEvent, Set<EngineEventHandler>> = new Map();
   /** Cached pivot matrix (null when dirty or never computed). */
   private _matrix: ComputedMatrix | null;
   /** Whether the cached matrix is stale and needs recomputation. */
@@ -419,7 +439,6 @@ class PivotEngine {
       conditionalMode: "first",
     };
     this._calculatedFields = [];
-    this._listeners = new Map();
     this._matrix = null;
     this._dirty = true;
     this._dateLocalization = null;
@@ -469,13 +488,6 @@ class PivotEngine {
     this._emit("dataChange");
   }
 
-  /**
-   * Overrides month/weekday names and the hierarchy-part captions used by
-   * the date expander. Accepts the `dates` section of a react-pivot
-   * localization dictionary: `{ monthNames, weekdayNames, hierarchyParts }`.
-   * If data has already been loaded, re-expands it so the new captions
-   * take effect without requiring a manual setData call.
-   */
   /**
    * Stores the full localization dictionary so the engine can produce
    * localized captions (grand-total label, measure captions like
@@ -744,14 +756,14 @@ class PivotEngine {
       (f) => f.uniqueName !== uniqueName,
     );
     // Also remove from any slice arrays where it might have been placed.
-    const strip = (arr: InternalSliceField[] | InternalSliceMeasure[] | InternalSliceFilter[]) =>
+    const strip = (arr: InternalSliceField[] | InternalSliceMeasure[] | FilterEntry[]) =>
       (arr || []).filter((f) => f.uniqueName !== uniqueName);
     this._slice = {
       ...this._slice,
       measures: strip(this._slice.measures) as InternalSliceMeasure[],
       rows: strip(this._slice.rows) as InternalSliceField[],
       columns: strip(this._slice.columns) as InternalSliceField[],
-      filters: strip(this._slice.filters) as InternalSliceFilter[],
+      filters: strip(this._slice.filters) as FilterEntry[],
     };
     this._dirty = true;
     this._emit("dataChange");
@@ -768,7 +780,7 @@ class PivotEngine {
       columns: (s["columns"] as InternalSliceField[]) || [],
       measures: (s["measures"] as InternalSliceMeasure[]) || [],
       expands: (s["expands"] as InternalExpands) || { expandAll: true },
-      filters: (s["filters"] as InternalSliceFilter[]) || [],
+      filters: (s["filters"] as FilterEntry[]) || [],
       sort: migrateSort(s["sort"]),
     };
     this._dirty = true;
@@ -776,7 +788,7 @@ class PivotEngine {
   }
 
   getSlice(): InternalSlice {
-    return this._slice;
+    return { ...this._slice };
   }
 
   setOptions(options: unknown): void {
@@ -840,7 +852,7 @@ class PivotEngine {
     if (!silent) this._emit("formatChange");
   }
 
-  getFormat(): Record<string, unknown> {
+  getFormat(): FormatSnapshot {
     return {
       values: { ...this._format.values },
       valuesByMeasure: Object.fromEntries(
@@ -903,7 +915,7 @@ class PivotEngine {
     this._dirty = true;
   }
 
-  getReport(): Record<string, unknown> {
+  getReport(): ReportSnapshot {
     /*     const slice = { ...this._slice };
     if (slice.expands) {
       const { expandedMembers: _omit, ...restExpands } = slice.expands;
@@ -932,8 +944,8 @@ class PivotEngine {
   processMatrix(): ComputedMatrix {
     if (!this._dirty && this._matrix) return this._matrix;
 
-    // FilterEntry is structurally compatible with InternalSliceFilter
-    const filteredRows = applyFilters(this._expandedRows, this._slice.filters as Parameters<typeof applyFilters>[1]);
+    // _slice.filters is FilterEntry[] — matches applyFilters's second parameter directly.
+    const filteredRows = applyFilters(this._expandedRows, this._slice.filters);
 
     const rowFields = this._slice.rows || [];
     const hasMeasuresOnRows = rowFields.some(
@@ -950,7 +962,7 @@ class PivotEngine {
     const rowRoot = buildTree({
       rows: filteredRows,
       fields: rowFieldsForTree as unknown as RichSliceField[],
-      metadata: this._expandedMeta as unknown as import("./types").MetadataRow,
+      metadata: this._expandedMeta as unknown as MetadataRow,
       expands: this._slice.expands,
       rootCaption: this._totalCaption(),
       formatValue: dimensionFormatter,
@@ -968,7 +980,7 @@ class PivotEngine {
     const colRoot = buildTree({
       rows: filteredRows,
       fields: colFieldsForTree as unknown as RichSliceField[],
-      metadata: this._expandedMeta as unknown as import("./types").MetadataRow,
+      metadata: this._expandedMeta as unknown as MetadataRow,
       expands: this._slice.expands,
       rootCaption: this._totalCaption(),
       formatValue: dimensionFormatter,
@@ -983,7 +995,7 @@ class PivotEngine {
     const calcByName = new Map(
       this._calculatedFields.map((f) => [f.uniqueName, f]),
     );
-    const enrichMeasure = (m: InternalSliceMeasure): InternalEnrichedMeasure => {
+    const enrichMeasure = (m: InternalSliceMeasure): EnrichedMeasure => {
       const calc = calcByName.get(m.uniqueName);
       const fieldCaption =
         calc?.caption ||
@@ -1013,7 +1025,7 @@ class PivotEngine {
       caption: f.caption || f.uniqueName,
     }));
 
-    // Casts: InternalSliceField ≈ RichSliceField, InternalEnrichedMeasure ≈ EnrichedMeasure,
+    // Casts: InternalSliceField ≈ RichSliceField,
     // InternalSort ≈ SortConfig, ExpandedMetadataRow ≈ MetadataRow — all safe at runtime.
     this._matrix = computeMatrix({
       rows: filteredRows,
@@ -1021,13 +1033,13 @@ class PivotEngine {
       colRoot,
       rowFields: rowFieldsForTree as unknown as RichSliceField[],
       colFields: colFieldsForTree as unknown as RichSliceField[],
-      measures: measuresEnriched as unknown as Parameters<typeof computeMatrix>[0]["measures"],
+      measures: measuresEnriched,
       calculatedFields: calcFieldsEnriched as unknown as Parameters<typeof computeMatrix>[0]["calculatedFields"],
       hasMeasuresOnColumns,
       hasMeasuresOnRows,
       sort: (this._slice.sort || null) as unknown as Parameters<typeof computeMatrix>[0]["sort"],
       layout: this._format.layout,
-      metadata: this._expandedMeta as unknown as import("./types").MetadataRow,
+      metadata: this._expandedMeta as unknown as MetadataRow,
       locale: this._locale,
     });
 
@@ -1082,7 +1094,7 @@ class PivotEngine {
    * dimension captions and the "Righe" header in the pivot grid.
    */
   toggleChildrenExpansion(parentKey: string | null | undefined, axis: string = "row"): void {
-    const filteredRows = applyFilters(this._expandedRows, this._slice.filters as Parameters<typeof applyFilters>[1]);
+    const filteredRows = applyFilters(this._expandedRows, this._slice.filters);
     const sourceFields =
       axis === "column" ? this._slice.columns : this._slice.rows;
     const fields = (sourceFields || []).filter(
@@ -1091,7 +1103,7 @@ class PivotEngine {
     const tree = buildTree({
       rows: filteredRows,
       fields: fields as unknown as RichSliceField[],
-      metadata: this._expandedMeta as unknown as import("./types").MetadataRow,
+      metadata: this._expandedMeta as unknown as MetadataRow,
       expands: this._slice.expands,
       rootCaption: this._totalCaption(),
       locale: this._locale,
@@ -1143,7 +1155,7 @@ class PivotEngine {
     await exportMatrixToExcel({
       matrix,
       filename,
-      metadata: this._expandedMeta as unknown as import("./types").MetadataRow,
+      metadata: this._expandedMeta as unknown as MetadataRow,
     });
   }
 }

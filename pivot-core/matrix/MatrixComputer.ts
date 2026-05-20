@@ -24,13 +24,13 @@ const IS_FREEPLAN =
   typeof __FREEPLAN__ !== 'undefined' ? !!__FREEPLAN__ : false;
 
 /** A measure enriched with optional engine-level fields. aggregation is wider than AggregationType to include internal kinds. */
-interface EnrichedMeasure {
+export interface EnrichedMeasure {
   uniqueName: string;
   aggregation: string; // wider than AggregationType: includes 'formula', 'ratioTotal', 'currentRatio'
   caption?: string;
   grandTotalCaption?: string;
   formula?: string;
-  availableAggregations?: AggregationType[];
+  availableAggregations?: string[];
 }
 
 /** A calculated field definition carrying its formula string. */
