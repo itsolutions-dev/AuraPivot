@@ -86,11 +86,10 @@ interface FilterEditorProps {
 // ---------------------------------------------------------------------------
 
 const inferInitialMode = (filter: FilterEntry, type: string): FilterMode => {
-  if ((filter as unknown as Record<string, unknown>).range) return 'range';
+  if (filter.range) return 'range';
   if (Array.isArray(filter?.members) && filter.members.length > 1)
     return 'multi';
-  const f = filter as unknown as Record<string, unknown>;
-  if (f.value !== undefined && f.value !== null && f.value !== '') {
+  if (filter.value !== undefined && filter.value !== null && filter.value !== '') {
     return 'single';
   }
   const modes = MODES_BY_TYPE[type] || MODES_BY_TYPE.string;
@@ -98,8 +97,7 @@ const inferInitialMode = (filter: FilterEntry, type: string): FilterMode => {
 };
 
 const filterSummary = (filter: FilterEntry, t: Record<string, unknown>): string => {
-  const f = filter as unknown as Record<string, unknown>;
-  const range = f.range as { min?: unknown; max?: unknown } | undefined;
+  const range = filter.range;
   // dynamic boundary: localization values are unknown
   const tb = (t as Record<string, Record<string, string>>)?.filterBar ?? {};
   if (range && (range.min != null || range.max != null)) {
@@ -112,8 +110,8 @@ const filterSummary = (filter: FilterEntry, t: Record<string, unknown>): string 
     if (filter.members.length === 1) return String(filter.members[0]);
     return `${filter.members.length} ${tb.values || 'values'}`;
   }
-  if (f.value !== undefined && f.value !== null && f.value !== '') {
-    return `= ${f.value}`;
+  if (filter.value !== undefined && filter.value !== null && filter.value !== '') {
+    return `= ${filter.value}`;
   }
   return tb.all || 'All';
 };
@@ -161,12 +159,10 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }: F
     Array.isArray(filter?.members) ? filter.members.map(String) : []
   );
   const [value, setValue] = useState<string>(() => {
-    const f = filter as unknown as Record<string, unknown>;
-    return f.value != null ? String(f.value) : '';
+    return filter.value != null ? String(filter.value) : '';
   });
   const [range, setRange] = useState<{ min: string; max: string }>(() => {
-    const f = filter as unknown as Record<string, unknown>;
-    const r = f.range as { min?: unknown; max?: unknown } | undefined;
+    const r = filter.range;
     return {
       min: r?.min != null ? String(r.min) : '',
       max: r?.max != null ? String(r.max) : '',
@@ -415,10 +411,6 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }: F
 // FilterBar — main exported component (no props)
 // ---------------------------------------------------------------------------
 
-export interface FilterBarProps {
-  // no props — reads from PivotContext
-}
-
 const FilterBar = function FilterBar(): React.ReactElement | null {
   const { engine, localization: t } = usePivot();
   const portalContainer = usePortalContainer();
@@ -439,7 +431,7 @@ const FilterBar = function FilterBar(): React.ReactElement | null {
     };
   }, [engine]);
 
-  const filters: FilterEntry[] = (slice.filters as FilterEntry[]) || [];
+  const filters: FilterEntry[] = slice.filters || [];
   if (filters.length === 0) return null;
 
   const updateFilter = (idx: number, next: FilterEntry) => {
@@ -482,13 +474,11 @@ const FilterBar = function FilterBar(): React.ReactElement | null {
         const meta = metadata[filter.uniqueName];
         const caption = meta?.caption || filter.uniqueName;
         const summary = filterSummary(filter, t);
-        const f = filter as unknown as Record<string, unknown>;
         const isActive =
           (Array.isArray(filter.members) && filter.members.length > 0) ||
-          (f.value !== undefined && f.value !== null && f.value !== '') ||
-          ((f.range as Record<string, unknown> | undefined) &&
-            ((f.range as Record<string, unknown>).min != null ||
-              (f.range as Record<string, unknown>).max != null));
+          (filter.value !== undefined && filter.value !== null && filter.value !== '') ||
+          (filter.range != null &&
+            (filter.range.min != null || filter.range.max != null));
         return (
           <Chip
             key={`${filter.uniqueName}-${idx}`}

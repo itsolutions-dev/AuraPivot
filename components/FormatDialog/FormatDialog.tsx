@@ -45,6 +45,7 @@ import FormatAlignCenterIcon from '@mui/icons-material/FormatAlignCenter';
 import FormatAlignRightIcon from '@mui/icons-material/FormatAlignRight';
 import { usePivot } from '../../context/PivotContext';
 import { usePortalContainer } from '../../hooks/usePortalContainer';
+import type { FormatSnapshot, InternalCalculatedField } from '../../pivot-core/PivotEngine';
 
 /**
  * Format customization dialog. Modeled after the auraPivot format panel:
@@ -1945,7 +1946,7 @@ export interface FormatDialogProps {
   onClose: () => void;
 }
 
-const FormatDialog = function FormatDialog({ open, onClose }: FormatDialogProps) {
+const FormatDialog = function FormatDialog({ open, onClose }: FormatDialogProps): React.ReactElement {
   // dynamic boundary: engine and localization come from context with broad types
   const { engine, localization: t } = usePivot();
   const tF = (t as Record<string, Record<string, string>>)?.formatDialog ?? {};
@@ -1954,8 +1955,7 @@ const FormatDialog = function FormatDialog({ open, onClose }: FormatDialogProps)
   const portalContainer = usePortalContainer();
   const [tab, setTab] = useState(0);
 
-  // dynamic boundary: engine.getFormat() returns untyped format object from JS engine
-  const getFormat = () => (engine as unknown as { getFormat: () => Record<string, unknown> }).getFormat();
+  const getFormat = (): FormatSnapshot => engine.getFormat();
 
   const [values, setValues] = useState<SectionValues>(() => (getFormat().values as SectionValues) ?? { ...DEFAULTS.values });
   const [headers, setHeaders] = useState<SectionValues>(() => (getFormat().headers as SectionValues) ?? { ...DEFAULTS.headers });
@@ -1970,7 +1970,7 @@ const FormatDialog = function FormatDialog({ open, onClose }: FormatDialogProps)
   );
   const [rules, setRules] = useState<ConditionalRule[]>(() => (getFormat().conditional as ConditionalRule[]) ?? []);
   const [conditionalMode, setConditionalMode] = useState<string>(
-    () => (getFormat().conditionalMode as string) || 'first',
+    () => getFormat().conditionalMode || 'first',
   );
   const [valuesByMeasure, setValuesByMeasure] = useState<Record<string, SectionValues>>(
     () => (getFormat().valuesByMeasure as Record<string, SectionValues>) || {},
@@ -1986,22 +1986,14 @@ const FormatDialog = function FormatDialog({ open, onClose }: FormatDialogProps)
     setDimensions((current.dimensions as SectionValues) ?? { ...DEFAULTS.dimensions });
     setLayout((current.layout as LayoutValues) || { ...DEFAULTS.layout });
     setRules((current.conditional as ConditionalRule[]) ?? []);
-    setConditionalMode((current.conditionalMode as string) || 'first');
+    setConditionalMode(current.conditionalMode || 'first');
     setValuesByMeasure((current.valuesByMeasure as Record<string, SectionValues>) || {});
     setValuesTarget('__default__');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, engine]);
 
-  // dynamic boundary: engine.getCalculatedFields / getSlice / getMetadata are untyped JS engine methods
-  const engineAny = engine as unknown as {
-    getCalculatedFields?: () => Array<{ uniqueName: string; caption?: string }>;
-    getSlice: () => { measures?: Array<{ uniqueName: string; aggregation: string; hidden?: boolean }> };
-    getMetadata: () => Record<string, { caption?: string }>;
-    setFormat: (fmt: Record<string, unknown>) => void;
-  };
-
-  const calcByName = new Map(
-    (engineAny.getCalculatedFields?.() || []).map((f) => [f.uniqueName, f]),
+  const calcByName = new Map<string, InternalCalculatedField>(
+    engine.getCalculatedFields().map((f) => [f.uniqueName, f]),
   );
   const aggLabel = (a: string) => {
     const wdrKey = ({ distinctCount: 'distinctCount', avg: 'average' } as Record<string, string>)[a] || a;
@@ -2010,13 +2002,13 @@ const FormatDialog = function FormatDialog({ open, onClose }: FormatDialogProps)
     if (raw && typeof raw === 'object') return (raw as Record<string, string>).caption || a;
     return (raw as string) || a;
   };
-  const measures: MeasureEntry[] = (engineAny.getSlice().measures || []).map((m) => ({
+  const measures: MeasureEntry[] = (engine.getSlice().measures || []).map((m) => ({
     uniqueName: m.uniqueName,
     aggregation: m.aggregation,
     measureKey: `${m.uniqueName}:${m.aggregation}`,
     caption: (() => {
       const base =
-        engineAny.getMetadata()[m.uniqueName]?.caption ||
+        (engine.getMetadata() as Record<string, { caption?: string }>)[m.uniqueName]?.caption ||
         calcByName.get(m.uniqueName)?.caption ||
         m.uniqueName;
       return `${base} (${aggLabel(m.aggregation)})`;
@@ -2025,8 +2017,8 @@ const FormatDialog = function FormatDialog({ open, onClose }: FormatDialogProps)
   }));
 
   const dimensionFields: DimensionEntry[] = (() => {
-    const slice = engineAny.getSlice() as { rows?: Array<{ uniqueName: string }>; columns?: Array<{ uniqueName: string }> };
-    const meta = engineAny.getMetadata();
+    const slice = engine.getSlice();
+    const meta = engine.getMetadata() as Record<string, { caption?: string }>;
     const seen = new Set<string>();
     const out: DimensionEntry[] = [];
     [...(slice.rows || []), ...(slice.columns || [])].forEach((f) => {
@@ -2042,7 +2034,7 @@ const FormatDialog = function FormatDialog({ open, onClose }: FormatDialogProps)
   })();
 
   const handleApply = () => {
-    engineAny.setFormat({
+    engine.setFormat({
       values,
       valuesByMeasure,
       headers,
@@ -2056,7 +2048,7 @@ const FormatDialog = function FormatDialog({ open, onClose }: FormatDialogProps)
   };
 
   const handleReset = () => {
-    engineAny.setFormat({
+    engine.setFormat({
       values: { ...DEFAULTS.values },
       valuesByMeasure: {},
       headers: { ...DEFAULTS.headers },

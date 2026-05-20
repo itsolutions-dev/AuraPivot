@@ -39,7 +39,7 @@ import { formatDateValue, formatSubpartValue } from "./format/DateFormatter";
 // ---------------------------------------------------------------------------
 
 /** A calculated field as stored internally by the engine. */
-interface InternalCalculatedField {
+export interface InternalCalculatedField {
   uniqueName: string;
   caption: string;
   formula: string;
@@ -82,7 +82,7 @@ interface InternalSort {
 }
 
 /** Engine-internal slice — wider than the public Slice type. */
-interface InternalSlice {
+export interface InternalSlice {
   rows: InternalSliceField[];
   columns: InternalSliceField[];
   measures: InternalSliceMeasure[];

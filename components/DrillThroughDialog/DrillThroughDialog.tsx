@@ -109,9 +109,8 @@ function Metric({ label, value, hint, accent }: MetricProps): React.ReactElement
             color: accent
               ? theme.palette.primary.main
               : theme.palette.text.primary,
-            // dynamic boundary: theme.font is a custom augmented token
             fontFamily:
-              (theme as unknown as { font?: { mono?: string } }).font?.mono ||
+              theme.font?.mono ||
               '"JetBrains Mono", ui-monospace, monospace',
             lineHeight: 1.2,
           })}
@@ -361,9 +360,8 @@ const DrillThroughDialog = function DrillThroughDialog({
                     theme.palette.common.black,
                     0.18,
                   )}, 0 0 0 1px ${alpha(theme.palette.common.black, 0.04)}`,
-            // dynamic boundary: theme.font is a custom MUI augmentation
             fontFamily:
-              (theme as unknown as { font?: { primary?: string } }).font?.primary ||
+              theme.font?.primary ||
               theme.typography.fontFamily,
           }),
         },
@@ -374,9 +372,7 @@ const DrillThroughDialog = function DrillThroughDialog({
         sx={(theme) => {
           const accent = theme.palette.primary.main;
           const accent2 =
-            (theme.palette as unknown as Record<string, unknown>).secondary
-              ? (theme.palette as unknown as Record<string, Record<string, string>>).secondary?.main
-              : theme.palette.primary.dark;
+            theme.palette.secondary?.main ?? theme.palette.primary.dark;
           return {
             position: 'relative',
             px: { xs: 2.5, sm: 3.5 },
@@ -450,10 +446,9 @@ const DrillThroughDialog = function DrillThroughDialog({
                 letterSpacing: '-0.015em',
                 lineHeight: 1.2,
                 color: theme.palette.text.primary,
-                // dynamic boundary: custom theme font tokens
                 fontFamily:
-                  (theme as unknown as { font?: { display?: string; primary?: string } }).font?.display ||
-                  (theme as unknown as { font?: { primary?: string } }).font?.primary ||
+                  theme.font?.display ||
+                  theme.font?.primary ||
                   theme.typography.fontFamily,
               })}
             >
@@ -799,12 +794,11 @@ const DrillThroughDialog = function DrillThroughDialog({
                             textAlign: c.type === 'number' ? 'right' : 'left',
                             fontVariantNumeric:
                               c.type === 'number' ? 'tabular-nums' : 'normal',
-                            // dynamic boundary: theme.font is a custom MUI augmentation
                             fontFamily:
                               c.type === 'number' ||
                               c.type === 'date' ||
                               c.type === 'time'
-                                ? (theme as unknown as { font?: { mono?: string } }).font?.mono ||
+                                ? theme.font?.mono ||
                                   '"JetBrains Mono", ui-monospace, monospace'
                                 : 'inherit',
                             borderBottom: `1px solid ${alpha(
@@ -876,9 +870,8 @@ const DrillThroughDialog = function DrillThroughDialog({
               <Box
                 component="span"
                 sx={(theme) => ({
-                  // dynamic boundary: theme.font is a custom MUI augmentation
                   fontFamily:
-                    (theme as unknown as { font?: { mono?: string } }).font?.mono ||
+                    theme.font?.mono ||
                     '"JetBrains Mono", ui-monospace, monospace',
                   fontSize: theme.typography.caption.fontSize,
                   letterSpacing: '0.08em',

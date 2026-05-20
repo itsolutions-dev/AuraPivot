@@ -50,6 +50,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { usePivot } from '../../context/PivotContext';
 import { usePortalContainer } from '../../hooks/usePortalContainer';
 import CalculatedFieldDialog from '../CalculatedFieldDialog/CalculatedFieldDialog';
+import type { InternalSlice } from '../../pivot-core/PivotEngine';
 
 /**
  * Drag-and-drop configuration panel for rows, columns, measures and filters.
@@ -75,7 +76,10 @@ interface InternalSliceField {
   [key: string]: unknown;
 }
 
-interface InternalSlice {
+/** Local mutable slice shape used by the drag-and-drop editor.
+ * Kept separate from PivotEngine's InternalSlice because the DnD logic
+ * treats all zone arrays uniformly as InternalSliceField[]. */
+interface LocalSlice {
   rows?: InternalSliceField[];
   columns?: InternalSliceField[];
   measures?: InternalSliceField[];
@@ -608,8 +612,7 @@ const DropZone = function DropZone({
 const FieldList = function FieldList({ open, onClose, measuresAxis }: FieldListProps): React.ReactElement {
   const { engine, localization: t } = usePivot();
   const portalContainer = usePortalContainer();
-  // dynamic boundary: engine.getSlice() returns engine's own InternalSlice; cast to local interface
-  const [slice, setSliceState] = useState<InternalSlice>(() => engine.getSlice() as unknown as InternalSlice);
+  const [slice, setSliceState] = useState<LocalSlice>(() => engine.getSlice() as unknown as LocalSlice);
   const [calcDialog, setCalcDialog] = useState<{
     open: boolean;
     editField: CalculatedField | null;
@@ -673,7 +676,7 @@ const FieldList = function FieldList({ open, onClose, measuresAxis }: FieldListP
 
   useEffect(() => {
     if (!open) return undefined;
-    const ensureMeasuresAnchor = (s: InternalSlice): InternalSlice => {
+    const ensureMeasuresAnchor = (s: LocalSlice): LocalSlice => {
       const inRows = (s.rows || []).some((f) => f.uniqueName === 'Measures');
       const inCols = (s.columns || []).some((f) => f.uniqueName === 'Measures');
       if (inRows || inCols) return s;
@@ -687,7 +690,7 @@ const FieldList = function FieldList({ open, onClose, measuresAxis }: FieldListP
       };
     };
     const sync = () =>
-      setSliceState(ensureMeasuresAnchor({ ...(engine.getSlice() as unknown as InternalSlice) }));
+      setSliceState(ensureMeasuresAnchor({ ...(engine.getSlice() as unknown as LocalSlice) }));
     const syncCalc = () => setCalcFields(engine.getCalculatedFields() as CalculatedField[]);
     const syncDateFormats = () => setDateFormats(engine.getDateFormats() as Record<string, string>);
     const syncFieldOrder = () => setFieldOrder(engine.getFieldOrder() as string[]);
@@ -914,7 +917,7 @@ const FieldList = function FieldList({ open, onClose, measuresAxis }: FieldListP
       if (!chosenAgg) return;
     }
 
-    const next = { ...slice } as InternalSlice & Record<string, InternalSliceField[]>;
+    const next = { ...slice } as LocalSlice & Record<string, InternalSliceField[]>;
     const pop = (list: InternalSliceField[] | undefined, name: string): InternalSliceField[] =>
       (list || []).filter((f) => f.uniqueName !== name);
     const popAt = (list: InternalSliceField[] | undefined, i: number): InternalSliceField[] =>
@@ -1035,7 +1038,7 @@ const FieldList = function FieldList({ open, onClose, measuresAxis }: FieldListP
   };
 
   const removeFromZone = (zone: string, idx: number) => {
-    const next = { ...slice } as InternalSlice & Record<string, InternalSliceField[]>;
+    const next = { ...slice } as LocalSlice & Record<string, InternalSliceField[]>;
     next[zone] = ((next[zone] as InternalSliceField[]) || []).filter((_, i) => i !== idx);
     setSliceState(next);
   };
@@ -1736,12 +1739,12 @@ const FieldList = function FieldList({ open, onClose, measuresAxis }: FieldListP
                             mt: '4px',
                             borderRadius: 1.5,
                             backgroundColor: f.isCalculated
-                              ? (((theme.palette as unknown as Record<string, unknown>).tertiary as Record<string, string> | undefined)?.main ||
+                              ? (theme.palette.tertiary?.main ||
                                   theme.palette.primary.main) + '18'
                               : theme.palette.action.hover,
                             border: f.isCalculated
                               ? `1px solid ${
-                                  (((theme.palette as unknown as Record<string, unknown>).tertiary as Record<string, string> | undefined)?.main ||
+                                  (theme.palette.tertiary?.main ||
                                   theme.palette.primary.main)
                                 }40`
                               : '1px solid transparent',

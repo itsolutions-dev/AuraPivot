@@ -10,6 +10,8 @@ import {
   Box,
   Button,
   IconButton,
+  ListItemIcon,
+  ListItemText,
   Menu,
   MenuItem,
   Tooltip,
@@ -21,7 +23,6 @@ import TuneIcon from '@mui/icons-material/Tune';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import GridOnIcon from '@mui/icons-material/GridOn';
-import { ListItemIcon, ListItemText } from '@mui/material';
 import { usePivot } from '../../context/PivotContext';
 import { usePortalContainer } from '../../hooks/usePortalContainer';
 

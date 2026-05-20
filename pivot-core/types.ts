@@ -3,8 +3,6 @@
  * Single source of truth for all shared interfaces and the public AuraPivot API.
  */
 
-import "@mui/material/styles"; // side-effect import — required so the `declare module` augmentation below merges
-
 // ---------------------------------------------------------------------------
 // Core engine types (ported from JSDoc typedefs)
 // ---------------------------------------------------------------------------
@@ -245,19 +243,3 @@ export interface AuraPivotProps {
   theme?: object | ((outer: object) => object);
 }
 
-// ---------------------------------------------------------------------------
-// MUI theme augmentation — custom tokens consumed by AuraPivot.jsx
-// (side-effect import lives at the top of the file)
-// ---------------------------------------------------------------------------
-
-declare module "@mui/material/styles" {
-  interface Theme {
-    font?: { primary?: string };
-    /** Custom border-radius token (unitless number, like shape.borderRadius). */
-    borderRadius?: number;
-  }
-  interface ThemeOptions {
-    font?: { primary?: string };
-    borderRadius?: number;
-  }
-}

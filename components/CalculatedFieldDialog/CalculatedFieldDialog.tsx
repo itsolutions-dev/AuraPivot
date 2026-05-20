@@ -874,16 +874,15 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
                   height: 22,
                   lineHeight: '22px',
                   borderRadius: 11,
-                  backgroundColor:
-                    ((theme.palette as unknown as Record<string, unknown>).tertiary as Record<string, string> | undefined)?.main
-                      ? (((theme.palette as unknown as Record<string, unknown>).tertiary as Record<string, string>).main + '22')
-                      : (theme.palette.primary.main + '22'),
+                  backgroundColor: theme.palette.tertiary?.main
+                    ? (theme.palette.tertiary.main + '22')
+                    : (theme.palette.primary.main + '22'),
                   border: `1px solid ${
-                    ((theme.palette as unknown as Record<string, unknown>).tertiary as Record<string, string> | undefined)?.main ||
+                    theme.palette.tertiary?.main ||
                     theme.palette.primary.main
                   }66`,
                   color:
-                    ((theme.palette as unknown as Record<string, unknown>).tertiary as Record<string, string> | undefined)?.main ||
+                    theme.palette.tertiary?.main ||
                     theme.palette.primary.main,
                   fontFamily: theme.typography.fontFamily || 'inherit',
                   fontSize: theme.typography.caption.fontSize,
