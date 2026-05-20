@@ -15,7 +15,7 @@ import type { ComputedMatrix } from '../pivot-core/matrix/MatrixComputer';
 const WORKER_THRESHOLD = 5000;
 
 const usePivotMatrix = (
-  engine: InstanceType<typeof PivotEngine> | null | undefined,
+  engine: PivotEngine | null | undefined,
 ): { matrix: ComputedMatrix | null; loading: boolean } => {
   const [matrix, setMatrix] = useState<ComputedMatrix | null>(() =>
     engine ? engine.processMatrix() : null

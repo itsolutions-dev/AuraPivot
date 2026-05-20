@@ -1,15 +1,12 @@
 import React, { createContext, useContext } from 'react';
 import type PivotEngine from '../pivot-core/PivotEngine';
-
-// The options shape is whatever engine.getOptions() returns. InternalOptions is
-// not exported from PivotEngine.ts, so we derive it via ReturnType.
-type EngineOptions = ReturnType<InstanceType<typeof PivotEngine>['getOptions']>;
+import type { InternalOptions } from '../pivot-core/PivotEngine';
 
 export interface PivotContextValue {
-  engine: InstanceType<typeof PivotEngine>;
+  engine: PivotEngine;
   localization: Record<string, unknown>;
   locale: string | undefined;
-  options: EngineOptions;
+  options: InternalOptions;
   fullscreenRef: React.RefObject<HTMLDivElement | null>;
   isFullscreen: boolean;
 }

@@ -143,7 +143,7 @@ interface InternalFormat {
 }
 
 /** Engine-internal options (superset of public AuraPivotOptions). */
-interface InternalOptions {
+export interface InternalOptions {
   grid?: { type?: string; showHeaders?: boolean; [key: string]: unknown };
   sorting?: string;
   enableDrillThrough?: boolean;

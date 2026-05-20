@@ -3,7 +3,7 @@
 // theme.palette.primary / .secondary / .tertiary so PivotTable (and any other
 // consumer) can read theme.palette.<role>[<tone>] from the ambient MUI theme.
 
-export const TONE_STOPS: number[] = [900, 800, 700, 600, 500, 400, 300, 200, 100, 50];
+export const TONE_STOPS = [900, 800, 700, 600, 500, 400, 300, 200, 100, 50] as const;
 
 const TONE_LIGHTNESS: Record<number, number> = {
   50: 96,
