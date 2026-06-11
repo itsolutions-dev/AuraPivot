@@ -22,6 +22,7 @@
  */
 
 import type { MatrixCell } from "../types";
+import { getNumberFormat } from "./intlCache";
 
 /** A single clause inside an expression-type conditional rule. */
 interface ConditionalClause {
@@ -342,18 +343,26 @@ export const resolveCellStyle = ({
 const getBrowserLocale = () =>
   (typeof navigator !== 'undefined' && navigator.language) || 'en-US';
 
+// formatNumberWithFormat runs per cell — resolve the separators once per
+// locale instead of calling formatToParts on a fresh formatter every time.
+const separatorsCache = new Map<string, { group: string; decimal: string }>();
+
 const getSystemSeparators = () => {
+  const locale = getBrowserLocale();
+  const cached = separatorsCache.get(locale);
+  if (cached) return cached;
+  let result;
   try {
-    const parts = new Intl.NumberFormat(getBrowserLocale()).formatToParts(
-      12345.6
-    );
-    return {
+    const parts = getNumberFormat(locale).formatToParts(12345.6);
+    result = {
       group: parts.find((p) => p.type === 'group')?.value || ',',
       decimal: parts.find((p) => p.type === 'decimal')?.value || '.',
     };
   } catch (e) {
-    return { group: ',', decimal: '.' };
+    result = { group: ',', decimal: '.' };
   }
+  separatorsCache.set(locale, result);
+  return result;
 };
 
 const LOCALE_CURRENCY: Record<string, string> = {

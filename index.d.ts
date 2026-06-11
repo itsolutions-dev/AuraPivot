@@ -18,20 +18,20 @@ import * as React from "react";
  * `…/locales/it.json` or supply your own object with the same shape.
  */
 export interface LocalizationDictionary {
-  fieldsList?: Record<string, string>;
-  grid?: Record<string, string>;
-  aggregations?: Record<string, string>;
-  buttons?: Record<string, string>;
-  toolbar?: Record<string, string>;
-  filterBar?: Record<string, string>;
-  filterEditor?: Record<string, string>;
-  dimensionFilter?: Record<string, string>;
-  drillThrough?: Record<string, string>;
-  calculatedField?: Record<string, string>;
-  formatDialog?: Record<string, string>;
+  fieldsList?: Record<string, unknown>;
+  grid?: Record<string, unknown>;
+  aggregations?: Record<string, unknown>;
+  buttons?: Record<string, unknown>;
+  toolbar?: Record<string, unknown>;
+  filterBar?: Record<string, unknown>;
+  filterEditor?: Record<string, unknown>;
+  dimensionFilter?: Record<string, unknown>;
+  drillThrough?: Record<string, unknown>;
+  calculatedField?: Record<string, unknown>;
+  formatDialog?: Record<string, unknown>;
   /** Month / weekday names and date-related labels. */
   dates?: Record<string, unknown>;
-  freeplan?: Record<string, string>;
+  freeplan?: Record<string, unknown>;
   [section: string]: unknown;
 }
 

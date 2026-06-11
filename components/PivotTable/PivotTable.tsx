@@ -1,8 +1,3 @@
-// @ts-nocheck — TODO(typescript-debt): ~100 pre-existing strict-mode errors
-// from the 2026-05-19 JS→TS conversion (implicit anys, MUI generic overloads,
-// PaletteColor shade indexing, FormatSnapshot/FormatObject null mismatch).
-// This file is excluded from `npm run check` until they are fixed; do not
-// add new @ts-nocheck files.
 import React, {
   useMemo,
   useCallback,
@@ -17,7 +12,6 @@ import {
   IconButton,
   Menu,
   MenuItem,
-  Stack,
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
@@ -44,8 +38,65 @@ import {
   formatNumberWithFormat,
   getValuesSection,
 } from "../../pivot-core/format/CellFormatter";
+import type {
+  CellStyle,
+  FormatObject,
+} from "../../pivot-core/format/CellFormatter";
+import type {
+  AxisLeaf,
+  EnrichedMeasure,
+} from "../../pivot-core/matrix/MatrixComputer";
+import type { DataRow, TreeNode } from "../../pivot-core/types";
+import type { Theme } from "@mui/material/styles";
+import type { SystemStyleObject } from "@mui/system";
+import type { InternalSlice } from "../../pivot-core/PivotEngine";
 import DimensionFilterDialog from "../DimensionFilterDialog/DimensionFilterDialog";
 import DrillThroughDialog from "../DrillThroughDialog/DrillThroughDialog";
+
+// Dictionary sections this component reads. The context-level localization
+// is a deeply-nested Record<string, unknown>; this is the dynamic boundary.
+interface GridLocalization {
+  grid?: Record<string, string>;
+  fieldsList?: Record<string, string>;
+  aggregations?: Record<string, string | { caption?: string }>;
+}
+
+/** Measure reference used by the sort pickers. */
+interface MeasureRef {
+  uniqueName: string;
+  aggregation: string;
+}
+
+/** State of the column-header sort-by-measure picker menu. */
+interface ColSortPickerState {
+  anchorEl: HTMLElement | null;
+  colKey: string;
+  measures: EnrichedMeasure[];
+  direction?: string | null;
+}
+
+/** State of the row-label sort-by-measure picker menu. */
+interface RowSortPickerState {
+  anchorEl: HTMLElement | null;
+  rowKey: string;
+  measures: EnrichedMeasure[];
+  direction?: string | null;
+}
+
+/** One entry of the hidden-measures hover tooltip. */
+interface HiddenMeasureItem {
+  uniqueName: string;
+  caption: string;
+  aggregation: string;
+  formatted: string;
+}
+
+// Theme palettes built from a full color object carry numeric shades
+// (100..900) at runtime, but MUI's PaletteColor type only declares
+// light/main/dark. Themes built from { main } alone return undefined and
+// every caller falls back.
+const primaryShade = (primary: unknown, key: number): string | undefined =>
+  (primary as Record<number, string | undefined>)[key];
 
 const INDENT_PX = 16;
 const CELL_MIN_WIDTH = 96;
@@ -90,19 +141,25 @@ const DENSITY = {
     headerPaddingX: "12px",
   },
 };
-const resolveDensity = (key) => DENSITY[key] || DENSITY.Standard;
+type DensityConfig = (typeof DENSITY)[keyof typeof DENSITY];
+const resolveDensity = (key?: string | null): DensityConfig =>
+  DENSITY[key as keyof typeof DENSITY] || DENSITY.Standard;
 
 // Scale a CSS fontSize value ("13px" | "0.9rem" | 13) by a numeric rate.
 // Returns a CSS string with the original unit (defaults to px) or undefined
 // when no input is provided so the caller can fall back to its own default.
-const scaleFontSize = (raw, rate = 1, fallback) => {
+const scaleFontSize = (
+  raw: string | number | null | undefined,
+  rate = 1,
+  fallback?: string | number,
+): string | undefined => {
   const r = typeof rate === "number" && rate > 0 ? rate : 1;
   if (raw == null || raw === "") {
     return fallback != null ? scaleFontSize(fallback, r) : undefined;
   }
   if (typeof raw === "number") return `${raw * r}px`;
   const m = String(raw).match(/^([\d.]+)\s*([a-z%]*)$/i);
-  if (!m) return raw;
+  if (!m) return String(raw);
   const n = parseFloat(m[1]);
   const unit = m[2] || "px";
   return `${n * r}${unit}`;
@@ -127,21 +184,33 @@ const scaleFontSize = (raw, rate = 1, fallback) => {
  * thousands of rows render without DOM overflow.
  */
 const PivotTable = function PivotTable() {
-  const { engine, localization: t, options } = usePivot();
+  const { engine, localization, options } = usePivot();
+  const t = localization as GridLocalization;
   const { matrix, loading } = usePivotMatrix(engine);
   const [format, setFormat] = useState(() => engine.getFormat());
-  const [slice, setSliceState] = useState(() => engine.getSlice());
+  const [slice, setSliceState] = useState<InternalSlice>(() =>
+    engine.getSlice(),
+  );
+  // Engine snapshot and formatter input share their runtime shape; their
+  // index signatures make them nominally incompatible — single boundary cast.
+  const formatObj = format as unknown as FormatObject;
   const sort = slice?.sort || null;
-  const [dimensionFilter, setDimensionFilter] = useState(null);
+  const [dimensionFilter, setDimensionFilter] = useState<{
+    uniqueName: string;
+    caption: string;
+  } | null>(null);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   // When measures live on rows and there are 2+ measures, clicking a column
   // header opens this picker so the user chooses which measure drives the
   // sort. Anchor element is the clicked HeaderCell, colKey is the target.
-  const [sortPicker, setSortPicker] = useState(null);
+  const [sortPicker, setSortPicker] = useState<ColSortPickerState | null>(
+    null,
+  );
   // Mirror of `sortPicker` for row-driven sort: clicking a row label opens
   // this picker when measures live on the column axis and there are 2+ of
   // them, so the user can choose which measure drives the column ordering.
-  const [rowSortPicker, setRowSortPicker] = useState(null);
+  const [rowSortPicker, setRowSortPicker] =
+    useState<RowSortPickerState | null>(null);
 
   useEffect(() => {
     const onFormat = () => setFormat(engine.getFormat());
@@ -159,7 +228,7 @@ const PivotTable = function PivotTable() {
   const compact = (options?.grid?.type || "compact") === "compact";
 
   const handleToggle = useCallback(
-    (nodeKey) => {
+    (nodeKey: string) => {
       // Go through setSlice instead of the dedicated toggleExpanded helper
       // so the reportChange emission carries the full updated slice — some
       // downstream listeners (FieldList, FilterBar) snapshot the slice and
@@ -183,10 +252,10 @@ const PivotTable = function PivotTable() {
   // When the "Valori" (Measures) field is placed on the row axis, each tree
   // node is rendered once per measure; these helpers extract the underlying
   // tree-node key that owns expansion state and the node itself via findNode.
-  const nodeKeyOf = (rowNode) => rowNode?.nodeKey || rowNode?.key;
+  const nodeKeyOf = (rowNode: AxisLeaf) => rowNode?.nodeKey || rowNode?.key;
 
   const hiddenMeasures = useMemo(() => {
-    const s = new Set();
+    const s = new Set<string>();
     (slice.measures || []).forEach((m) => {
       if (m?.hidden && m.uniqueName) {
         s.add(`${m.uniqueName}:${m.aggregation}`);
@@ -195,7 +264,7 @@ const PivotTable = function PivotTable() {
     return s;
   }, [slice.measures]);
 
-  const measureKeyHidden = (mk) => {
+  const measureKeyHidden = (mk: string | null | undefined) => {
     if (!mk) return false;
     return hiddenMeasures.has(String(mk));
   };
@@ -242,19 +311,19 @@ const PivotTable = function PivotTable() {
   const { dataRows, gtRows, gtSlot, topItemCount } = useMemo(() => {
     const off = {
       dataRows: rowLeaves,
-      gtRows: [],
-      gtSlot: null,
+      gtRows: [] as AxisLeaf[],
+      gtSlot: null as string | null,
       topItemCount: 0,
     };
     if (!stickyRowTotals || rowsTotalsPosition === "none") return off;
-    const isGT = (r) => !!(r?.isTotal && r.depth === -1);
+    const isGT = (r: AxisLeaf) => !!(r?.isTotal && r.depth === -1);
     if (rowsTotalsPosition === "before") {
       let n = 0;
       while (n < rowLeaves.length && isGT(rowLeaves[n])) n += 1;
       return n > 0 ? { ...off, topItemCount: n } : off;
     }
-    const gt = [];
-    const body = [];
+    const gt: AxisLeaf[] = [];
+    const body: AxisLeaf[] = [];
     for (const r of rowLeaves) {
       if (isGT(r)) gt.push(r);
       else body.push(r);
@@ -270,7 +339,9 @@ const PivotTable = function PivotTable() {
   // usual one-stripe-per-row pattern.
   const rowMeta = useMemo(() => {
     const hasMeasuresOnRows = dataRows.some((l) => l?.measureKey);
-    const meta = new Array(dataRows.length);
+    const meta = new Array<{ groupIndex: number; measureIdx: number }>(
+      dataRows.length,
+    );
     let groupIndex = -1;
     let groupStart = 0;
     for (let i = 0; i < dataRows.length; i++) {
@@ -310,16 +381,16 @@ const PivotTable = function PivotTable() {
   // attribute; after layout its real `offsetLeft` is measured and the sticky
   // cell is pinned to that exact device-pixel offset, so the columns neither
   // overlap nor leave seams while scrolling, at any width.
-  const scrollerElRef = useRef(null);
-  const scrollerObsRef = useRef(null);
+  const scrollerElRef = useRef<HTMLElement | null>(null);
+  const scrollerObsRef = useRef<ResizeObserver | null>(null);
   const [measureTick, setMeasureTick] = useState(0);
-  const handleScrollerRef = useCallback((node) => {
+  const handleScrollerRef = useCallback((node: HTMLElement | Window | null) => {
     if (scrollerObsRef.current) {
       scrollerObsRef.current.disconnect();
       scrollerObsRef.current = null;
     }
     scrollerElRef.current =
-      node && typeof node.querySelectorAll === "function" ? node : null;
+      node && node instanceof HTMLElement ? node : null;
     if (!scrollerElRef.current) return;
     const ro = new ResizeObserver(() => setMeasureTick((t) => t + 1));
     ro.observe(scrollerElRef.current);
@@ -329,19 +400,21 @@ const PivotTable = function PivotTable() {
 
   // `colGeom` maps each data-column index to its measured natural offsetLeft,
   // plus `__cw` (the table's full content width). `null` when sticky is off.
-  const [colGeom, setColGeom] = useState(null);
+  const [colGeom, setColGeom] = useState<Record<string, number> | null>(null);
   useLayoutEffect(() => {
     const scroller = scrollerElRef.current;
     if (!scroller || !stickyColTotals || colsTotalsPosition === "none") {
       setColGeom((prev) => (prev === null ? prev : null));
       return;
     }
-    const ths = scroller.querySelectorAll("thead th[data-pvt-ci]");
+    const ths = scroller.querySelectorAll<HTMLTableCellElement>(
+      "thead th[data-pvt-ci]",
+    );
     if (!ths.length) return;
-    const geom = {};
+    const geom: Record<string, number> = {};
     let contentWidth = 0;
     ths.forEach((th) => {
-      geom[th.getAttribute("data-pvt-ci")] = th.offsetLeft;
+      geom[th.getAttribute("data-pvt-ci") ?? ""] = th.offsetLeft;
       const right = th.offsetLeft + th.offsetWidth;
       if (right > contentWidth) contentWidth = right;
     });
@@ -368,7 +441,7 @@ const PivotTable = function PivotTable() {
   // left ("before") or right ("after") edge during horizontal scroll, at the
   // exact measured offset. Returns a style fragment, or null.
   const stickyColStyle = useCallback(
-    (col, ci, isHeader) => {
+    (col: AxisLeaf, ci: number, isHeader: boolean): React.CSSProperties | null => {
       if (!stickyColTotals || colsTotalsPosition === "none") return null;
       if (!(col?.isTotal && col.depth === -1)) return null;
       if (!colGeom || colGeom[String(ci)] == null) return null;
@@ -405,19 +478,19 @@ const PivotTable = function PivotTable() {
   );
 
   const headerStyle = useMemo(
-    () => resolveCellStyle({ format, scope: "headers" }),
-    [format],
+    () => resolveCellStyle({ format: formatObj, scope: "headers" }),
+    [formatObj],
   );
   const dimensionStyle = useMemo(
-    () => resolveCellStyle({ format, scope: "dimensions" }),
-    [format],
+    () => resolveCellStyle({ format: formatObj, scope: "dimensions" }),
+    [formatObj],
   );
   const grandTotalLabelStyle = useMemo(
-    () => resolveCellStyle({ format, scope: "grandTotals" }),
-    [format],
+    () => resolveCellStyle({ format: formatObj, scope: "grandTotals" }),
+    [formatObj],
   );
   const grandTotalValueStyle = useMemo(() => {
-    const base = resolveCellStyle({ format, scope: "grandTotals" });
+    const base = resolveCellStyle({ format: formatObj, scope: "grandTotals" });
     // Grand-total value cells still live on the value axis — if the user
     // hasn't explicitly set an alignment for the grand-totals section fall
     // back to the values alignment so numbers stay right-justified.
@@ -425,26 +498,32 @@ const PivotTable = function PivotTable() {
       return { ...base, textAlign: format?.values?.textAlign || "right" };
     }
     return base;
-  }, [format]);
+  }, [format, formatObj]);
   // Data columns should share their text-align with the value cells below
   // them so numbers line up against their header.
   const dataAlign = format?.values?.textAlign || "right";
   const density = useMemo(
-    () => resolveDensity(format?.layout?.density),
+    () => resolveDensity(format?.layout?.density as string | undefined),
     [format?.layout?.density],
   );
 
   const applySort = useCallback(
-    (colKey, measure) => {
+    (colKey: string, measure: MeasureRef | null) => {
       const current = engine.getSlice()?.sort || null;
-      const sameMeasureKey = (a, b) =>
+      const sameMeasureKey = (
+        a: Partial<MeasureRef> | null | undefined,
+        b: Partial<MeasureRef> | null | undefined,
+      ) =>
         (a?.uniqueName || null) === (b?.uniqueName || null) &&
         (a?.aggregation || null) === (b?.aggregation || null);
-      let nextDirection = "desc";
+      let nextDirection: string | null = "desc";
       if (
         current &&
         current.colKey === colKey &&
-        sameMeasureKey(current.colMeasure, measure)
+        sameMeasureKey(
+          current.colMeasure as Partial<MeasureRef> | null,
+          measure,
+        )
       ) {
         if (current.colDirection === "desc") nextDirection = "asc";
         else if (current.colDirection === "asc") nextDirection = null;
@@ -459,7 +538,7 @@ const PivotTable = function PivotTable() {
   );
 
   const handleHeaderClick = useCallback(
-    (colKey, evt) => {
+    (colKey: string, evt: React.MouseEvent<HTMLElement>) => {
       if (!colKey) return;
       const measuresOnRows = !!matrix?.measuresOnRows;
       // Grand-total column = leaf at depth -1 with isTotal. Currentratio
@@ -475,7 +554,7 @@ const PivotTable = function PivotTable() {
       if (measuresOnRows && sortableMeasures.length > 1) {
         const current = engine.getSlice()?.sort || null;
         setSortPicker({
-          anchorEl: evt?.currentTarget || null,
+          anchorEl: (evt?.currentTarget as HTMLElement) || null,
           colKey,
           measures: sortableMeasures,
           direction:
@@ -497,16 +576,22 @@ const PivotTable = function PivotTable() {
   );
 
   const applySortByRow = useCallback(
-    (rowKey, measure) => {
+    (rowKey: string, measure: MeasureRef | null) => {
       const current = engine.getSlice()?.sort || null;
-      const sameMeasureKey = (a, b) =>
+      const sameMeasureKey = (
+        a: Partial<MeasureRef> | null | undefined,
+        b: Partial<MeasureRef> | null | undefined,
+      ) =>
         (a?.uniqueName || null) === (b?.uniqueName || null) &&
         (a?.aggregation || null) === (b?.aggregation || null);
-      let nextDirection = "desc";
+      let nextDirection: string | null = "desc";
       if (
         current &&
         current.rowKey === rowKey &&
-        sameMeasureKey(current.rowMeasure, measure)
+        sameMeasureKey(
+          current.rowMeasure as Partial<MeasureRef> | null,
+          measure,
+        )
       ) {
         if (current.rowDirection === "desc") nextDirection = "asc";
         else if (current.rowDirection === "asc") nextDirection = null;
@@ -521,7 +606,7 @@ const PivotTable = function PivotTable() {
   );
 
   const handleLabelClick = useCallback(
-    (rowKey, rowNode, evt) => {
+    (rowKey: string, rowNode: AxisLeaf, evt: React.MouseEvent<HTMLElement>) => {
       if (!rowKey) return;
       const measuresOnCols = !!matrix?.measuresOnColumns;
       // Grand-total row = leaf at depth -1 with isTotal. Skip currentRatio
@@ -534,7 +619,7 @@ const PivotTable = function PivotTable() {
       if (measuresOnCols && sortableMeasures.length > 1) {
         const current = engine.getSlice()?.sort || null;
         setRowSortPicker({
-          anchorEl: evt?.currentTarget || null,
+          anchorEl: (evt?.currentTarget as HTMLElement) || null,
           rowKey,
           measures: sortableMeasures,
           direction:
@@ -593,7 +678,7 @@ const PivotTable = function PivotTable() {
   }, [matrix?.measures, matrix?.measuresOnColumns, metadata, t]);
 
   const captionFor = useCallback(
-    (uniqueName) => {
+    (uniqueName: string) => {
       if (uniqueName === "Measures") {
         return t?.fieldsList?.values || "Values";
       }
@@ -603,9 +688,13 @@ const PivotTable = function PivotTable() {
   );
 
   const aggLabel = useCallback(
-    (a) => {
+    (a: string) => {
       if (!a) return "";
-      const wdrKey = { distinctcount: "distinctCount", avg: "average" }[a] || a;
+      const wdrKey =
+        ({ distinctcount: "distinctCount", avg: "average" } as Record<
+          string,
+          string
+        >)[a] || a;
       const raw = t?.aggregations?.[a] ?? t?.aggregations?.[wdrKey];
       if (raw && typeof raw === "object") return raw.caption || a;
       return raw || a;
@@ -623,7 +712,7 @@ const PivotTable = function PivotTable() {
   );
 
   const activeFilterFields = useMemo(() => {
-    const s = new Set();
+    const s = new Set<string>();
     (slice.filters || []).forEach((f) => {
       if (!f || !f.uniqueName) return;
       const hasMembers = Array.isArray(f.members) && f.members.length > 0;
@@ -635,23 +724,27 @@ const PivotTable = function PivotTable() {
     return s;
   }, [slice.filters]);
 
-  const openDimensionFilter = (uniqueName) =>
+  const openDimensionFilter = (uniqueName: string) =>
     setDimensionFilter({
       uniqueName,
       caption: captionFor(uniqueName),
     });
 
-  const [drill, setDrill] = useState(null);
+  const [drill, setDrill] = useState<{
+    open: boolean;
+    rows: DataRow[];
+    breadcrumbs: { field?: string; value?: string }[];
+  } | null>(null);
 
   const getHiddenMeasureItems = useCallback(
-    (rowNode, col) => {
+    (rowNode: AxisLeaf, col: AxisLeaf): HiddenMeasureItem[] => {
       if (hiddenMeasures.size === 0 || !matrix) return [];
       const rowKeyBase = String(rowNode.key).split("||M:")[0];
       const colKeyBase = String(col.key).split("||M:")[0];
       const hiddenList = (slice.measures || []).filter((m) => m?.hidden);
       return hiddenList.map((m) => {
         const targetKey = `${m.uniqueName}:${m.aggregation}`;
-        let found = null;
+        let found: { value: number | null; measureKey: string } | null = null;
         for (const [k, v] of matrix.cells) {
           const sep = k.indexOf("::");
           if (sep < 0) continue;
@@ -666,7 +759,7 @@ const PivotTable = function PivotTable() {
           }
         }
         const section = found
-          ? getValuesSection(format, found.measureKey)
+          ? getValuesSection(formatObj, found.measureKey)
           : null;
         const base = captionFor(m.uniqueName);
         const agg = aggLabel(m.aggregation);
@@ -678,11 +771,11 @@ const PivotTable = function PivotTable() {
         };
       });
     },
-    [hiddenMeasures, matrix, slice.measures, format, captionFor, aggLabel],
+    [hiddenMeasures, matrix, slice.measures, formatObj, captionFor, aggLabel],
   );
 
   const handleToggleChildren = useCallback(
-    (parentKey) => {
+    (parentKey: string | null) => {
       if (parentKey != null) {
         // Per-row "expand/collapse level below": flip the isExpanded state
         // of every direct child of parentKey. The parent stays open; only
@@ -720,7 +813,7 @@ const PivotTable = function PivotTable() {
    * opens the drill-through dialog with the corresponding source records.
    */
   const openDrillThrough = useCallback(
-    (rowKey, colKey, rowNode) => {
+    (rowKey: string, colKey: string, rowNode: AxisLeaf) => {
       if (!matrix) return;
       // Strip the measure suffix ("||M:...") to look up the actual column
       // node in colRoot — measures live on top of columns, not in the tree.
@@ -742,10 +835,13 @@ const PivotTable = function PivotTable() {
       const rows = intersected.map((i) => source[i]).filter(Boolean);
 
       // Breadcrumbs: ancestor chain of rowNode and colNode (skipping roots).
-      const buildBreadcrumbs = (root, targetKey) => {
+      const buildBreadcrumbs = (
+        root: TreeNode | null | undefined,
+        targetKey: string | null | undefined,
+      ) => {
         if (!root || !targetKey) return [];
-        const path = [];
-        const walk = (node, trail) => {
+        const path: TreeNode[] = [];
+        const walk = (node: TreeNode, trail: TreeNode[]): boolean => {
           if (!node) return false;
           const nextTrail = [...trail, node];
           if (node.key === targetKey) {
@@ -761,7 +857,7 @@ const PivotTable = function PivotTable() {
         return path
           .filter((n) => !n.isTotal && n.field)
           .map((n) => ({
-            field: captionFor(n.field),
+            field: captionFor(String(n.field)),
             value: n.caption,
           }));
       };
@@ -847,8 +943,8 @@ const PivotTable = function PivotTable() {
                   backgroundColor:
                     headerStyle?.backgroundColor ||
                     (theme.palette.mode === "dark"
-                      ? theme.palette.primary[900]
-                      : theme.palette.primary[100]),
+                      ? primaryShade(theme.palette.primary, 900)
+                      : primaryShade(theme.palette.primary, 100)),
                 })}
               >
                 {(rowDimensions.length > 0 || colDimensions.length > 0) && (
@@ -939,11 +1035,12 @@ const PivotTable = function PivotTable() {
                   ? t?.grid?.sortAsc || "Ascending"
                   : t?.grid?.sortDesc || "Descending";
               let measureLabel = "";
-              if (sort.colMeasure) {
+              const colMeasure = sort?.colMeasure as Partial<MeasureRef> | null;
+              if (colMeasure) {
                 const m = (matrix?.measures || []).find(
                   (mm) =>
-                    mm.uniqueName === sort.colMeasure.uniqueName &&
-                    mm.aggregation === sort.colMeasure.aggregation,
+                    mm.uniqueName === colMeasure.uniqueName &&
+                    mm.aggregation === colMeasure.aggregation,
                 );
                 if (m) measureLabel = ` — ${m.caption || m.uniqueName}`;
               }
@@ -1041,10 +1138,10 @@ const PivotTable = function PivotTable() {
 
   const alternateRows = !!format?.layout?.alternateRows;
 
-  const buildDimValueMap = (root) => {
-    const out = new Map();
+  const buildDimValueMap = (root: TreeNode | null | undefined) => {
+    const out = new Map<string, Record<string, unknown>>();
     if (!root) return out;
-    const walk = (node, accum) => {
+    const walk = (node: TreeNode, accum: Record<string, unknown>) => {
       const next =
         node.field && !node.isTotal
           ? { ...accum, [node.field]: node.value }
@@ -1065,8 +1162,8 @@ const PivotTable = function PivotTable() {
   );
 
   const renderRow = useCallback(
-    (rowNode, index) => {
-      if (!rowNode) return null;
+    (rowNode: AxisLeaf, index: number) => {
+      if (!rowNode || !matrix) return null;
 
       const hasChildren = rowNode.children && rowNode.children.length > 0;
       // Next-level toggle (UnfoldMore) only makes sense if at least one
@@ -1177,11 +1274,13 @@ const PivotTable = function PivotTable() {
                     ? t?.grid?.sortAsc || "Ascending"
                     : t?.grid?.sortDesc || "Descending";
                 let measureLabel = "";
-                if (sort.rowMeasure) {
+                const rowMeasure =
+                  sort?.rowMeasure as Partial<MeasureRef> | null;
+                if (rowMeasure) {
                   const m = (matrix?.measures || []).find(
                     (mm) =>
-                      mm.uniqueName === sort.rowMeasure.uniqueName &&
-                      mm.aggregation === sort.rowMeasure.aggregation,
+                      mm.uniqueName === rowMeasure.uniqueName &&
+                      mm.aggregation === rowMeasure.aggregation,
                   );
                   if (m) measureLabel = ` — ${m.caption || m.uniqueName}`;
                 }
@@ -1194,7 +1293,7 @@ const PivotTable = function PivotTable() {
             const cell = matrix.cells.get(`${rowNode.key}::${col.key}`);
             const colSticky = stickyColStyle(col, ci, false);
             const measureKey = cell?.measureKey || col.measureKey || null;
-            const getMeasureValue = (target) => {
+            const getMeasureValue = (target: string | null | undefined) => {
               if (!target) return null;
               const rowKeyBase = String(rowNode.key).split("||M:")[0];
               const colKeyBase = String(col.key).split("||M:")[0];
@@ -1225,7 +1324,7 @@ const PivotTable = function PivotTable() {
               ...(colDimMap.get(colBaseKey) || {}),
             };
             const resolved = resolveCellStyle({
-              format,
+              format: formatObj,
               cell,
               measureKey,
               getMeasureValue,
@@ -1239,14 +1338,16 @@ const PivotTable = function PivotTable() {
             const aggFromKey = measureKey
               ? String(measureKey).split(":")[1]
               : null;
-            let effectiveSection = getValuesSection(format, measureKey);
+            let effectiveSection = getValuesSection(formatObj, measureKey);
             if (
               (aggFromKey === "ratioTotal" || aggFromKey === "currentRatio") &&
               effectiveSection
             ) {
               const uniqueName = String(measureKey).split(":")[0];
               const byMeasure = format?.valuesByMeasure || {};
-              const override = byMeasure[measureKey] || byMeasure[uniqueName];
+              const override =
+                (measureKey ? byMeasure[measureKey] : undefined) ||
+                byMeasure[uniqueName];
               const userSetPercentage =
                 override &&
                 Object.prototype.hasOwnProperty.call(override, "percentage");
@@ -1264,18 +1365,19 @@ const PivotTable = function PivotTable() {
                 ? formatNumberWithFormat(cell.value, effectiveSection) ||
                   cell.formattedValue
                 : "";
-            const cellClickable =
+            const cellClickable = !!(
               options?.enableDrillThrough !== false &&
               !hideCurrentRatioOnTotal &&
               cell &&
               cell.value !== null &&
-              cell.value !== undefined;
+              cell.value !== undefined
+            );
             const gtCellStyle = isGrandTotal
               ? grandTotalValueStyle
                 ? {
                     ...grandTotalValueStyle,
                     textAlign:
-                      getValuesSection(format, measureKey)?.textAlign ||
+                      getValuesSection(formatObj, measureKey)?.textAlign ||
                       "right",
                   }
                 : grandTotalValueStyle
@@ -1336,6 +1438,7 @@ const PivotTable = function PivotTable() {
       t,
       sort,
       format,
+      formatObj,
       dimensionStyle,
       grandTotalLabelStyle,
       grandTotalValueStyle,
@@ -1401,8 +1504,8 @@ const PivotTable = function PivotTable() {
         "& thead tr": {
           backgroundColor:
             theme.palette.mode === "dark"
-              ? theme.palette.primary[900]
-              : theme.palette.primary[100],
+              ? primaryShade(theme.palette.primary, 900)
+              : primaryShade(theme.palette.primary, 100),
         },
         "& thead th": {
           padding: 0,
@@ -1420,8 +1523,8 @@ const PivotTable = function PivotTable() {
         "& thead th.pvt-sticky-col": {
           backgroundColor:
             theme.palette.mode === "dark"
-              ? theme.palette.primary[900]
-              : theme.palette.primary[100],
+              ? primaryShade(theme.palette.primary, 900)
+              : primaryShade(theme.palette.primary, 100),
         },
         // Sticky grand-total column body cells must stay opaque even on row
         // hover — `action.hover` is translucent, so otherwise the
@@ -1593,25 +1696,26 @@ const PivotTable = function PivotTable() {
         </Box>
         {(sortPicker?.measures || []).map((m) => {
           const key = `${m.uniqueName}:${m.aggregation}`;
+          const activeColMeasure =
+            sort?.colMeasure as Partial<MeasureRef> | null;
           const isActive =
             !!sort &&
             !!sortPicker &&
             sort.colKey === sortPicker.colKey &&
-            sort.colMeasure?.uniqueName === m.uniqueName &&
-            sort.colMeasure?.aggregation === m.aggregation;
+            activeColMeasure?.uniqueName === m.uniqueName &&
+            activeColMeasure?.aggregation === m.aggregation;
           return (
             <MenuItem
               key={key}
               selected={isActive}
               onClick={() => {
                 engine.setSort(
-                  sortPicker.colKey,
-                  sortPicker.direction || "desc",
+                  sortPicker!.colKey,
+                  sortPicker!.direction || "desc",
                   { uniqueName: m.uniqueName, aggregation: m.aggregation },
                 );
                 setSortPicker(null);
               }}
-              variant="caption"
               sx={(theme) => ({
                 fontSize: theme.typography.fontSize,
                 fontWeight: isActive ? 700 : 200,
@@ -1627,7 +1731,6 @@ const PivotTable = function PivotTable() {
               engine.setSort(null, null);
               setSortPicker(null);
             }}
-            variant="caption"
             sx={(theme) => ({
               fontSize: theme.typography.fontSize,
               color: "error.main",
@@ -1710,25 +1813,26 @@ const PivotTable = function PivotTable() {
         </Box>
         {(rowSortPicker?.measures || []).map((m) => {
           const key = `${m.uniqueName}:${m.aggregation}`;
+          const activeRowMeasure =
+            sort?.rowMeasure as Partial<MeasureRef> | null;
           const isActive =
             !!sort &&
             !!rowSortPicker &&
             sort.rowKey === rowSortPicker.rowKey &&
-            sort.rowMeasure?.uniqueName === m.uniqueName &&
-            sort.rowMeasure?.aggregation === m.aggregation;
+            activeRowMeasure?.uniqueName === m.uniqueName &&
+            activeRowMeasure?.aggregation === m.aggregation;
           return (
             <MenuItem
               key={key}
               selected={isActive}
               onClick={() => {
                 engine.setSortByRow(
-                  rowSortPicker.rowKey,
-                  rowSortPicker.direction || "desc",
+                  rowSortPicker!.rowKey,
+                  rowSortPicker!.direction || "desc",
                   { uniqueName: m.uniqueName, aggregation: m.aggregation },
                 );
                 setRowSortPicker(null);
               }}
-              variant="caption"
               sx={(theme) => ({
                 fontSize: theme.typography.fontSize,
                 fontWeight: isActive ? 700 : 200,
@@ -1744,7 +1848,6 @@ const PivotTable = function PivotTable() {
               engine.setSortByRow(null, null);
               setRowSortPicker(null);
             }}
-            variant="caption"
             sx={(theme) => ({
               fontSize: theme.typography.fontSize,
               color: "error.main",
@@ -1760,6 +1863,16 @@ const PivotTable = function PivotTable() {
   );
 };
 
+interface DimensionHeaderCellProps {
+  dims?: InternalSlice["rows"];
+  captionFor: (uniqueName: string) => string;
+  activeFilters: Set<string>;
+  onOpen: (uniqueName: string) => void;
+  fallback?: string;
+  style?: Partial<CellStyle> | null;
+  density?: DensityConfig;
+}
+
 const DimensionHeaderCell = function DimensionHeaderCell({
   dims,
   captionFor,
@@ -1768,7 +1881,7 @@ const DimensionHeaderCell = function DimensionHeaderCell({
   fallback,
   style,
   density,
-}) {
+}: DimensionHeaderCellProps) {
   const d = density || DENSITY.Standard;
   const align = style?.textAlign || "left";
   const justify =
@@ -1797,15 +1910,15 @@ const DimensionHeaderCell = function DimensionHeaderCell({
           color:
             style?.color ||
             (theme.palette.mode === "dark"
-              ? theme.palette.primary[500]
-              : theme.palette.primary[600]),
+              ? primaryShade(theme.palette.primary, 500)
+              : primaryShade(theme.palette.primary, 600)),
           fontStyle: "italic",
           opacity: 0.7,
           backgroundColor:
             style?.backgroundColor ||
             (theme.palette.mode === "dark"
-              ? theme.palette.primary[900]
-              : theme.palette.primary[100]),
+              ? primaryShade(theme.palette.primary, 900)
+              : primaryShade(theme.palette.primary, 100)),
         })}
       >
         {fallback}
@@ -1826,8 +1939,8 @@ const DimensionHeaderCell = function DimensionHeaderCell({
         backgroundColor:
           style?.backgroundColor ||
           (theme.palette.mode === "dark"
-            ? theme.palette.primary[900]
-            : theme.palette.primary[100]),
+            ? primaryShade(theme.palette.primary, 900)
+            : primaryShade(theme.palette.primary, 100)),
       })}
     >
       {dims.map((dim) => {
@@ -1902,6 +2015,19 @@ DimensionHeaderCell.propTypes = {
   density: PropTypes.object,
 };
 
+interface HeaderCellProps {
+  children?: React.ReactNode;
+  primary?: boolean;
+  style?: Partial<CellStyle> | null;
+  density?: DensityConfig;
+  sortable?: boolean;
+  sortDirection?: string | null;
+  sortTooltip?: string;
+  onClick?: (e: React.MouseEvent<HTMLElement>) => void;
+  action?: React.ReactNode;
+  prefix?: React.ReactNode;
+}
+
 const HeaderCell = function HeaderCell({
   children,
   primary,
@@ -1913,7 +2039,7 @@ const HeaderCell = function HeaderCell({
   onClick,
   action,
   prefix,
-}) {
+}: HeaderCellProps) {
   const d = density || DENSITY.Standard;
   const align = style?.textAlign || "left";
   const justify =
@@ -1938,8 +2064,8 @@ const HeaderCell = function HeaderCell({
         backgroundColor:
           style?.backgroundColor ||
           (theme.palette.mode === "dark"
-            ? theme.palette.primary[900]
-            : theme.palette.primary[100]),
+            ? primaryShade(theme.palette.primary, 900)
+            : primaryShade(theme.palette.primary, 100)),
         fontFamily: style?.fontFamily || "inherit",
         fontWeight: style?.fontWeight || 600,
         fontStyle: style?.fontStyle || "normal",
@@ -2027,7 +2153,7 @@ HeaderCell.propTypes = {
 
 const SHADE_AMOUNT = [0, 0.04, 0.08, 0.12];
 
-const tintForMode = (color, amount, mode) => {
+const tintForMode = (color: string, amount: number, mode: string) => {
   if (!color || !amount) return color;
   try {
     return mode === "dark" ? lighten(color, amount) : darken(color, amount);
@@ -2037,6 +2163,18 @@ const tintForMode = (color, amount, mode) => {
 };
 
 const GRAND_TOTAL_TINT = 0.18;
+
+interface ChevronCellProps {
+  show?: boolean;
+  expanded?: boolean;
+  onToggle?: () => void;
+  isGrandTotal?: boolean;
+  isTotal?: boolean;
+  shade?: number;
+  style?: Partial<CellStyle> | null;
+  density?: DensityConfig;
+  indent?: number;
+}
 
 const ChevronCell = function ChevronCell({
   show,
@@ -2048,7 +2186,7 @@ const ChevronCell = function ChevronCell({
   style,
   density,
   indent,
-}) {
+}: ChevronCellProps) {
   const d = density || DENSITY.Standard;
   return (
     <Box
@@ -2094,8 +2232,8 @@ const ChevronCell = function ChevronCell({
             backgroundColor:
               style?.backgroundColor ||
               (theme.palette.mode === "dark"
-                ? theme.palette.primary[900]
-                : theme.palette.primary[100]),
+                ? primaryShade(theme.palette.primary, 900)
+                : primaryShade(theme.palette.primary, 100)),
           })}
         >
           {expanded ? (
@@ -2120,6 +2258,21 @@ ChevronCell.propTypes = {
   indent: PropTypes.number,
 };
 
+interface BodyLabelCellProps {
+  indent: number;
+  isTotal?: boolean;
+  isGrandTotal?: boolean;
+  caption?: React.ReactNode;
+  onToggleChildren?: () => void;
+  style?: Partial<CellStyle> | null;
+  shade?: number;
+  density?: DensityConfig;
+  sortable?: boolean;
+  sortDirection?: string | null;
+  sortTooltip?: string;
+  onSortClick?: (e: React.MouseEvent<HTMLElement>) => void;
+}
+
 const BodyLabelCell = function BodyLabelCell({
   indent,
   isTotal,
@@ -2133,8 +2286,9 @@ const BodyLabelCell = function BodyLabelCell({
   sortDirection,
   sortTooltip,
   onSortClick,
-}) {
-  const { localization: t } = usePivot();
+}: BodyLabelCellProps) {
+  const { localization } = usePivot();
+  const t = localization as GridLocalization;
   const d = density || DENSITY.Standard;
   return (
     <Box
@@ -2186,7 +2340,9 @@ const BodyLabelCell = function BodyLabelCell({
           "&:hover": sortable
             ? { backgroundColor: theme.palette.action.hover }
             : undefined,
-        };
+          // User-configured format values (textAlign, fontWeight) are plain
+          // strings - cast at the dynamic-style boundary.
+        } as SystemStyleObject<Theme>;
       }}
     >
       <Box
@@ -2275,6 +2431,21 @@ BodyLabelCell.propTypes = {
   onSortClick: PropTypes.func,
 };
 
+interface BodyValueCellProps {
+  children?: React.ReactNode;
+  isTotal?: boolean;
+  isGrandTotal?: boolean;
+  style?: Partial<CellStyle> | null;
+  shade?: number;
+  density?: DensityConfig;
+  clickable?: boolean;
+  onClick?: () => void;
+  hiddenMeasureItems?: HiddenMeasureItem[] | null;
+  hiddenMeasuresLabel?: string;
+  error?: string | null;
+  errorLabel?: string;
+}
+
 const BodyValueCell = function BodyValueCell({
   children,
   isTotal,
@@ -2288,11 +2459,11 @@ const BodyValueCell = function BodyValueCell({
   hiddenMeasuresLabel,
   error,
   errorLabel,
-}) {
+}: BodyValueCellProps) {
   const d = density || DENSITY.Standard;
   const ruleBg = style?.backgroundColor;
   const ruleColor = style?.color;
-  const safeDarken = (c, amount) => {
+  const safeDarken = (c: string, amount: number) => {
     try {
       return darken(c, amount);
     } catch {
@@ -2368,7 +2539,8 @@ const BodyValueCell = function BodyValueCell({
                 textUnderlineOffset: "2px",
               }
             : undefined,
-        };
+          // Same dynamic-style boundary cast as BodyLabelCell.
+        } as SystemStyleObject<Theme>;
       }}
     >
       {error ? (
@@ -2483,14 +2655,24 @@ const BodyValueCell = function BodyValueCell({
           >
             {hiddenMeasuresLabel}
           </Typography>
-          <Stack component="dl" gap={0.25} sx={{ m: 0, "& dt,& dd": { m: 0 } }}>
+          <Box
+            component="dl"
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 0.25,
+              m: 0,
+              "& dt,& dd": { m: 0 },
+            }}
+          >
             {hiddenMeasureItems.map((it, i) => (
-              <Stack
+              <Box
                 key={`${it.uniqueName}:${it.aggregation}`}
-                direction="row"
-                alignItems="baseline"
-                spacing={1.5}
                 sx={(theme) => ({
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "baseline",
+                  gap: 1.5,
                   py: 0.25,
                   borderTop:
                     i === 0 ? "none" : `1px dashed ${theme.palette.divider}`,
@@ -2522,9 +2704,9 @@ const BodyValueCell = function BodyValueCell({
                 >
                   {it.formatted}
                 </Typography>
-              </Stack>
+              </Box>
             ))}
-          </Stack>
+          </Box>
         </Box>
       }
     >

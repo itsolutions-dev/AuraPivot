@@ -5,6 +5,7 @@
  */
 
 import type { AggregationType } from "../types";
+import { getNumberFormat } from "../format/intlCache";
 
 const sum = (values: number[]): number =>
   values.reduce((acc: number, v: number) => acc + (Number.isFinite(v) ? v : 0), 0);
@@ -56,16 +57,13 @@ export const formatMeasureValue = (value: number | null | undefined, aggregation
   // `locale || undefined` lets Intl fall back to the browser's default
   // when the caller didn't specify a locale.
   const loc = locale || undefined;
-  /*   if (aggregation === 'ratioTotal') {
-    return new Intl.NumberFormat(loc).format(value);
-  } */
   if (aggregation === 'count' || aggregation === 'distinctcount') {
-    return new Intl.NumberFormat(loc).format(Math.round(value));
+    return getNumberFormat(loc).format(Math.round(value));
   }
   if (Number.isInteger(value)) {
-    return new Intl.NumberFormat(loc).format(value);
+    return getNumberFormat(loc).format(value);
   }
-  return new Intl.NumberFormat(loc, {
+  return getNumberFormat(loc, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);

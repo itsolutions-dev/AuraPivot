@@ -233,6 +233,10 @@ export default {
     {
       file: `${OUT_DIR}/index.js`,
       format: "cjs",
+      // Explicit named mode (the bundle mixes a default and named exports):
+      // plain require() consumers read `.default` / `.Pivot`, interop-aware
+      // tooling (TS esModuleInterop, babel) is unaffected.
+      exports: "named",
       sourcemap: !OBFUSCATOR,
       intro,
     },

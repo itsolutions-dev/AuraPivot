@@ -16,6 +16,8 @@
  *     characters are emitted verbatim.
  */
 
+import { getDateTimeFormat } from './intlCache';
+
 const parseDate = (value: unknown): Date | null => {
   if (value === null || value === undefined || value === '') return null;
   if (value instanceof Date)
@@ -69,6 +71,32 @@ const applyPattern = (d: Date, pattern: string, { monthNames, weekdayNames }: { 
   });
 };
 
+// Localized month/weekday name tables for the pattern fallback path —
+// building these costs 19 formatter constructions + 19 Date allocations,
+// so the result is memoized per locale.
+const namesCache = new Map<
+  string,
+  { monthNames: string[]; weekdayNames: string[] }
+>();
+
+const getLocalizedNames = (
+  locale: string,
+): { monthNames: string[]; weekdayNames: string[] } => {
+  const cached = namesCache.get(locale);
+  if (cached) return cached;
+  const fmt = getDateTimeFormat(locale, { month: 'long' });
+  const monthNames = Array.from({ length: 12 }, (_, i) =>
+    fmt.format(new Date(2000, i, 1))
+  );
+  const fmtWd = getDateTimeFormat(locale, { weekday: 'long' });
+  const weekdayNames = Array.from({ length: 7 }, (_, i) =>
+    fmtWd.format(new Date(2000, 0, 2 + i))
+  );
+  const result = { monthNames, weekdayNames };
+  namesCache.set(locale, result);
+  return result;
+};
+
 const resolveLocale = (explicit: string | undefined): string => {
   if (explicit) return explicit;
   if (typeof navigator !== 'undefined' && navigator.language)
@@ -91,11 +119,22 @@ export const formatDateValue = (value: unknown, format: string | null | undefine
   const weekdayNames = options.weekdayNames;
 
   const mode = format || 'locale-date';
+  // Cached formatters instead of toLocale*: those construct a fresh
+  // Intl.DateTimeFormat internally on every call, and 'locale-date' is the
+  // default mode for every date cell.
   if (mode === 'locale' || mode === 'locale-date') {
-    return d.toLocaleDateString(locale);
+    return getDateTimeFormat(locale).format(d);
   }
   if (mode === 'locale-datetime') {
-    return d.toLocaleString(locale);
+    // Same component set toLocaleString resolves to (spec: "any"/"all").
+    return getDateTimeFormat(locale, {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+    }).format(d);
   }
   if (mode === 'iso') {
     // Drop sub-second precision and the trailing 'Z' so the value is
@@ -107,20 +146,8 @@ export const formatDateValue = (value: unknown, format: string | null | undefine
   }
   // Token-based pattern.
   if (!monthNames || !weekdayNames) {
-    // Fallback tokenizer built on top of Intl when the caller did not
-    // pre-resolve localized names.
-    const fmt = new Intl.DateTimeFormat(locale, { month: 'long' });
-    const defMonth = Array.from({ length: 12 }, (_, i) =>
-      fmt.format(new Date(2000, i, 1))
-    );
-    const fmtWd = new Intl.DateTimeFormat(locale, { weekday: 'long' });
-    const defWd = Array.from({ length: 7 }, (_, i) =>
-      fmtWd.format(new Date(2000, 0, 2 + i))
-    );
-    return applyPattern(d, mode, {
-      monthNames: defMonth,
-      weekdayNames: defWd,
-    });
+    const fallback = getLocalizedNames(locale);
+    return applyPattern(d, mode, fallback);
   }
   return applyPattern(d, mode, { monthNames, weekdayNames });
 };

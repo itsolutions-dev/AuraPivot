@@ -31,4 +31,11 @@ declare global {
   const __FREEPLAN_MAX_BYTES__: number;
   const __FREEPLAN_INFO_URL__: string;
   const __FREEPLAN_WATERMARK_ICON__: string;
+
+  // Minimal `process` shape for dev/prod gating (NODE_ENV). Bundlers inline
+  // it; the runtime guard handles hosts without process. Declared here to
+  // avoid pulling all of @types/node into a browser library.
+  const process:
+    | { env?: { NODE_ENV?: string; [key: string]: string | undefined } }
+    | undefined;
 }

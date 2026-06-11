@@ -28,7 +28,7 @@ npm install @its/aura-pivot
 Peer dependencies (must be installed separately):
 
 ```bash
-npm install react react-dom @mui/material @emotion/react @emotion/styled react-intl
+npm install react react-dom @mui/material @emotion/react @emotion/styled
 ```
 
 ---
@@ -74,7 +74,7 @@ See [docs/options-guide.en.md](docs/options-guide.en.md) for the full `options` 
 | `options`              | `PivotOptions`      | —               | Full configuration (`toolbar` / `layout` / `data` / `format` sections). Applied **seed-on-change**: re-applied only when the object reference changes. See [docs/options-guide.en.md](docs/options-guide.en.md). |
 | `dataSource`           | `array`             | —               | Plain array of row objects. The schema for those rows lives in `options.data.fields`.                                                                                                                         |
 | `onOptionsChange`      | `function`          | —               | Called with the complete updated `options` object after every in-component edit. Feeding it straight back into `options` is safe (loop guard).                                                                |
-| `localization`         | `object`            | `{}`            | Localization dictionary. **Required for any visible labels.** No bundled fallback — pass a dict from `@its/aura-pivot/locales/<lang>.json` or your i18next setup.                                             |
+| `localization`         | `object`            | English         | Localization dictionary. English fallbacks are built in — omit the prop and the pivot renders fully in English. For other languages pass a dict from `@its/aura-pivot/locales/<lang>.json` or your i18next setup. |
 | `width`                | `string \| number`  | `'100%'`        | Container width.                                                                                                                                                                                              |
 | `height`               | `string \| number`  | `'100%'`        | Container height.                                                                                                                                                                                             |
 | `locale`               | `string`            | browser default | BCP-47 locale tag (`'en'`, `'it-IT'`, …). Controls number formatting, date formatting, and string sorting. Pass `undefined` to follow the browser.                                                            |
@@ -284,7 +284,12 @@ Dark mode works out of the box — set `palette.mode: 'dark'` on the theme you p
 
 ## Localization
 
-The library does **not** bundle any locale dictionary. Pass one to the `localization` prop. Italian and English dictionaries are shipped as separate JSON files under `@its/aura-pivot/locales/`.
+English works out of the box — every label has a built-in English fallback,
+so the `localization` prop is only needed for other languages (or to override
+specific English captions). Full dictionary JSONs are **not** bundled into the
+library code: Italian and English dictionaries ship as separate JSON files
+under `@its/aura-pivot/locales/`. A malformed dictionary is rejected with a
+`console.warn` in development builds and the pivot falls back to English.
 
 ### Static import (small apps, single language)
 
@@ -430,7 +435,6 @@ Requires Node ≥ 18 (Rollup config uses import assertions).
 - React peer range is `>=18`. Library is developed against React 19 in devDependencies but does not use features unavailable on 18.
 - MUI v9 is required. Components read `theme.font?.primary` and the ambient palette for theming — no hardcoded colors.
 - `@emotion/react` and `@emotion/styled` are peer dependencies (required by MUI v9 styling engine).
-- `react-intl` is a peer dependency; it must be present in the host app even if not explicitly used.
 - The `Measures` string is a reserved `uniqueName` used as a pseudo-field to control whether measures appear on rows or columns. Do not use it as a real field name in your dataset.
 
 ---

@@ -20,8 +20,7 @@
     "@emotion/styled": ">=11.3",
     "@mui/material": ">=9",
     "react": ">=18",
-    "react-dom": ">=18",
-    "react-intl": "*"
+    "react-dom": ">=18"
   },
   "dependencies": {
     "@mui/icons-material": "^9.0.1",
@@ -62,6 +61,9 @@
   "files": [
     "dist"
   ],
+  "overrides": {
+    "uuid": "^11.1.1"
+  },
   "freeplan": {
     "maxBytes": 1048576,
     "infoUrl": "https://aurapivot.dev"

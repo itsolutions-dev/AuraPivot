@@ -496,9 +496,49 @@ class PivotEngine {
    * pushed separately via setDateLocalization for the date expander.
    */
   setLocalization(localization: unknown): void {
-    this._localization = (localization as InternalLocalization) || null;
+    // A malformed dictionary is rejected (English fallback stays active) and
+    // reported via console.warn in development builds — silently accepting
+    // it would produce a broken UI with no clue why.
+    this._localization = this._validateLocalization(localization);
     this._dirty = true;
     this._emit("dataChange");
+  }
+
+  private _validateLocalization(
+    localization: unknown,
+  ): InternalLocalization | null {
+    if (localization === null || localization === undefined) return null;
+    const isDev =
+      typeof process === "undefined" ||
+      process.env?.NODE_ENV !== "production";
+    if (typeof localization !== "object" || Array.isArray(localization)) {
+      if (isDev) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          "[PivotEngine] invalid localization dictionary: expected an object of sections, got",
+          localization,
+        );
+      }
+      return null;
+    }
+    if (isDev) {
+      for (const [section, value] of Object.entries(
+        localization as Record<string, unknown>,
+      )) {
+        if (
+          value !== null &&
+          value !== undefined &&
+          (typeof value !== "object" || Array.isArray(value))
+        ) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[PivotEngine] localization section "${section}" should be an object, got`,
+            value,
+          );
+        }
+      }
+    }
+    return localization as InternalLocalization;
   }
 
   /**
@@ -1048,7 +1088,7 @@ class PivotEngine {
     return this._matrix;
   }
 
-  setSort(colKey: string | null | undefined, direction: string = "desc", measure: unknown = null): void {
+  setSort(colKey: string | null | undefined, direction: string | null = "desc", measure: unknown = null): void {
     const prev = this._slice.sort || {};
     const next: InternalSort = { ...prev };
     if (colKey && direction) {
@@ -1066,7 +1106,7 @@ class PivotEngine {
     this._emit("reportChange");
   }
 
-  setSortByRow(rowKey: string | null | undefined, direction: string = "desc", measure: unknown = null): void {
+  setSortByRow(rowKey: string | null | undefined, direction: string | null = "desc", measure: unknown = null): void {
     const prev = this._slice.sort || {};
     const next: InternalSort = { ...prev };
     if (rowKey && direction) {
