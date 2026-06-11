@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import MagicString from "magic-string";
 import resolve from "@rollup/plugin-node-resolve";
 import commonjs from "@rollup/plugin-commonjs";
 import terser from "@rollup/plugin-terser";
@@ -8,11 +9,41 @@ import peerDepsExternal from "rollup-plugin-peer-deps-external";
 import obfuscator from "rollup-plugin-obfuscator";
 import pkg from "./package.json" with { type: "json" };
 
+// FREEPLAN compile-time flag. Build with `npm run build:freeplan` or
+// `FREEPLAN=1 rollup -c`. When active:
+//   - __FREEPLAN__ token replaced with `true` (gates drillthrough + size check)
+//   - __FREEPLAN_MAX_BYTES__ replaced with the byte limit from package.json
+//   - __FREEPLAN_INFO_URL__ replaced with the upgrade link
+//
+// OBFUSCATOR=1 adds per-module javascript-obfuscator passes (heavy for UI /
+// gating code, light for the hot compute paths — see HOT_PATHS); terser
+// always runs as the output finalizer. Independent of FREEPLAN — run
+// `FREEPLAN=1 OBFUSCATOR=0 rollup -c` for a fast non-obfuscated FREEPLAN
+// build during development.
+const FREEPLAN = process.env.FREEPLAN === "1";
+const OBFUSCATOR = process.env.OBFUSCATOR === "1";
+
+// Each variant gets its own output directory so a FREEPLAN build can never
+// silently overwrite `dist/` and ship as the standard package. The package
+// entries (`main` / `module` / `types`) point at `dist/`; publishing the
+// free variant is an explicit copy from `dist-free/`.
+const VARIANT = FREEPLAN ? "freeplan" : "standard";
+const OUT_DIR = FREEPLAN ? "dist-free" : "dist";
+
+const cleanOutDir = () => ({
+  name: "clean-out-dir",
+  buildStart() {
+    // Stale artifacts (e.g. sourcemaps from a previous non-obfuscated
+    // build) must not survive into the new output.
+    fs.rmSync(path.resolve(OUT_DIR), { recursive: true, force: true });
+  },
+});
+
 const copyLocales = () => ({
   name: "copy-locales",
   writeBundle() {
     const src = path.resolve("localization");
-    const dest = path.resolve("dist/locales");
+    const dest = path.resolve(OUT_DIR, "locales");
     fs.mkdirSync(dest, { recursive: true });
     for (const f of fs.readdirSync(src)) {
       if (f.endsWith(".json")) {
@@ -23,28 +54,16 @@ const copyLocales = () => ({
 });
 
 // Hand-maintained public declarations (index.d.ts at the repo root) shipped
-// as dist/index.d.ts — the `types` entry in package.json points there.
+// next to the bundles — the `types` entry in package.json points there.
 const copyTypes = () => ({
   name: "copy-types",
   writeBundle() {
     fs.copyFileSync(
       path.resolve("index.d.ts"),
-      path.resolve("dist/index.d.ts"),
+      path.resolve(OUT_DIR, "index.d.ts"),
     );
   },
 });
-
-// FREEPLAN compile-time flag. Build with `npm run build:freeplan` or
-// `FREEPLAN=1 rollup -c`. When active:
-//   - __FREEPLAN__ token replaced with `true` (gates drillthrough + size check)
-//   - __FREEPLAN_MAX_BYTES__ replaced with the byte limit from package.json
-//   - __FREEPLAN_INFO_URL__ replaced with the upgrade link
-//
-// OBFUSCATOR=1 toggles javascript-obfuscator (else terser). Independent
-// of FREEPLAN — run `FREEPLAN=1 OBFUSCATOR=0 rollup -c` for a fast
-// non-obfuscated FREEPLAN build during development.
-const FREEPLAN = process.env.FREEPLAN === "1";
-const OBFUSCATOR = process.env.OBFUSCATOR === "1";
 const FREEPLAN_MAX_BYTES =
   Number(process.env.FREEPLAN_MAX_BYTES) ||
   pkg.freeplan?.maxBytes ||
@@ -88,12 +107,17 @@ const buildFlags = () => {
     transform(code, id) {
       if (id.includes("node_modules")) return null;
       if (!/\.([jt]sx?|mjs)$/.test(id)) return null;
+      pattern.lastIndex = 0;
       if (!pattern.test(code)) return null;
       pattern.lastIndex = 0;
-      return {
-        code: code.replace(pattern, (m) => replacements[m]),
-        map: null,
-      };
+      // MagicString keeps the sourcemap chain intact — a bare string
+      // replace here degrades every downstream map to an empty stub.
+      const s = new MagicString(code);
+      let m;
+      while ((m = pattern.exec(code)) !== null) {
+        s.overwrite(m.index, m.index + m[0].length, replacements[m[0]]);
+      }
+      return { code: s.toString(), map: s.generateMap({ hires: true }) };
     },
   };
 };
@@ -123,16 +147,62 @@ const obfuscatorOptions = {
   selfDefending: false,
   debugProtection: false,
   disableConsoleOutput: false,
-  reservedStrings: ["use client"],
+  // 'exceljs' must stay a literal: it is the specifier of the lazy
+  // import('exceljs') in ExcelExporter — string-array-encoding it would
+  // break static resolution in the consumer's bundler.
+  reservedStrings: ["use client", "exceljs"],
 };
 
-const finalizer = OBFUSCATOR
-  ? obfuscator({ global: true, options: obfuscatorOptions })
-  : terser({
-      compress: { drop_console: false },
-      mangle: true,
-      format: { comments: false },
-    });
+// CPU-bound per-cell/per-row code: the matrix pipeline runs for every cell of
+// every recompute, so control-flow flattening / dead-code injection there
+// costs real render time. These files get a lighter pass (string protection
+// + identifier mangling, none of the per-operation indirections).
+const HOT_PATHS = [
+  "**/pivot-core/matrix/**",
+  "**/pivot-core/aggregation/**",
+  "**/pivot-core/slice/**",
+  "**/pivot-core/format/**",
+  "**/pivot-core/data/**",
+];
+
+const lightObfuscatorOptions = {
+  ...obfuscatorOptions,
+  controlFlowFlattening: false,
+  deadCodeInjection: false,
+  numbersToExpressions: false,
+  transformObjectKeys: false,
+  splitStrings: false,
+};
+
+const SOURCE_GLOBS = ["**/*.js", "**/*.jsx", "**/*.ts", "**/*.tsx"];
+
+// Obfuscation runs per-module (after babel strips JSX/TS) instead of on the
+// whole bundle: our sources get protected, node_modules dependencies are
+// skipped (huge build-time win), and the hot compute paths get the light
+// option set. Terser always runs as the output finalizer — with per-module
+// obfuscation it is what minifies the bundled dependencies.
+const obfuscatorPlugins = OBFUSCATOR
+  ? [
+      obfuscator({
+        global: false,
+        include: SOURCE_GLOBS,
+        exclude: ["node_modules/**", ...HOT_PATHS],
+        options: obfuscatorOptions,
+      }),
+      obfuscator({
+        global: false,
+        include: HOT_PATHS,
+        exclude: ["node_modules/**"],
+        options: lightObfuscatorOptions,
+      }),
+    ]
+  : [];
+
+const finalizer = terser({
+  compress: { drop_console: false },
+  mangle: true,
+  format: { comments: false },
+});
 
 // Browser shim for `process` — exceljs/jszip/readable-stream reference
 // `process.env.NODE_DEBUG` etc. at runtime. Vite doesn't polyfill `process`
@@ -143,27 +213,46 @@ const finalizer = OBFUSCATOR
 const processShim =
   'if(typeof globalThis.process==="undefined"){globalThis.process={env:{NODE_ENV:"production"},browser:true,version:"v20.0.0",versions:{node:"20.0.0"},platform:"browser",nextTick:function(cb){Promise.resolve().then(cb);}};}';
 
+// Machine-readable variant stamp. Lives in the intro (real code, not a
+// comment) so neither terser nor the obfuscator strips it; scripts/
+// verify-dist.mjs asserts it after every build, and it is inspectable at
+// runtime via globalThis.__AURA_PIVOT_BUILD__.
+const buildStamp = `globalThis.__AURA_PIVOT_BUILD__={variant:${JSON.stringify(
+  VARIANT,
+)},obfuscated:${JSON.stringify(OBFUSCATOR ? "yes" : "no")},version:${JSON.stringify(pkg.version)}};`;
+
+const intro = processShim + buildStamp;
+
 export default {
   input: "index.js",
+  // exceljs (~900 KB) is intentionally NOT bundled: ExcelExporter loads it
+  // with a dynamic import() on the first export, and the consumer's bundler
+  // resolves/code-splits it from this package's `dependencies`.
+  external: ["exceljs"],
   output: [
     {
-      file: pkg.main,
+      file: `${OUT_DIR}/index.js`,
       format: "cjs",
       sourcemap: !OBFUSCATOR,
-      intro: processShim,
+      intro,
     },
     {
-      file: pkg.module,
+      file: `${OUT_DIR}/index.esm.js`,
       format: "esm",
       sourcemap: !OBFUSCATOR,
-      intro: processShim,
+      intro,
     },
   ],
   plugins: [
+    cleanOutDir(),
     {
       name: "strip-use-client",
       transform(code) {
-        return code.replace(/^['"]use client['"];?\n?/m, "");
+        const m = /^['"]use client['"];?\r?\n?/m.exec(code);
+        if (!m) return null;
+        const s = new MagicString(code);
+        s.remove(m.index, m.index + m[0].length);
+        return { code: s.toString(), map: s.generateMap({ hires: true }) };
       },
     },
     buildFlags(),
@@ -184,6 +273,8 @@ export default {
       babelHelpers: "bundled",
       presets: ["@babel/preset-react", "@babel/preset-typescript"],
     }),
+    // Must come after babel: javascript-obfuscator cannot parse JSX/TS.
+    ...obfuscatorPlugins,
     finalizer,
     copyLocales(),
     copyTypes(),

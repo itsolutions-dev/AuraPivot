@@ -1,12 +1,32 @@
 /**
  * Excel export for a computed PivotMatrix.
  * Uses exceljs to produce a styled .xlsx and file-saver to trigger download.
+ *
+ * exceljs is ~900 KB and is loaded with a dynamic import() on the first
+ * export call only — it must never sit in the consumer's critical path.
+ * The package marks it external in rollup, so the consumer's bundler
+ * code-splits it from `dependencies`.
  */
 
-import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import type ExcelJS from 'exceljs';
 import type { MetadataRow } from '../types';
 import type { ComputedMatrix } from '../matrix/MatrixComputer';
+
+type ExcelJSModule = typeof ExcelJS;
+
+let exceljsPromise: Promise<ExcelJSModule> | null = null;
+
+const loadExcelJS = (): Promise<ExcelJSModule> => {
+  if (!exceljsPromise) {
+    exceljsPromise = import('exceljs').then(
+      // CJS/ESM interop: bundlers expose the namespace under `default`,
+      // plain Node require-shims may expose it directly.
+      (mod) => (mod as { default?: ExcelJSModule }).default ?? (mod as unknown as ExcelJSModule),
+    );
+  }
+  return exceljsPromise;
+};
 
 const HEADER_FILL: ExcelJS.Fill = {
   type: 'pattern',
@@ -33,7 +53,8 @@ export const exportMatrixToExcel = async ({
   sheetName = 'Pivot',
   metadata = {},
 }: ExportMatrixOptions): Promise<void> => {
-  const workbook = new ExcelJS.Workbook();
+  const Excel = await loadExcelJS();
+  const workbook = new Excel.Workbook();
   workbook.creator = 'Databeasy';
   workbook.created = new Date();
   const sheet = workbook.addWorksheet(sheetName);

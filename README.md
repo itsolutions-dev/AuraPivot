@@ -39,97 +39,106 @@ npm install react react-dom @mui/material @emotion/react @emotion/styled react-i
 import AuraPivot from "@its/aura-pivot";
 
 function MyReport() {
-  const ref = useRef();
-
-  const global = {
-    dataSource: {
-      data: myDataset, // [metadata, ...rows] — AuraPivot format
+  const [options, setOptions] = useState({
+    layout: { enableDrillThrough: true, measuresAxis: "columns" },
+    data: {
+      fields: [
+        { uniqueName: "agentName", dataType: "string", caption: "Agent" },
+        { uniqueName: "revenue", dataType: "number", caption: "Revenue" },
+      ],
+      dimensions: [{ axis: "row", uniqueName: "agentName" }],
+      measures: [{ uniqueName: "revenue", aggregation: "sum" }],
     },
-    options: {
-      drillThrough: true,
-    },
-  };
+  });
 
   return (
     <AuraPivot
-      ref={ref}
       width="100%"
       height={600}
-      global={global}
-      reportChange={(report) => console.log("report changed", report)}
+      options={options}
+      dataSource={rows} // plain array of row objects
+      onOptionsChange={setOptions}
     />
   );
 }
 ```
 
+See [docs/options-guide.en.md](docs/options-guide.en.md) for the full `options` schema.
+
 ---
 
 ## Props
 
-| Prop                     | Type                | Default         | Description                                                                                                                                                                                                   |
-| ------------------------ | ------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `global`                 | `object`            | —               | Main config object. Contains `dataSource` and `options`.                                                                                                                                                      |
-| `global.dataSource.data` | `array`             | —               | Dataset in AuraPivot format: `[metadataRow, ...dataRows]`.                                                                                                                                                    |
-| `global.options`         | `PivotOptions`      | See below       | Grid type, sorting mode, drill-through, configurator button.                                                                                                                                                  |
-| `localization`           | `object`            | `{}`            | Localization dictionary. **Required for any visible labels.** No bundled fallback — pass a dict from `@its/aura-pivot/locales/<lang>.json` or your i18next setup.                                             |
-| `width`                  | `string \| number`  | `'100%'`        | Container width.                                                                                                                                                                                              |
-| `height`                 | `string \| number`  | `'100%'`        | Container height.                                                                                                                                                                                             |
-| `toolbar`                | `boolean`           | `true`          | Show the toolbar (Fields / Format / Export buttons).                                                                                                                                                          |
-| `locale`                 | `string`            | browser default | BCP-47 locale tag (`'en'`, `'it-IT'`, …). Controls number formatting, date formatting, and string sorting. Pass `undefined` to follow the browser.                                                            |
-| `reportChange`           | `function`          | —               | Called with the current `Report` object whenever the user changes the pivot layout.                                                                                                                           |
-| `beforeToolbarCreated`   | `function`          | —               | Receives `{ getTabs }` — use it to inject custom toolbar tabs.                                                                                                                                                |
-| `theme`                  | `Theme \| function` | —               | Optional MUI theme object (or callback `(outerTheme) => theme`). When set the pivot subtree is wrapped in a `ThemeProvider`. When omitted the component inherits the host app theme. See [Theming](#theming). |
+| Prop                   | Type                | Default         | Description                                                                                                                                                                                                   |
+| ---------------------- | ------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `options`              | `PivotOptions`      | —               | Full configuration (`toolbar` / `layout` / `data` / `format` sections). Applied **seed-on-change**: re-applied only when the object reference changes. See [docs/options-guide.en.md](docs/options-guide.en.md). |
+| `dataSource`           | `array`             | —               | Plain array of row objects. The schema for those rows lives in `options.data.fields`.                                                                                                                         |
+| `onOptionsChange`      | `function`          | —               | Called with the complete updated `options` object after every in-component edit. Feeding it straight back into `options` is safe (loop guard).                                                                |
+| `localization`         | `object`            | `{}`            | Localization dictionary. **Required for any visible labels.** No bundled fallback — pass a dict from `@its/aura-pivot/locales/<lang>.json` or your i18next setup.                                             |
+| `width`                | `string \| number`  | `'100%'`        | Container width.                                                                                                                                                                                              |
+| `height`               | `string \| number`  | `'100%'`        | Container height.                                                                                                                                                                                             |
+| `locale`               | `string`            | browser default | BCP-47 locale tag (`'en'`, `'it-IT'`, …). Controls number formatting, date formatting, and string sorting. Pass `undefined` to follow the browser.                                                            |
+| `beforeToolbarCreated` | `function`          | —               | Receives `{ getTabs }` — use it to inject custom toolbar tabs. String icons may be raw `<svg>` markup (sanitized before rendering).                                                                           |
+| `theme`                | `Theme \| function` | —               | Optional MUI theme object (or callback `(outerTheme) => theme`). When set the pivot subtree is wrapped in a `ThemeProvider`. When omitted the component inherits the host app theme. See [Theming](#theming). |
 
-### `PivotOptions`
+Toolbar visibility is part of `options`, not a prop: `options.toolbar.visible`
+(master switch) plus `showFields` / `showFormat` / `showExport` /
+`showFullscreen` per tab.
 
-```js
-{
-  sorting: 'columns' | 'rows' | 'none',    // default: 'columns'
-  drillThrough: boolean,                   // default: false
-}
-```
+TypeScript: the package ships `dist/index.d.ts` — `PivotOptions`,
+`AuraPivotProps`, `AuraPivotRef` and the hook types are all importable.
 
 ---
 
 ## Ref API
 
-Attach a ref to `<AuraPivot>` to programmatically read or set the pivot report.
+Attach a ref to `<AuraPivot>` to read the current configuration on demand or
+reach the raw engine.
 
 ```jsx
 const ref = useRef();
 
-// AuraPivot-compatible read/write
-ref.current.AuraPivot.getReport(); // → Report
-ref.current.AuraPivot.setReport(report); // sets report without emitting reportchange
+// Pull the current options schema (same shape onOptionsChange emits)
+ref.current.auraPivot.getOptions(); // → PivotOptions
 
-// Raw engine for advanced use
+// Raw engine escape hatch for advanced use
 ref.current.engine; // PivotEngine instance
 ```
 
-`setReport` intentionally does **not** fire `reportchange`. Calling it from inside a `reportchange` handler is safe — it will not cause an infinite loop.
+The legacy `getReport` / `setReport` pair is still reachable through
+`ref.current.engine` but is no longer part of the public prop/ref surface —
+use the `options` round-trip instead.
 
 ---
 
 ## Data format
 
-The dataset follows the AuraPivot `[metadata, ...rows]` convention:
+`dataSource` is a plain array of row objects; the schema for those rows lives
+in `options.data.fields`:
 
 ```js
-const data = [
-  // First row: metadata (field → { type, caption })
-  {
-    callDate: { type: "date", caption: "Call Date" },
-    agentName: { type: "string", caption: "Agent" },
-    revenue: { type: "number", caption: "Revenue" },
-  },
-  // Remaining rows: data
+const rows = [
   { callDate: "2024-03-15", agentName: "Alice", revenue: 1200 },
   { callDate: "2024-03-16", agentName: "Bob", revenue: 980 },
   // ...
 ];
+
+const options = {
+  data: {
+    fields: [
+      { uniqueName: "callDate", dataType: "date", caption: "Call Date" },
+      { uniqueName: "agentName", dataType: "string", caption: "Agent" },
+      { uniqueName: "revenue", dataType: "number", caption: "Revenue" },
+    ],
+    // dimensions / measures / filters / calculatedFields …
+  },
+};
 ```
 
-If the metadata header row is absent, AuraPivot synthesizes it from the first data row.
+Fields omitted from `options.data.fields` are inferred from the first data
+row. (Internally the engine still consumes the legacy AuraPivot
+`[metadata, ...rows]` shape — the adapter assembles it from
+`options.data.fields` + `dataSource`.)
 
 ### Field types
 
@@ -163,21 +172,28 @@ These virtual fields appear in the field list and can be used as row/column dime
 
 ## Report structure
 
-The `Report` object that flows in and out of the pivot (via `reportchange` / `setReport` / `getReport`):
+The configuration that flows in and out of the pivot is the `options` object
+(via the `options` prop / `onOptionsChange` / `ref.auraPivot.getOptions()`):
 
 ```js
 {
-  slice: {
-    rows:     [{ uniqueName: 'callDate.Year' }],
-    columns:  [{ uniqueName: 'agentName' }],
-    measures: [{ uniqueName: 'revenue', aggregation: 'sum', caption: 'Total Revenue' }],
-    filters:  [{ uniqueName: 'agentName', exclude: ['Charlie'] }],
-    expands:  { expandAll: true },
+  toolbar: { visible: true, showExport: true /* … */ },
+  layout:  { measuresAxis: 'columns', totalsRowsPosition: 'before' /* … */ },
+  data: {
+    fields:     [{ uniqueName: 'callDate', dataType: 'date' } /* … */],
+    dimensions: [
+      { axis: 'row', uniqueName: 'callDate.Year' },
+      { axis: 'column', uniqueName: 'agentName' },
+    ],
+    measures:   [{ uniqueName: 'revenue', aggregation: 'sum' }],
+    filters:    [{ uniqueName: 'agentName', members: ['Alice', 'Bob'] }],
+    calculatedFields: [{ uniqueName: 'margin', formula: 'sum("revenue") - sum("cost")' }],
   },
-  options: { /* PivotOptions */ },
-  dataSource: { data: [ /* dataset */ ] },
+  format: { conditional: [/* … */], values: {/* … */} },
 }
 ```
+
+The full schema is documented in [docs/options-guide.en.md](docs/options-guide.en.md).
 
 ### Aggregation types
 
@@ -223,7 +239,7 @@ const pivotTheme = createTheme({
   font: { primary: 'Roboto, sans-serif' },
 });
 
-<AuraPivot theme={pivotTheme} global={{ ... }} />
+<AuraPivot theme={pivotTheme} options={options} dataSource={rows} />
 ```
 
 ### Partial override (merge with host theme)
@@ -244,7 +260,7 @@ const pivotTheme = (outer) =>
     font: { ...(outer.font || {}), primary: 'Inter, sans-serif' },
   });
 
-<AuraPivot theme={pivotTheme} global={{ ... }} />
+<AuraPivot theme={pivotTheme} options={options} dataSource={rows} />
 ```
 
 ### Tokens read by the pivot
@@ -276,7 +292,7 @@ The library does **not** bundle any locale dictionary. Pass one to the `localiza
 import AuraPivot from '@its/aura-pivot';
 import en from '@its/aura-pivot/locales/en.json';
 
-<AuraPivot localization={en} locale="en" global={{ ... }} />
+<AuraPivot localization={en} locale="en" options={options} dataSource={rows} />
 ```
 
 ### Per-instance overrides
@@ -290,7 +306,7 @@ const localization = mergeLocalization(en, {
   aggregations: { sum: 'Total' },
 });
 
-<AuraPivot localization={localization} locale="en" global={{ ... }} />
+<AuraPivot localization={localization} locale="en" options={options} dataSource={rows} />
 ```
 
 `mergeLocalization(base, override)` does a shallow merge per top-level section.
@@ -331,7 +347,8 @@ function PivotPanel(props) {
     <AuraPivot
       locale={i18n.language}
       localization={localization}
-      global={props.global}
+      options={props.options}
+      dataSource={props.rows}
     />
   );
 }
@@ -341,15 +358,15 @@ function PivotPanel(props) {
 
 ---
 
-## Advanced: context and hooks
+## Advanced: hooks
 
-Use `AuraPivotProvider` + `useAuraPivot` to share engine state with sibling components outside the pivot:
+Use `usePivotMatrix(engine)` to read the computed matrix from sibling components outside the pivot. Grab the engine through the component ref:
 
 ```jsx
-import { AuraPivotProvider, useAuraPivotMatrix } from "@its/aura-pivot";
+import AuraPivot, { usePivotMatrix } from "@its/aura-pivot";
 
-function MatrixStats() {
-  const { matrix, loading } = useAuraPivotMatrix();
+function MatrixStats({ engine }) {
+  const { matrix, loading } = usePivotMatrix(engine);
   if (loading) return <span>Computing…</span>;
   return (
     <span>
@@ -359,33 +376,50 @@ function MatrixStats() {
 }
 
 function App() {
-  const engineRef = useRef();
+  const [engine, setEngine] = useState(null);
 
   return (
-    <AuraPivotProvider engine={engineRef.current?.engine}>
-      <AuraPivot ref={engineRef} global={global} />
-      <MatrixStats />
-    </AuraPivotProvider>
+    <>
+      <AuraPivot ref={(r) => setEngine(r?.engine ?? null)} options={options} dataSource={rows} />
+      {engine && <MatrixStats engine={engine} />}
+    </>
   );
 }
 ```
 
-`useAuraPivotMatrix` subscribes to `datachange`, `reportchange`, and `formatchange` events and returns `{ matrix: PivotMatrix, loading: boolean }`. For datasets above 5 000 rows the recompute is deferred one microtask so the loading indicator can paint first.
+`usePivotMatrix` subscribes to the engine's `dataChange`, `reportChange`, and `formatChange` events (via `useSyncExternalStore` — tear-free under React 18+ concurrent rendering) and returns `{ matrix, loading }`. Components sharing one engine share one snapshot and a single recompute. For datasets above 5 000 rows the recompute is deferred one macrotask so the loading indicator can paint first.
+
+`PivotProvider` / `usePivot` are also exported for advanced composition. The provider takes a full context `value` of shape `{ engine, localization, locale, options, fullscreenRef, isFullscreen }` — it is the same context the pivot's internal components read.
 
 ---
 
 ## Build
 
 ```bash
-npm run build
+npm run check           # tsc --noEmit (also runs as part of every build)
+npm test                # vitest
+npm run build           # standard build (terser-minified) → dist/
+npm run build:freeplan  # FREEPLAN build, obfuscated → dist-free/
+npm run build:freeplan2 # FREEPLAN build, non-obfuscated (fast, for development) → dist-free/
 ```
 
-Outputs:
+Outputs (standard; the FREEPLAN variant writes the same layout to `dist-free/`):
 
-| File                | Format   | Use                            |
-| ------------------- | -------- | ------------------------------ |
-| `dist/index.js`     | CommonJS | Legacy bundlers, Node          |
-| `dist/index.esm.js` | ESM      | Webpack, Vite, modern bundlers |
+| File                  | Format       | Use                            |
+| --------------------- | ------------ | ------------------------------ |
+| `dist/index.js`       | CommonJS     | Legacy bundlers, Node          |
+| `dist/index.esm.js`   | ESM          | Webpack, Vite, modern bundlers |
+| `dist/index.js.map` / `index.esm.js.map` | Sourcemap | Debugging (omitted from obfuscated builds) |
+| `dist/index.d.ts`     | TypeScript   | Public type declarations       |
+| `dist/locales/*.json` | JSON         | Opt-in localization dictionaries |
+
+Every build is asserted by `scripts/verify-dist.mjs` (variant stamp, artifact
+completeness, sourcemap integrity, size ceiling). The built variant is also
+inspectable at runtime via `globalThis.__AURA_PIVOT_BUILD__`.
+
+Excel export note: `exceljs` (~900 KB) is **not** bundled — it loads through a
+dynamic `import('exceljs')` on the first export click and is resolved by your
+bundler from this package's regular `dependencies`. Nothing to configure.
 
 Requires Node ≥ 18 (Rollup config uses import assertions).
 

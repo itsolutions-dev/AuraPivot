@@ -9,12 +9,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build
 
 ```
-npm run build     # rollup -c → dist/index.js (cjs) + dist/index.esm.js (esm)
+npm run check           # tsc --noEmit (chained into every build script)
+npm test                # vitest (FormulaEvaluator, sanitizeSvg, usePivotMatrix, ExcelExporter)
+npm run build           # standard → dist/ (cjs + esm + index.d.ts + locales + sourcemaps)
+npm run build:freeplan  # FREEPLAN=1 OBFUSCATOR=1 — obfuscated free build → dist-free/
+npm run build:freeplan2 # FREEPLAN=1 OBFUSCATOR=0 — fast free build for development → dist-free/
 ```
 
-No test suite, no lint script, no dev server. There is no type-check step — types are JSDoc typedefs in `pivot-core/types.js`. Rollup config reads `package.json` with an import assertion (`assert { type: "json" }`) so Node ≥ 18 is required.
+No lint script, no dev server. Rollup config reads `package.json` with an import assertion (`assert { type: "json" }`) so Node ≥ 18 is required. `components/PivotTable/PivotTable.tsx` carries `@ts-nocheck` (pre-existing conversion debt) — do not add new `@ts-nocheck` files.
 
-Public entry: `index.js` re-exports `AuraPivot`, `AuraPivotProvider`/`useAuraPivot`, `useAuraPivotMatrix`, and the `mergeLocalization` helper. Locale dictionaries are NOT bundled — they ship as separate JSON files at `dist/locales/{it,en}.json`, exposed via package `exports` subpaths (`@its/aura-pivot/locales/it.json`, `…/en.json`). The rollup `copyLocales` plugin copies `localization/*.json` to `dist/locales/` on build.
+Variant hygiene: each variant builds into its own directory (`dist/` vs `dist-free/`, cleaned at build start) and the bundle intro carries a runtime stamp `globalThis.__AURA_PIVOT_BUILD__ = { variant, obfuscated, version }`. Every build script chains `scripts/verify-dist.mjs`, which asserts the stamp matches the expected variant, the lazy `import('exceljs')` specifier survived, sourcemaps are real (non-obfuscated builds) or absent (obfuscated), watermark presence/absence, and size ceilings. `npm publish` runs the standard build via `prepublishOnly`; only `dist/` is in `files`, so the free variant can never ship by accident.
+
+exceljs is NOT bundled: `ExcelExporter` lazy-loads it with `import('exceljs')` on the first export and rollup marks it `external` — the consumer's bundler code-splits it from `dependencies`. The `'exceljs'` specifier is in the obfuscator's `reservedStrings` so string-array encoding cannot break resolution.
+
+When `OBFUSCATOR=1`, obfuscation runs per-module after babel: heavy options for UI/gating code, a light set (no control-flow flattening / dead-code injection) for the hot compute paths listed in `HOT_PATHS`; terser always finalizes the bundle.
+
+Public entry: `index.js` re-exports `Pivot` (default + named), `PivotProvider`/`usePivot`, `usePivotMatrix`, and the `mergeLocalization` helper. Public type declarations are hand-maintained in `index.d.ts` (root) and copied to `dist/index.d.ts` by the `copyTypes` rollup plugin — keep it in sync when the public surface changes. Locale dictionaries are NOT bundled — they ship as separate JSON files at `dist/locales/{it,en}.json`, exposed via package `exports` subpaths (`@its/aura-pivot/locales/it.json`, `…/en.json`). The rollup `copyLocales` plugin copies `localization/*.json` to `dist/locales/` on build.
 
 ## Architecture
 
@@ -31,7 +41,7 @@ Pipeline inside `processMatrix()`:
 3. `slice/FilterEngine.applyFilters` — include/exclude member filtering.
 4. `slice/TreeBuilder.buildTree` — builds the row and column trees. The special `Measures` pseudo-field is stripped from the tree fields and tracked separately via `hasMeasuresOnRows` / `hasMeasuresOnColumns`.
 5. `matrix/MatrixComputer.computeMatrix` — produces the `PivotMatrix` (see `types.js` for the shape): `rowLeaves`, `colLeaves`, `cells` Map keyed by `"<rowKey>||<colKey>||<measureKey>"`, plus the enriched measures list.
-6. `aggregation/Aggregator` — sum/count/distinctcount/avg/min/max plus the derived `ratioTotal`, `currentRatio`, and `formula` (calculated fields).
+6. `aggregation/Aggregator` — sum/count/distinctcount/avg/min/max plus the derived `ratioTotal`, `currentRatio`, and `formula` (calculated fields). Formula strings are evaluated by `matrix/FormulaEvaluator.ts` — a safe tokenizer/AST evaluator (no `Function()`/`eval`, CSP-friendly); the same module's `parseFormulaExpression` backs the CalculatedFieldDialog syntax validation.
 7. `format/CellFormatter` and `format/DateFormatter` — number / currency / percentage / date rendering, conditional styling.
 8. `export/ExcelExporter.exportMatrixToExcel` — xlsx export of the already-computed matrix.
 
@@ -42,8 +52,8 @@ Dirty flag: every setter that affects the matrix sets `_dirty = true`; `processM
 - `AuraPivot.jsx` — `forwardRef` wrapper. Creates one `PivotEngine` per mount. Configured through the `options` prop (a structured schema — see `docs/options-guide.en.md`) plus a separate `dataSource` rows prop; in-component edits are emitted back via the `onOptionsChange` callback. The `options`↔engine mapping lives in `options/optionsAdapter.js`. Exposes via `useImperativeHandle`:
   - `ref.auraPivot.getOptions()` — the current `options` schema
   - `ref.engine` — escape hatch to the raw engine
-- `context/PivotContext.jsx` — shares `{ engine, localization, locale, options }` with descendant components. Export names reachable from the public surface are aliased in `index.js` (`AuraPivotProvider`, `useAuraPivot`).
-- `hooks/usePivotMatrix.js` — subscribes to `datachange`/`reportchange`/`formatchange` and returns `{ matrix, loading }`. Above `WORKER_THRESHOLD = 5000` rows the recompute is deferred one microtask so the loader can paint first. The header comment mentions a Web Worker bridge — this is aspirational, the current implementation stays on the main thread.
+- `context/PivotContext.tsx` — shares `{ engine, localization, locale, options, fullscreenRef, isFullscreen }` with descendant components. Exported from `index.js` as `PivotProvider`/`usePivot`.
+- `hooks/usePivotMatrix.ts` — `useSyncExternalStore` over a per-engine shared store (WeakMap): subscribes to `dataChange`/`reportChange`/`formatChange` and returns `{ matrix, loading }`. Multiple consumers of one engine share a snapshot; engine listeners detach with the last subscriber. Above `WORKER_THRESHOLD = 5000` rows the recompute is deferred one macrotask (`setTimeout`) so the loader can paint first; everything stays on the main thread.
 - `components/` — UI: `PivotTable` (react-virtuoso virtualized grid), `Toolbar/PivotToolbar`, `FieldList`, `FormatDialog`, `FilterBar`, plus the `CalculatedFieldDialog`, `DimensionFilterDialog`, and `DrillThroughDialog` one-offs.
 
 ## Public API contract
@@ -60,7 +70,7 @@ The `<AuraPivot>` component is configured through the structured `options` prop 
 
 ## Conventions
 
-- Plain JavaScript + JSX, no TypeScript. Types live in `pivot-core/types.js` as JSDoc typedefs.
-- 2-space indent, single quotes in `.jsx` files, double quotes in plain `.js` files — follow whatever the file already uses.
+- TypeScript (strict) everywhere except the two JS entries `index.js` and `AuraPivot.jsx`. Shared engine types live in `pivot-core/types.ts`; the public consumer-facing declarations are the hand-maintained root `index.d.ts`.
+- 2-space indent, single quotes in `.ts`/`.tsx` files, double quotes in the remaining `.js`/`.jsx` files — follow whatever the file already uses.
 - React 19 in devDependencies but peer range is `>=18`; do not use features that break on 18.
 - MUI v9 theming — components read `theme.font?.primary`, the pastel palette, and dark-mode tokens from the ambient theme. Avoid hardcoded colors. Optional `theme` prop on `<AuraPivot>` wraps the subtree in `<ThemeProvider>` for scoped overrides.
