@@ -22,6 +22,18 @@ const copyLocales = () => ({
   },
 });
 
+// Hand-maintained public declarations (index.d.ts at the repo root) shipped
+// as dist/index.d.ts — the `types` entry in package.json points there.
+const copyTypes = () => ({
+  name: "copy-types",
+  writeBundle() {
+    fs.copyFileSync(
+      path.resolve("index.d.ts"),
+      path.resolve("dist/index.d.ts"),
+    );
+  },
+});
+
 // FREEPLAN compile-time flag. Build with `npm run build:freeplan` or
 // `FREEPLAN=1 rollup -c`. When active:
 //   - __FREEPLAN__ token replaced with `true` (gates drillthrough + size check)
@@ -174,5 +186,6 @@ export default {
     }),
     finalizer,
     copyLocales(),
+    copyTypes(),
   ],
 };

@@ -14,6 +14,7 @@ import {
   formatMeasureValue,
 } from '../aggregation/Aggregator';
 import { flattenTreeCompact, sortTreeSiblings } from '../slice/TreeBuilder';
+import { evaluateFormulaExpression } from './FormulaEvaluator';
 import type { DataRow, TreeNode, MatrixCell, MetadataRow, AggregationType } from '../types';
 import type { RichSliceField } from '../slice/TreeBuilder';
 
@@ -172,31 +173,14 @@ const evalFormula = (formula: string, resolver: (agg: string, fieldName: string)
       const re = new RegExp(`\\b${escapeRegExp(name)}\\b`, 'g');
       patched = patched.replace(re, () => resolveValue('sum', name));
     }
-    patched = patched
-      .replace(/\^/g, '**')
-      .replace(/\bAND\b/gi, '&&')
-      .replace(/\bOR\b/gi, '||');
-    // eslint-disable-next-line no-new-func
-    const fn = Function(
-      'IF',
-      'ABS',
-      'MIN',
-      'MAX',
-      '"use strict"; return (' + patched + ')'
-    );
-    const result = fn(
-      // FREEPLAN: IF() is disabled. Throwing here surfaces the error
-      // through the existing try/catch as `{ value: null, error: '…' }`
-      // which the cell renderer displays.
-      IS_FREEPLAN
-        ? () => {
-            throw new Error('IF() is not available in the free plan');
-          }
-        : (cond: unknown, a: unknown, b: unknown) => (cond ? a : b),
-      (x: unknown) => Math.abs(Number(x)),
-      (...args: unknown[]) => Math.min(...args.map(Number)),
-      (...args: unknown[]) => Math.max(...args.map(Number))
-    );
+    // Safe AST evaluation — `^`, AND/OR keywords and IF/ABS/MIN/MAX are part
+    // of the evaluator grammar; no dynamic code generation involved.
+    // FREEPLAN: `allowIf: false` makes IF() throw, surfacing the error
+    // through the existing try/catch as `{ value: null, error: '…' }`
+    // which the cell renderer displays.
+    const result = evaluateFormulaExpression(patched, {
+      allowIf: !IS_FREEPLAN,
+    });
     if (typeof result === 'number' && Number.isFinite(result)) {
       return { value: result, error: null };
     }

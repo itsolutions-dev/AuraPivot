@@ -25,6 +25,7 @@ import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import GridOnIcon from '@mui/icons-material/GridOn';
 import { usePivot } from '../../context/PivotContext';
 import { usePortalContainer } from '../../hooks/usePortalContainer';
+import { sanitizeSvgMarkup } from './sanitizeSvg';
 
 // ---------------------------------------------------------------------------
 // Internal types
@@ -154,12 +155,17 @@ const IconFor = function IconFor({ name }: IconForProps): React.ReactElement | n
 const renderIcon = (icon: string | React.ReactNode | undefined): React.ReactNode => {
   if (!icon) return null;
   // Support consumer-provided SVG markup strings (auraPivot convention).
+  // Markup is sanitized first — icon configs can round-trip through
+  // persisted report configurations, so scripts / event handlers must
+  // never reach dangerouslySetInnerHTML.
   if (typeof icon === 'string' && icon.trim().startsWith('<svg')) {
+    const safeMarkup = sanitizeSvgMarkup(icon);
+    if (!safeMarkup) return null;
     return (
       <Box
         component="span"
         // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{ __html: icon }}
+        dangerouslySetInnerHTML={{ __html: safeMarkup }}
         sx={{
           display: 'inline-flex',
           alignItems: 'center',

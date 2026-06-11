@@ -23,6 +23,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import { usePivot } from '../../context/PivotContext';
 import { usePortalContainer } from '../../hooks/usePortalContainer';
+import { parseFormulaExpression } from '../../pivot-core/matrix/FormulaEvaluator';
 
 /**
  * Dialog to create or edit a calculated field.
@@ -726,22 +727,13 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
 
   const validateFormula = (f: string): string | null => {
     try {
-      const patched = f
-        .replace(
-          /\b(sum|count|avg|min|max|distinctcount|runningsum|running)\s*\(\s*"([^"]+)"\s*\)/gi,
-          '0',
-        )
-        .replace(/\^/g, '**')
-        .replace(/\bAND\b/gi, '&&')
-        .replace(/\bOR\b/gi, '||');
-      // eslint-disable-next-line no-new-func
-      Function(
-        'IF',
-        'ABS',
-        'MIN',
-        'MAX',
-        '"use strict"; return (' + patched + ')',
+      const patched = f.replace(
+        /\b(sum|count|avg|min|max|distinctcount|runningsum|running)\s*\(\s*"([^"]+)"\s*\)/gi,
+        '0',
       );
+      // Syntax-only check via the safe parser — `^`, AND/OR and IF/ABS/MIN/
+      // MAX are part of its grammar; bare field identifiers are tolerated.
+      parseFormulaExpression(patched);
       return null;
     } catch (e) {
       return `${tCalc.invalidFormula || 'Invalid formula'}: ${(e as Error).message}`;

@@ -7,6 +7,7 @@
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.esm.js",
       "require": "./dist/index.js"
     },
@@ -43,6 +44,7 @@
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "cross-env": "^10.1.0",
+    "happy-dom": "^20.10.2",
     "javascript-obfuscator": "^5.4.2",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
@@ -52,19 +54,22 @@
     "rollup-plugin-obfuscator": "^1.1.0",
     "rollup-plugin-peer-deps-external": "^2.2.4",
     "rollup-plugin-postcss": "^4.0.2",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
   },
   "files": [
     "dist"
   ],
   "freeplan": {
     "maxBytes": 1048576,
-    "infoUrl": "https://aurapivot.web.app"
+    "infoUrl": "https://aurapivot.dev"
   },
   "scripts": {
-    "build": "rollup -c",
-    "build:freeplan": "cross-env FREEPLAN=1 OBFUSCATOR=1 rollup -c",
-    "build:freeplan2": "cross-env FREEPLAN=1 OBFUSCATOR=0 rollup -c",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "npm run check && rollup -c",
+    "build:freeplan": "npm run check && cross-env FREEPLAN=1 OBFUSCATOR=1 rollup -c",
+    "build:freeplan2": "npm run check && cross-env FREEPLAN=1 OBFUSCATOR=0 rollup -c",
     "prepublish": "npm run build"
   }
 }
