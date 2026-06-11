@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-`@its/aura-pivot` — a React pivot-table library published as a drop-in replacement for `<Pivot>` from the legacy `@AuraPivot/react-AuraPivot` component. Shipped as an npm package (CJS + ESM bundles via Rollup). Peer deps: React 18+, `@mui/material` v9+, `@emotion/react`, `@emotion/styled`, `react-intl`. Host app referenced throughout the code is DBE-CRM / Databeasy.
+`@its/aura-pivot` — a React pivot-table library published as a drop-in replacement for `<Pivot>` from the legacy `@AuraPivot/react-AuraPivot` component. Shipped as an npm package (CJS + ESM bundles via Rollup). Peer deps: React 18+, `@mui/material` v9+, `@emotion/react`, `@emotion/styled`, `react-intl`.
 
 ## Build
 

@@ -8,10 +8,10 @@
  * code-splits it from `dependencies`.
  */
 
-import { saveAs } from 'file-saver';
-import type ExcelJS from 'exceljs';
-import type { MetadataRow } from '../types';
-import type { ComputedMatrix } from '../matrix/MatrixComputer';
+import { saveAs } from "file-saver";
+import type ExcelJS from "exceljs";
+import type { MetadataRow } from "../types";
+import type { ComputedMatrix } from "../matrix/MatrixComputer";
 
 type ExcelJSModule = typeof ExcelJS;
 
@@ -19,25 +19,30 @@ let exceljsPromise: Promise<ExcelJSModule> | null = null;
 
 const loadExcelJS = (): Promise<ExcelJSModule> => {
   if (!exceljsPromise) {
-    exceljsPromise = import('exceljs').then(
+    exceljsPromise = import("exceljs").then(
       // CJS/ESM interop: bundlers expose the namespace under `default`,
       // plain Node require-shims may expose it directly.
-      (mod) => (mod as { default?: ExcelJSModule }).default ?? (mod as unknown as ExcelJSModule),
+      (mod) =>
+        (mod as { default?: ExcelJSModule }).default ??
+        (mod as unknown as ExcelJSModule),
     );
   }
   return exceljsPromise;
 };
 
 const HEADER_FILL: ExcelJS.Fill = {
-  type: 'pattern',
-  pattern: 'solid',
-  fgColor: { argb: 'FF1D5B9D' },
+  type: "pattern",
+  pattern: "solid",
+  fgColor: { argb: "FF1D5B9D" },
 };
-const HEADER_FONT: Partial<ExcelJS.Font> = { color: { argb: 'FFFFFFFF' }, bold: true };
+const HEADER_FONT: Partial<ExcelJS.Font> = {
+  color: { argb: "FFFFFFFF" },
+  bold: true,
+};
 const TOTAL_FILL: ExcelJS.Fill = {
-  type: 'pattern',
-  pattern: 'solid',
-  fgColor: { argb: 'FFE3E8F1' },
+  type: "pattern",
+  pattern: "solid",
+  fgColor: { argb: "FFE3E8F1" },
 };
 
 interface ExportMatrixOptions {
@@ -49,33 +54,33 @@ interface ExportMatrixOptions {
 
 export const exportMatrixToExcel = async ({
   matrix,
-  filename = 'pivot.xlsx',
-  sheetName = 'Pivot',
+  filename = "pivot.xlsx",
+  sheetName = "Pivot",
   metadata = {},
 }: ExportMatrixOptions): Promise<void> => {
   const Excel = await loadExcelJS();
   const workbook = new Excel.Workbook();
-  workbook.creator = 'Databeasy';
+  workbook.creator = "AuraPivot";
   workbook.created = new Date();
   const sheet = workbook.addWorksheet(sheetName);
 
   const { rowLeaves, colLeaves } = matrix;
 
   // Header row: first column is a label column, then one column per colLeaf.
-  const headerRow = ['', ...colLeaves.map((c) => c.caption || '')];
+  const headerRow = ["", ...colLeaves.map((c) => c.caption || "")];
   const rowRef = sheet.addRow(headerRow);
   rowRef.eachCell((cell) => {
     cell.fill = HEADER_FILL;
     cell.font = HEADER_FONT;
-    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    cell.alignment = { vertical: "middle", horizontal: "center" };
   });
 
   rowLeaves.forEach((rowNode) => {
-    const prefix = '  '.repeat(Math.max(0, rowNode.depth));
+    const prefix = "  ".repeat(Math.max(0, rowNode.depth));
     const rowData: (string | number | null)[] = [`${prefix}${rowNode.caption}`];
     colLeaves.forEach((colNode) => {
       const cell = matrix.cells.get(`${rowNode.key}::${colNode.key}`);
-      rowData.push(cell ? cell.value ?? '' : '');
+      rowData.push(cell ? (cell.value ?? "") : "");
     });
     const excelRow = sheet.addRow(rowData);
     if (rowNode.isTotal) {
@@ -102,7 +107,7 @@ export const exportMatrixToExcel = async ({
 
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
   saveAs(blob, filename);
 };
