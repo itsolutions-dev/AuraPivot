@@ -37,12 +37,17 @@ interface MatrixStore {
 }
 
 const createStore = (engine: PivotEngine): MatrixStore => {
-  let snapshot: MatrixSnapshot = {
-    matrix: engine.processMatrix(),
-    loading: false,
-  };
+  // The store is created during render, so computing the first matrix here
+  // would block the first paint exactly for the datasets the threshold is
+  // meant to protect. Above it we start empty + loading and let `subscribe`
+  // schedule the deferred compute.
+  let snapshot: MatrixSnapshot =
+    engine.getRows().length > WORKER_THRESHOLD
+      ? { matrix: null, loading: true }
+      : { matrix: engine.processMatrix(), loading: false };
   const listeners = new Set<() => void>();
   let deferredScheduled = false;
+  let deferredTimer: ReturnType<typeof setTimeout> | null = null;
 
   const emit = () => listeners.forEach((l) => l());
 
@@ -56,8 +61,9 @@ const createStore = (engine: PivotEngine): MatrixStore => {
       // (memoized) matrix anyway, no need to stack timeouts.
       if (deferredScheduled) return;
       deferredScheduled = true;
-      setTimeout(() => {
+      deferredTimer = setTimeout(() => {
         deferredScheduled = false;
+        deferredTimer = null;
         snapshot = { matrix: engine.processMatrix(), loading: false };
         emit();
       }, 0);
@@ -80,6 +86,13 @@ const createStore = (engine: PivotEngine): MatrixStore => {
         listeners.delete(onStoreChange);
         if (listeners.size === 0) {
           ENGINE_EVENTS.forEach((e) => engine.off(e, recompute));
+          // Drop a pending compute: nobody is listening, and the next
+          // subscriber catches up through `recompute()` anyway.
+          if (deferredTimer !== null) {
+            clearTimeout(deferredTimer);
+            deferredTimer = null;
+            deferredScheduled = false;
+          }
         }
       };
     },

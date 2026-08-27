@@ -25,7 +25,9 @@ import CloseIcon from '@mui/icons-material/Close';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import { usePivot } from '../../context/PivotContext';
+import type { InternalSliceField } from '../../pivot-core/PivotEngine';
 import { usePortalContainer } from '../../hooks/usePortalContainer';
+import useEngineVersion from '../../hooks/useEngineVersion';
 
 /**
  * Quick-filter dialog reachable from the gear icon rendered beside every
@@ -128,12 +130,16 @@ const DimensionFilterDialog = function DimensionFilterDialog({
     return (raw as string) || a;
   };
 
+  // `engine` is a stable object that mutates in place — the version counter
+  // is the dependency that actually moves (see useEngineVersion).
+  const engineVersion = useEngineVersion(engine);
+
   const sliceMeasures = useMemo<SliceMeasureEntry[]>(() => {
     if (!open) return [];
-    const slice = engine.getSlice() as Record<string, unknown>;
-    const metadata = engine.getMetadata() as Record<string, { caption?: string }>;
+    const slice = engine.getSlice();
+    const metadata = engine.getMetadata();
     const calcByName = new Map<string, { caption?: string }>(
-      (engine.getCalculatedFields() as { uniqueName: string; caption?: string }[]).map((f) => [f.uniqueName, f])
+      engine.getCalculatedFields().map((f) => [f.uniqueName, f])
     );
     return ((slice.measures as { uniqueName: string; aggregation: string }[]) || [])
       .filter(
@@ -149,10 +155,10 @@ const DimensionFilterDialog = function DimensionFilterDialog({
           caption: `${base} (${aggLabel(m.aggregation)})`,
         };
       });
-  }, [engine, open, t]);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [engine, engineVersion, open, t]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const findFieldAxis = (): 'rows' | 'columns' | null => {
-    const slice = engine.getSlice() as { rows?: { uniqueName: string }[]; columns?: { uniqueName: string }[] };
+    const slice = engine.getSlice();
     if ((slice.rows || []).some((f) => f.uniqueName === uniqueName))
       return 'rows';
     if ((slice.columns || []).some((f) => f.uniqueName === uniqueName))
@@ -163,17 +169,12 @@ const DimensionFilterDialog = function DimensionFilterDialog({
   const distinct = useMemo(
     () =>
       open && uniqueName ? distinctValuesFor(engine, uniqueName, locale) : [],
-    [engine, uniqueName, open, locale]
+    [engine, engineVersion, uniqueName, open, locale]
   );
 
   useEffect(() => {
     if (!open || !uniqueName) return;
-    const slice = engine.getSlice() as {
-      rows?: { uniqueName: string; sort?: string; fieldSort?: Record<string, unknown> }[];
-      columns?: { uniqueName: string; sort?: string; fieldSort?: Record<string, unknown> }[];
-      filters?: { uniqueName: string; members?: string[] }[];
-      sort?: { colKey?: string; rowKey?: string } | null;
-    };
+    const slice = engine.getSlice();
     const existing = (slice.filters || []).find(
       (f) => f.uniqueName === uniqueName
     );
@@ -247,8 +248,8 @@ const DimensionFilterDialog = function DimensionFilterDialog({
   };
 
   const applyFieldSortToAxis = (
-    axisArr: { uniqueName: string; sort?: string; [key: string]: unknown }[] | undefined
-  ): { uniqueName: string; sort?: string; [key: string]: unknown }[] =>
+    axisArr: InternalSliceField[] | undefined
+  ): InternalSliceField[] =>
     (axisArr || []).map((f) =>
       f.uniqueName === uniqueName
         ? {
@@ -262,13 +263,7 @@ const DimensionFilterDialog = function DimensionFilterDialog({
     );
 
   const handleApply = () => {
-    // dynamic boundary: engine.getSlice() returns InternalSlice from context but we need flexible cast
-    const slice = engine.getSlice() as unknown as {
-      rows?: { uniqueName: string; [key: string]: unknown }[];
-      columns?: { uniqueName: string; [key: string]: unknown }[];
-      filters?: { uniqueName: string; members?: string[]; [key: string]: unknown }[];
-      [key: string]: unknown;
-    };
+    const slice = engine.getSlice();
     const filters = (slice.filters || []).filter(
       (f) => f.uniqueName !== uniqueName
     );
@@ -297,11 +292,7 @@ const DimensionFilterDialog = function DimensionFilterDialog({
   };
 
   const handleClear = () => {
-    // dynamic boundary: engine.getSlice() returns InternalSlice from context but we need flexible cast
-    const slice = engine.getSlice() as unknown as {
-      filters?: { uniqueName: string; [key: string]: unknown }[];
-      [key: string]: unknown;
-    };
+    const slice = engine.getSlice();
     const filters = (slice.filters || []).filter(
       (f) => f.uniqueName !== uniqueName
     );

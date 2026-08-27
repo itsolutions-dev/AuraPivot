@@ -23,6 +23,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import { usePivot } from '../../context/PivotContext';
 import { usePortalContainer } from '../../hooks/usePortalContainer';
+import useEngineVersion from '../../hooks/useEngineVersion';
 import { parseFormulaExpression } from '../../pivot-core/matrix/FormulaEvaluator';
 
 /**
@@ -349,23 +350,25 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
     [t],  // eslint-disable-line react-hooks/exhaustive-deps
   );
 
+  const engineVersion = useEngineVersion(engine);
+
   const [caption, setCaption] = useState<string>('');
   const [formula, setFormula] = useState<string>('');
   const [error, setError] = useState<string>('');
   const formulaRef = useRef<HTMLDivElement | null>(null);
 
-  const availableFields = (engine.getAvailableFields() as AvailableField[]).filter(
+  const availableFields = engine.getAvailableFields().filter(
     (f) =>
       f.uniqueName !== 'Measures' && !f.isCalculated && f.type === 'number',
   );
 
-  const fieldByName = useMemo<Map<string, AvailableField>>(() => {
-    const map = new Map<string, AvailableField>();
-    availableFields.forEach((f) => map.set(f.uniqueName, f));
-    return map;
-    // availableFields is recomputed each render from engine; stable for this dialog lifetime.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availableFields.length]);
+  // Keyed on `availableFields.length` before, which went stale whenever the
+  // engine swapped a field for another one without changing the count.
+  // Building the map is O(fields) on a list this small — cheaper than the
+  // bookkeeping needed to memoize it correctly.
+  const fieldByName = new Map<string, AvailableField>(
+    availableFields.map((f) => [f.uniqueName, f]),
+  );
 
   // Measures currently placed in the slice, one entry per aggregation. The
   // user can click these chips to insert the matching aggregation call
@@ -380,12 +383,12 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
   };
 
   const availableMeasures = useMemo<MeasureEntry[]>(() => {
-    const slice = (engine.getSlice as () => Record<string, unknown>)?.() || {};
-    const meta = (engine.getMetadata as () => Record<string, { caption?: string }>)?.() || {};
-    const calcMap = new Map<string, { uniqueName: string; caption?: string }>(
-      ((engine.getCalculatedFields as () => { uniqueName: string; caption?: string }[])?.() || []).map((f) => [f.uniqueName, f]),
+    const slice = engine.getSlice();
+    const meta = engine.getMetadata();
+    const calcMap = new Map(
+      engine.getCalculatedFields().map((f) => [f.uniqueName, f]),
     );
-    return ((slice.measures as { uniqueName: string; aggregation: string }[]) || []).map((m) => {
+    return (slice.measures || []).map((m) => {
       const base =
         meta[m.uniqueName]?.caption ||
         calcMap.get(m.uniqueName)?.caption ||
@@ -397,9 +400,10 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
         caption: `${base} (${aggLabelLocal(m.aggregation)})`,
       };
     });
-    // Rebuild whenever the dialog re-renders; cheap + engine holds truth.
+    // `engine` never changes identity — the version counter is what moves
+    // when the slice or the calculated fields do.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [engine, t]);
+  }, [engine, engineVersion, t]);
 
   const insertMeasureRef = (m: MeasureEntry) => {
     // Calculated fields are inserted as bare chip references (the formula
@@ -496,10 +500,14 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
 
   const caretRangeFromPoint = (x: number, y: number): Range | null => {
     if (document.caretRangeFromPoint) return document.caretRangeFromPoint(x, y);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((document as any).caretPositionFromPoint) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pos = (document as any).caretPositionFromPoint(x, y);
+    // Firefox only ships the standard `caretPositionFromPoint`, which is
+    // absent from lib.dom in this TS version — narrow it here instead of
+    // widening `document` to `any`.
+    const doc = document as Document & {
+      caretPositionFromPoint?: (x: number, y: number) => CaretPosition | null;
+    };
+    if (doc.caretPositionFromPoint) {
+      const pos = doc.caretPositionFromPoint(x, y);
       if (pos) {
         const r = document.createRange();
         r.setStart(pos.offsetNode, pos.offset);
@@ -594,8 +602,10 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
     setCaption(editField?.caption || '');
     setFormula(initialFormula);
     setError('');
-    // Defer so the box ref is bound after Dialog mounts.
-    setTimeout(() => renderFormulaToBox(initialFormula), 0);
+    // Defer so the box ref is bound after Dialog mounts. Cleared on unmount:
+    // the callback writes into a contentEditable node that may already be gone.
+    const timer = setTimeout(() => renderFormulaToBox(initialFormula), 0);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editField]);
 
@@ -760,12 +770,12 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
     }
 
     if (editField) {
-      (engine.updateCalculatedField as (un: string, upd: { caption: string; formula: string }) => void)(
+      engine.updateCalculatedField(
         editField.uniqueName,
         { caption: caption.trim(), formula: formula.trim() },
       );
     } else {
-      (engine.addCalculatedField as (f: { caption: string; formula: string }) => void)({
+      engine.addCalculatedField({
         caption: caption.trim(),
         formula: formula.trim(),
       });

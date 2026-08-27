@@ -26,6 +26,11 @@ import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
 import { usePivot } from '../../context/PivotContext';
 import { usePortalContainer } from '../../hooks/usePortalContainer';
+import useEngineVersion from '../../hooks/useEngineVersion';
+import {
+  getDateTimeFormat,
+  getNumberFormat,
+} from '../../pivot-core/format/intlCache';
 
 /**
  * Drill-through popup. Opens when the user clicks a non-null value cell and
@@ -71,6 +76,24 @@ export interface DrillThroughDialogProps {
   rows?: Record<string, unknown>[];
   breadcrumbs?: Breadcrumb[];
 }
+
+/**
+ * Milliseconds for a date-ish cell value, or `null` when it cannot be
+ * parsed. Numeric timestamps (`1700000000000`, or the same as a string) are
+ * accepted: `new Date(string)` would reject them and yield NaN.
+ */
+const toTimestamp = (value: unknown): number | null => {
+  if (value instanceof Date) {
+    const t = value.getTime();
+    return Number.isFinite(t) ? t : null;
+  }
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  const raw = String(value ?? '').trim();
+  if (raw === '') return null;
+  if (/^-?\d+$/.test(raw)) return Number(raw);
+  const parsed = Date.parse(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+};
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -192,10 +215,17 @@ const DrillThroughDialog = function DrillThroughDialog({
   const [filterText, setFilterText] = useState<string>('');
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
-  const [drillConfig, setDrillConfig] = useState<DrillThroughConfig>(() =>
-    engine.getDrillThroughConfig() as DrillThroughConfig,
+  // Read-only mirrors of engine state: re-read on the shared version counter
+  // instead of copying into state from an event handler.
+  const engineVersion = useEngineVersion(engine);
+  const drillConfig = useMemo<DrillThroughConfig>(
+    () => engine.getDrillThroughConfig(),
+    [engine, engineVersion],
   );
-  const [fieldOrder, setFieldOrder] = useState<string[]>(() => engine.getFieldOrder() as string[]);
+  const fieldOrder = useMemo<string[]>(
+    () => engine.getFieldOrder(),
+    [engine, engineVersion],
+  );
 
   // dynamic boundary: localization is Record<string,unknown>
   const tDrill = (t as Record<string, Record<string, string>>)?.drillThrough ?? {};
@@ -208,19 +238,8 @@ const DrillThroughDialog = function DrillThroughDialog({
     }
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return undefined;
-    const sync = () => {
-      setDrillConfig(engine.getDrillThroughConfig() as DrillThroughConfig);
-      setFieldOrder(engine.getFieldOrder() as string[]);
-    };
-    sync();
-    engine.on('dataChange', sync);
-    return () => engine.off('dataChange', sync);
-  }, [engine, open]);
-
   const columns = useMemo<DrillColumn[]>(() => {
-    const meta = (engine.getMetadata() as Record<string, { caption?: string; type?: string } | undefined>) || {};
+    const meta = engine.getMetadata() || {};
     const dtFields = drillConfig?.fields || {};
     const isOn = (uniqueName: string): boolean => {
       const v = dtFields[uniqueName];
@@ -243,7 +262,7 @@ const DrillThroughDialog = function DrillThroughDialog({
       });
     }
     return base;
-  }, [engine, open, drillConfig, fieldOrder]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [engine, engineVersion, open, drillConfig, fieldOrder]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fixed width for left-pinned columns so cumulative `left` is computable
   // without runtime DOM measurement. Same value applied to head + body cells.
@@ -266,15 +285,27 @@ const DrillThroughDialog = function DrillThroughDialog({
     };
   };
 
+  // Called once per cell for rendering *and* once per cell of every row on
+  // each keystroke in the search box, so the Intl instances must come from
+  // the shared cache — constructing them here would dominate the cost.
   const formatValue = (value: unknown, type: string | undefined): string => {
     if (value === null || value === undefined || value === '') return '—';
     if (type === 'number' && Number.isFinite(Number(value))) {
-      return new Intl.NumberFormat(locale || undefined).format(Number(value));
+      return getNumberFormat(locale || undefined).format(Number(value));
     }
     if (type === 'date' || type === 'time') {
       const d = new Date(String(value));
       if (!Number.isNaN(d.getTime())) {
-        return d.toLocaleString(locale || undefined);
+        // Same option set `Date.prototype.toLocaleString()` applies by
+        // default, so the rendered text is unchanged.
+        return getDateTimeFormat(locale || undefined, {
+          year: 'numeric',
+          month: 'numeric',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: 'numeric',
+          second: 'numeric',
+        }).format(d);
       }
     }
     return String(value);
@@ -288,6 +319,16 @@ const DrillThroughDialog = function DrillThroughDialog({
       setSortDir('asc');
     }
   };
+
+  // Identity of a source row is its position in the *unsorted* `rows` prop:
+  // stable while the user filters and re-sorts, unlike the render index.
+  const rowKeys = useMemo(() => {
+    const map = new WeakMap<object, string>();
+    (rows || []).forEach((row, i) => {
+      if (row) map.set(row, `r${i}`);
+    });
+    return map;
+  }, [rows]);
 
   const displayedRows = useMemo<Record<string, unknown>[]>(() => {
     if (!rows) return [];
@@ -316,7 +357,15 @@ const DrillThroughDialog = function DrillThroughDialog({
           return (Number(va) - Number(vb)) * dir;
         }
         if (col?.type === 'date' || col?.type === 'time') {
-          return (new Date(String(va)).getTime() - new Date(String(vb)).getTime()) * dir;
+          const ta = toTimestamp(va);
+          const tb = toTimestamp(vb);
+          // Unparseable values would make the comparator return NaN, which
+          // leaves Array.sort in undefined behaviour — push them to the end.
+          if (ta === null || tb === null) {
+            if (ta === null && tb === null) return 0;
+            return ta === null ? 1 : -1;
+          }
+          return (ta - tb) * dir;
         }
         return (
           String(va).localeCompare(String(vb), locale || undefined, {
@@ -767,7 +816,7 @@ const DrillThroughDialog = function DrillThroughDialog({
                 <TableBody>
                   {displayedRows.map((row, idx) => (
                     <TableRow
-                      key={idx}
+                      key={rowKeys.get(row) ?? `i${idx}`}
                       sx={(theme) => ({
                         transition: 'background 120ms ease',
                         '&:nth-of-type(odd) td': {

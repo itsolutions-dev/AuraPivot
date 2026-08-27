@@ -10,6 +10,12 @@
  * Removed:
  *   - elements that can execute or embed active content
  *     (`script`, `foreignObject`, `iframe`, `object`, `embed`, `use`)
+ *   - SMIL animation elements (`set`, `animate`, `animateTransform`,
+ *     `animateMotion`): they can rewrite any attribute — including `href` —
+ *     *after* sanitization runs, which re-introduces a `javascript:` URL that
+ *     the scheme check never sees
+ *   - `style` elements (CSS can load external content and, historically,
+ *     execute expressions)
  *   - all `on*` event-handler attributes
  *   - `href` / `xlink:href` values with a `javascript:` or `data:` scheme
  *
@@ -24,6 +30,11 @@ const FORBIDDEN_ELEMENTS = new Set([
   'object',
   'embed',
   'use',
+  'set',
+  'animate',
+  'animatetransform',
+  'animatemotion',
+  'style',
 ]);
 
 const URL_ATTRIBUTES = new Set(['href', 'xlink:href']);

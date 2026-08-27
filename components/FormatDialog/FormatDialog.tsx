@@ -45,6 +45,7 @@ import FormatAlignCenterIcon from '@mui/icons-material/FormatAlignCenter';
 import FormatAlignRightIcon from '@mui/icons-material/FormatAlignRight';
 import { usePivot } from '../../context/PivotContext';
 import { usePortalContainer } from '../../hooks/usePortalContainer';
+import { newId, withIds } from '../../utils/ids';
 import type { FormatSnapshot, InternalCalculatedField } from '../../pivot-core/PivotEngine';
 
 /**
@@ -128,6 +129,26 @@ interface ConditionalRule {
   style?: RuleStyle;
   expression?: Expression;
 }
+
+/**
+ * Rules (and their expression clauses) are rendered as a drag-reorderable
+ * list, so every entry needs a stable id to key on. Configurations persisted
+ * before ids existed get one backfilled on load.
+ */
+const normalizeRules = (
+  incoming: ConditionalRule[] | null | undefined,
+): ConditionalRule[] =>
+  withIds(incoming, 'r').map((rule) =>
+    rule.expression
+      ? {
+          ...rule,
+          expression: {
+            ...rule.expression,
+            clauses: withIds(rule.expression.clauses, 'c'),
+          },
+        }
+      : rule,
+  );
 
 // ---------------------------------------------------------------------------
 // Measure entry used internally in the dialog
@@ -1078,7 +1099,7 @@ const ExpressionDialog = function ExpressionDialog({
     const firstMeasure = measures.find((m) => !m.hidden);
     const newClause: ExpressionClause | null = firstDim
       ? {
-          id: `c${Date.now()}`,
+          id: newId('c'),
           target: firstDim.uniqueName,
           kind: 'dim',
           operator: 'equals',
@@ -1087,7 +1108,7 @@ const ExpressionDialog = function ExpressionDialog({
         }
       : firstMeasure
         ? {
-            id: `c${Date.now()}`,
+            id: newId('c'),
             target: firstMeasure.measureKey,
             kind: 'measure',
             operator: 'gt',
@@ -1183,7 +1204,7 @@ const ExpressionDialog = function ExpressionDialog({
           )}
           {draft.clauses.map((c, idx) => (
             <ClauseEditor
-              key={c.id || idx}
+              key={c.id}
               clause={c}
               dimensions={dimensions}
               measures={measures}
@@ -1766,7 +1787,7 @@ const ConditionalTab = function ConditionalTab({
     setRules([
       ...rules,
       {
-        id: `r${Date.now()}`,
+        id: newId('r'),
         measure: undefined,
         operator: 'gt',
         value: 0,
@@ -1853,7 +1874,7 @@ const ConditionalTab = function ConditionalTab({
       )}
       {rules.map((r, idx) => (
         <RuleEditor
-          key={r.id || idx}
+          key={r.id}
           rule={r}
           index={idx}
           measures={measures}
@@ -1946,7 +1967,7 @@ export interface FormatDialogProps {
   onClose: () => void;
 }
 
-const FormatDialog = function FormatDialog({ open, onClose }: FormatDialogProps): React.ReactElement {
+const FormatDialogBody = function FormatDialogBody({ open, onClose }: FormatDialogProps): React.ReactElement {
   // dynamic boundary: engine and localization come from context with broad types
   const { engine, localization: t } = usePivot();
   const tF = (t as Record<string, Record<string, string>>)?.formatDialog ?? {};
@@ -1957,40 +1978,33 @@ const FormatDialog = function FormatDialog({ open, onClose }: FormatDialogProps)
 
   const getFormat = (): FormatSnapshot => engine.getFormat();
 
-  const [values, setValues] = useState<SectionValues>(() => (getFormat().values as SectionValues) ?? { ...DEFAULTS.values });
-  const [headers, setHeaders] = useState<SectionValues>(() => (getFormat().headers as SectionValues) ?? { ...DEFAULTS.headers });
+  // Seeded once, on mount: the wrapper below remounts this body on every
+  // open, which is what a nine-setter reset effect used to do by hand.
+  const [values, setValues] = useState<SectionValues>(
+    () => (getFormat().values as SectionValues) ?? { ...DEFAULTS.values },
+  );
+  const [headers, setHeaders] = useState<SectionValues>(
+    () => (getFormat().headers as SectionValues) ?? { ...DEFAULTS.headers },
+  );
   const [grandTotals, setGrandTotals] = useState<SectionValues>(
-    () => (getFormat().grandTotals as SectionValues) || { ...DEFAULTS.grandTotals },
+    () => (getFormat().grandTotals as SectionValues) ?? { ...DEFAULTS.grandTotals },
   );
   const [dimensions, setDimensions] = useState<SectionValues>(
     () => (getFormat().dimensions as SectionValues) ?? { ...DEFAULTS.dimensions },
   );
   const [layout, setLayout] = useState<LayoutValues>(
-    () => (getFormat().layout as LayoutValues) || { ...DEFAULTS.layout },
+    () => (getFormat().layout as LayoutValues) ?? { ...DEFAULTS.layout },
   );
-  const [rules, setRules] = useState<ConditionalRule[]>(() => (getFormat().conditional as ConditionalRule[]) ?? []);
+  const [rules, setRules] = useState<ConditionalRule[]>(() =>
+    normalizeRules(getFormat().conditional as ConditionalRule[] | undefined),
+  );
   const [conditionalMode, setConditionalMode] = useState<string>(
     () => getFormat().conditionalMode || 'first',
   );
   const [valuesByMeasure, setValuesByMeasure] = useState<Record<string, SectionValues>>(
-    () => (getFormat().valuesByMeasure as Record<string, SectionValues>) || {},
+    () => (getFormat().valuesByMeasure as Record<string, SectionValues>) ?? {},
   );
   const [valuesTarget, setValuesTarget] = useState('__default__');
-
-  useEffect(() => {
-    if (!open) return;
-    const current = getFormat();
-    setValues((current.values as SectionValues) ?? { ...DEFAULTS.values });
-    setHeaders((current.headers as SectionValues) ?? { ...DEFAULTS.headers });
-    setGrandTotals((current.grandTotals as SectionValues) || { ...DEFAULTS.grandTotals });
-    setDimensions((current.dimensions as SectionValues) ?? { ...DEFAULTS.dimensions });
-    setLayout((current.layout as LayoutValues) || { ...DEFAULTS.layout });
-    setRules((current.conditional as ConditionalRule[]) ?? []);
-    setConditionalMode(current.conditionalMode || 'first');
-    setValuesByMeasure((current.valuesByMeasure as Record<string, SectionValues>) || {});
-    setValuesTarget('__default__');
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, engine]);
 
   const calcByName = new Map<string, InternalCalculatedField>(
     engine.getCalculatedFields().map((f) => [f.uniqueName, f]),
@@ -2008,7 +2022,7 @@ const FormatDialog = function FormatDialog({ open, onClose }: FormatDialogProps)
     measureKey: `${m.uniqueName}:${m.aggregation}`,
     caption: (() => {
       const base =
-        (engine.getMetadata() as Record<string, { caption?: string }>)[m.uniqueName]?.caption ||
+        engine.getMetadata()[m.uniqueName]?.caption ||
         calcByName.get(m.uniqueName)?.caption ||
         m.uniqueName;
       return `${base} (${aggLabel(m.aggregation)})`;
@@ -2018,7 +2032,7 @@ const FormatDialog = function FormatDialog({ open, onClose }: FormatDialogProps)
 
   const dimensionFields: DimensionEntry[] = (() => {
     const slice = engine.getSlice();
-    const meta = engine.getMetadata() as Record<string, { caption?: string }>;
+    const meta = engine.getMetadata();
     const seen = new Set<string>();
     const out: DimensionEntry[] = [];
     [...(slice.rows || []), ...(slice.columns || [])].forEach((f) => {
@@ -2222,6 +2236,22 @@ const FormatDialog = function FormatDialog({ open, onClose }: FormatDialogProps)
       </DialogActions>
     </Dialog>
   );
+};
+
+/**
+ * Thin wrapper: a new key on every open re-seeds all nine drafts from the
+ * engine, so the body needs no reset effect.
+ */
+const FormatDialog = function FormatDialog(props: FormatDialogProps): React.ReactElement {
+  const [session, setSession] = useState(0);
+  const [wasOpen, setWasOpen] = useState(props.open);
+  if (props.open !== wasOpen) {
+    // Adjusting state during render (React's documented alternative to an
+    // effect): no extra commit, the body mounts already seeded.
+    setWasOpen(props.open);
+    if (props.open) setSession((n) => n + 1);
+  }
+  return <FormatDialogBody key={session} {...props} />;
 };
 
 export default FormatDialog;

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -18,6 +18,7 @@ import ClearIcon from '@mui/icons-material/Clear';
 import CloseIcon from '@mui/icons-material/Close';
 import { usePivot } from '../../context/PivotContext';
 import { usePortalContainer } from '../../hooks/usePortalContainer';
+import useEngineVersion from '../../hooks/useEngineVersion';
 import type { FilterEntry } from '../../pivot-core/slice/FilterEngine';
 
 /**
@@ -173,9 +174,13 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }: F
   // dynamic boundary: localization is Record<string,unknown>
   const tb = (t as Record<string, Record<string, string>>)?.filterEditor ?? {};
 
+  // `engine` alone is not a real dependency: it is the same object for the
+  // component's whole life and mutates in place. The version counter is what
+  // actually changes when the underlying rows do.
+  const engineVersion = useEngineVersion(engine);
   const distinct = useMemo(
     () => distinctValuesFor(engine, filter.uniqueName, locale),
-    [engine, filter.uniqueName, locale]
+    [engine, engineVersion, filter.uniqueName, locale]
   );
 
   const filteredDistinct = useMemo(() => {
@@ -411,44 +416,64 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }: F
 // FilterBar — main exported component (no props)
 // ---------------------------------------------------------------------------
 
+/**
+ * Stable per-chip identity. `uniqueName` alone is not enough: the engine
+ * accepts several filters on the same field (they AND-combine), so the
+ * occurrence counter disambiguates them without falling back to the array
+ * index, which shifts whenever another chip is removed.
+ */
+const filterKeys = (filters: FilterEntry[]): string[] => {
+  const seen = new Map<string, number>();
+  return filters.map((f) => {
+    const n = seen.get(f.uniqueName) ?? 0;
+    seen.set(f.uniqueName, n + 1);
+    return n === 0 ? f.uniqueName : `${f.uniqueName}#${n}`;
+  });
+};
+
 const FilterBar = function FilterBar(): React.ReactElement | null {
   const { engine, localization: t } = usePivot();
   const portalContainer = usePortalContainer();
-  const [slice, setSliceState] = useState<{ filters?: FilterEntry[]; [key: string]: unknown }>(() => engine.getSlice());
-  const [activeIdx, setActiveIdx] = useState<number | null>(null);
+  // The engine mutates in place, so its slice is re-read whenever the shared
+  // subscription counter moves (see useEngineVersion) rather than mirrored
+  // into local state from an effect.
+  const engineVersion = useEngineVersion(engine);
+  const slice = useMemo(() => engine.getSlice(), [engine, engineVersion]);
+  // The open popover tracks its chip by key, not by index: removing another
+  // chip must not silently re-point the editor at a different filter.
+  const [activeKey, setActiveKey] = useState<string | null>(null);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
   // dynamic boundary: localization is Record<string,unknown>
   const tb = (t as Record<string, Record<string, string>>)?.filterBar ?? {};
 
-  useEffect(() => {
-    const sync = () => setSliceState({ ...engine.getSlice() });
-    engine.on('reportChange', sync);
-    engine.on('dataChange', sync);
-    return () => {
-      engine.off('reportChange', sync);
-      engine.off('dataChange', sync);
-    };
-  }, [engine]);
-
   const filters: FilterEntry[] = slice.filters || [];
   if (filters.length === 0) return null;
+
+  const keys = filterKeys(filters);
+  const activeIdx = activeKey === null ? -1 : keys.indexOf(activeKey);
+  const activeFilter = activeIdx >= 0 ? filters[activeIdx] : null;
+
+  const closeEditor = () => {
+    setActiveKey(null);
+    setAnchorEl(null);
+  };
 
   const updateFilter = (idx: number, next: FilterEntry) => {
     const nextSlice = { ...slice };
     nextSlice.filters = filters.map((f, i) => (i === idx ? next : f));
     engine.setSlice(nextSlice);
-    setActiveIdx(null);
-    setAnchorEl(null);
+    closeEditor();
   };
 
   const removeFilter = (idx: number) => {
     const nextSlice = { ...slice };
     nextSlice.filters = filters.filter((_, i) => i !== idx);
     engine.setSlice(nextSlice);
+    if (idx === activeIdx) closeEditor();
   };
 
-  const metadata = engine.getMetadata() as Record<string, { type?: string; caption?: string } | undefined>;
+  const metadata = engine.getMetadata();
 
   return (
     <Box
@@ -481,13 +506,13 @@ const FilterBar = function FilterBar(): React.ReactElement | null {
             (filter.range.min != null || filter.range.max != null));
         return (
           <Chip
-            key={`${filter.uniqueName}-${idx}`}
+            key={keys[idx]}
             size="small"
             color={isActive ? 'secondary' : 'default'}
             variant={isActive ? 'filled' : 'outlined'}
             clickable
             onClick={(e: React.MouseEvent<HTMLDivElement>) => {
-              setActiveIdx(idx);
+              setActiveKey(keys[idx]);
               setAnchorEl(e.currentTarget);
             }}
             onDelete={() => removeFilter(idx)}
@@ -503,24 +528,21 @@ const FilterBar = function FilterBar(): React.ReactElement | null {
       })}
 
       <Popover
-        open={activeIdx !== null}
+        open={activeFilter !== null}
         anchorEl={anchorEl}
-        onClose={() => {
-          setActiveIdx(null);
-          setAnchorEl(null);
-        }}
+        onClose={closeEditor}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         container={portalContainer}
       >
-        {activeIdx !== null && filters[activeIdx] && (
+        {activeFilter && (
           <FilterEditor
-            filter={filters[activeIdx]}
-            meta={metadata[filters[activeIdx].uniqueName]}
+            // Remount when the popover switches to another chip: the editor
+            // seeds all of its state from `filter` on mount only.
+            key={keys[activeIdx]}
+            filter={activeFilter}
+            meta={metadata[activeFilter.uniqueName]}
             onApply={(next) => updateFilter(activeIdx, next)}
-            onClose={() => {
-              setActiveIdx(null);
-              setAnchorEl(null);
-            }}
+            onClose={closeEditor}
           />
         )}
       </Popover>

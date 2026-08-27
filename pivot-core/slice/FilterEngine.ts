@@ -36,6 +36,27 @@ const toComparable = (value: unknown): Comparable => {
   return String(value);
 };
 
+/** `yyyy-mm-dd`, the value an `<input type="date">` produces. */
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+const pad = (n: number): string => String(n).padStart(2, '0');
+
+/**
+ * A single-value filter on a date field carries a bare calendar day, while
+ * the underlying row usually holds a full ISO timestamp or a Date — string
+ * equality would never match. Compare on the local calendar day instead,
+ * the same convention DateFormatter/DateHierarchyExpander use.
+ */
+const sameCalendarDay = (raw: unknown, dayValue: string): boolean => {
+  const ts = raw instanceof Date ? raw.getTime() : Date.parse(String(raw));
+  if (!Number.isFinite(ts)) return false;
+  const d = new Date(ts);
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` ===
+    dayValue
+  );
+};
+
 const evaluateFilter = (filter: FilterEntry, row: DataRow): boolean => {
   const raw = row?.[filter.uniqueName];
 
@@ -48,7 +69,12 @@ const evaluateFilter = (filter: FilterEntry, row: DataRow): boolean => {
     if (denied.has(String(raw))) return false;
   }
   if (filter.value !== undefined && filter.value !== null && filter.value !== '') {
-    if (String(raw) !== String(filter.value)) return false;
+    const wanted = String(filter.value);
+    if (String(raw) !== wanted) {
+      if (!(DATE_ONLY.test(wanted) && sameCalendarDay(raw, wanted))) {
+        return false;
+      }
+    }
   }
   if (filter.range && (filter.range.min != null || filter.range.max != null)) {
     const v = toComparable(raw);

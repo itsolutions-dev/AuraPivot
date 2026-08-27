@@ -19,6 +19,7 @@ import PivotEngine from "./pivot-core";
 import { PivotProvider } from "./context/PivotContext";
 import PivotToolbar from "./components/Toolbar/PivotToolbar";
 import PivotTable from "./components/PivotTable/PivotTable";
+import ErrorBoundary from "./components/ErrorBoundary";
 import FieldList from "./components/FieldList/FieldList";
 import FormatDialog from "./components/FormatDialog/FormatDialog";
 import FilterBar from "./components/FilterBar/FilterBar";
@@ -379,7 +380,15 @@ const Pivot = forwardRef(function Pivot(props, ref) {
               </Typography>
             </Alert>
           ) : (
-            <PivotTable />
+            // A render-time throw inside the grid must not take the host app
+            // down with it.
+            <ErrorBoundary
+              title={localization?.grid?.errorTitle}
+              message={localization?.grid?.errorBody}
+              retryLabel={localization?.buttons?.retry}
+            >
+              <PivotTable />
+            </ErrorBoundary>
           )}
         </Box>
         {layoutFormat?.note ? (

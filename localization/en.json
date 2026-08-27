@@ -73,7 +73,9 @@
     "sortAsc": "Ascending",
     "sortDesc": "Descending",
     "sortByMeasure": "Sort by measure",
-    "removeSort": "Remove sort"
+    "removeSort": "Remove sort",
+    "errorTitle": "Something went wrong",
+    "errorBody": "The pivot grid could not be rendered. Undo the last change and retry."
   },
   "aggregations": {
     "sum": "Sum",
@@ -96,7 +98,8 @@
     "delete": "Delete",
     "saveChanges": "Save changes",
     "create": "Create field",
-    "removeFilter": "Remove filter"
+    "removeFilter": "Remove filter",
+    "retry": "Retry"
   },
   "toolbar": {
     "fields": "Fields",

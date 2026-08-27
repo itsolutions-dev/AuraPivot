@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 // Build-time flag injected by rollup `build-flags` plugin. Outside the
 // bundler the token stays unresolved — `typeof` guard prevents
@@ -257,32 +257,51 @@ const PivotToolbar = function PivotToolbar({
   isFullscreen,
 }: PivotToolbarProps): React.ReactElement {
   const { localization: t, options } = usePivot();
+
+  // Latest-ref for the consumer hook: it is nearly always an inline arrow, so
+  // depending on its identity would re-run the effect below on every render.
   const handlerRef = useRef(beforeToolbarCreated);
-  handlerRef.current = beforeToolbarCreated;
+  useEffect(() => {
+    handlerRef.current = beforeToolbarCreated;
+  });
+
+  const defaultTabs = useMemo(
+    () =>
+      buildDefaultTabs({
+        onOpenFields,
+        onOpenFormat,
+        onExportExcel,
+        onToggleFullscreen,
+        isFullscreen,
+        t,
+      }),
+    [onOpenFields, onOpenFormat, onExportExcel, onToggleFullscreen, isFullscreen, t],
+  );
+
+  // `beforeToolbarCreated` is consumer code that may mutate the DOM or call
+  // setState on the host, so it cannot run during render (a useMemo body can
+  // be re-run or thrown away at React's discretion). Run it as an effect and
+  // re-render with whatever it produced; the first paint shows the defaults.
+  const [customTabs, setCustomTabs] = useState<TabDef[] | null>(null);
+
+  useEffect(() => {
+    if (typeof handlerRef.current !== 'function') {
+      setCustomTabs(null);
+      return;
+    }
+    // auraPivot-compatible toolbar API: consumers typically monkey-patch
+    // getTabs on it from within beforeToolbarCreated.
+    const api: ToolbarApi = {
+      getTabs: () => defaultTabs,
+    };
+    handlerRef.current(api);
+    const finalTabs =
+      typeof api.getTabs === 'function' ? api.getTabs() : defaultTabs;
+    setCustomTabs(Array.isArray(finalTabs) ? finalTabs : defaultTabs);
+  }, [defaultTabs]);
 
   const tabs = useMemo(() => {
-    const defaults = buildDefaultTabs({
-      onOpenFields,
-      onOpenFormat,
-      onExportExcel,
-      onToggleFullscreen,
-      isFullscreen,
-      t,
-    });
-
-    // Build a auraPivot-compatible toolbar API: consumers typically
-    // monkey-patch getTabs on it from within beforeToolbarCreated.
-    const api: ToolbarApi = {
-      getTabs: () => defaults,
-    };
-
-    if (typeof handlerRef.current === 'function') {
-      handlerRef.current(api);
-    }
-
-    const finalTabs =
-      typeof api.getTabs === 'function' ? api.getTabs() : defaults;
-    const list = Array.isArray(finalTabs) ? finalTabs : defaults;
+    const list = customTabs ?? defaultTabs;
 
     // Visibility flags from globalProps.options (default true). Reset is
     // injected by consumers via beforeToolbarCreated under id `reset-*`.
@@ -304,16 +323,7 @@ const PivotToolbar = function PivotToolbar({
       return true;
     };
     return list.filter(isVisible);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    onOpenFields,
-    onOpenFormat,
-    onExportExcel,
-    onToggleFullscreen,
-    isFullscreen,
-    t,
-    options,
-  ]);
+  }, [customTabs, defaultTabs, options]);
 
   const leftTabs = tabs.filter((t2) => !t2.rightGroup);
   const rightTabs = tabs.filter((t2) => !!t2.rightGroup);

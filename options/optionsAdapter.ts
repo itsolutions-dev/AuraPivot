@@ -5,6 +5,7 @@
 import type PivotEngine from "../pivot-core";
 import type { AuraPivotOptions, AuraPivotFieldEntry, DataRow } from "../pivot-core/types";
 import type { InternalOptions } from "../pivot-core/PivotEngine";
+import type { FilterEntry } from "../pivot-core/slice/FilterEngine";
 
 /**
  * Apply an `options` schema object (and the separate `dataSource` rows) to a
@@ -95,7 +96,11 @@ export function optionsToEngine(
     rows,
     columns,
     measures,
-    filters: Array.isArray(data.filters) ? data.filters : [],
+    // Public→internal boundary: the schema marks `uniqueName` optional and
+    // `range` unknown; FilterEngine skips entries it cannot read.
+    filters: (Array.isArray(data.filters)
+      ? data.filters
+      : []) as unknown as FilterEntry[],
   });
 
   // ---- format (font/number/colour sections + conditional + layout) ----

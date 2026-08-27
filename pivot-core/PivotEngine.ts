@@ -46,7 +46,7 @@ export interface InternalCalculatedField {
 }
 
 /** Engine-internal slice field (may have extra fields beyond SliceField). */
-interface InternalSliceField {
+export interface InternalSliceField {
   uniqueName: string;
   sort?: string;
   caption?: string;
@@ -55,7 +55,7 @@ interface InternalSliceField {
 }
 
 /** Engine-internal slice measure (wider aggregation than public type). */
-interface InternalSliceMeasure {
+export interface InternalSliceMeasure {
   uniqueName: string;
   aggregation: string;
   caption?: string;
@@ -64,14 +64,14 @@ interface InternalSliceMeasure {
 }
 
 /** Engine-internal expands config. */
-interface InternalExpands {
+export interface InternalExpands {
   expandAll?: boolean;
   expandedMembers?: string[];
   [key: string]: unknown;
 }
 
 /** Engine-internal sort config (dual-axis, post-migration). */
-interface InternalSort {
+export interface InternalSort {
   colKey?: string;
   colDirection?: string;
   colMeasure?: unknown;
@@ -93,7 +93,7 @@ export interface InternalSlice {
 }
 
 /** Cell style format fields (values, headers, dimensions, grandTotals). */
-interface CellStyleFormat {
+export interface CellStyleFormat {
   fontFamily?: string;
   fontSize?: number;
   fontWeight?: number;
@@ -113,7 +113,7 @@ interface CellStyleFormat {
 }
 
 /** Layout format section. */
-interface LayoutFormat {
+export interface LayoutFormat {
   totalsRowsPosition?: string;
   totalsRowsSticky?: boolean;
   totalsColumnsPosition?: string;
@@ -123,7 +123,7 @@ interface LayoutFormat {
 }
 
 /** A conditional formatting rule as stored internally. */
-interface ConditionalRule {
+export interface ConditionalRule {
   operator?: string;
   value?: unknown;
   value2?: unknown;
@@ -132,7 +132,7 @@ interface ConditionalRule {
 }
 
 /** Engine-internal format state. */
-interface InternalFormat {
+export interface InternalFormat {
   values: CellStyleFormat;
   valuesByMeasure: Record<string, CellStyleFormat>;
   headers: CellStyleFormat;
@@ -161,7 +161,7 @@ export interface InternalOptions {
 }
 
 /** Localization shape (superset — engine reads sub-keys dynamically). */
-interface InternalLocalization {
+export interface InternalLocalization {
   grid?: {
     total?: string;
     measureCaptionTemplate?: string;
@@ -174,7 +174,7 @@ interface InternalLocalization {
 }
 
 /** Date localization pushed by setDateLocalization. */
-interface DateLocalization {
+export interface DateLocalization {
   monthNames?: string[];
   weekdayNames?: string[];
   hierarchyParts?: Record<string, string>;
@@ -184,8 +184,14 @@ interface DateLocalization {
   [key: string]: unknown;
 }
 
+/** Measure a sort is keyed on — only the identity pair is read back. */
+export interface SortMeasureRef {
+  uniqueName?: string;
+  aggregation?: string;
+}
+
 /** Drill-through per-field visibility config. */
-type DrillThroughFieldsMap = Record<string, boolean>;
+export type DrillThroughFieldsMap = Record<string, boolean>;
 
 /**
  * Typed snapshot returned by `getFormat()`. Keys match exactly what the method
@@ -569,8 +575,8 @@ class PivotEngine {
     return AGG_LABEL[agg] || agg;
   }
 
-  setDateLocalization(localization: unknown): void {
-    this._dateLocalization = (localization as DateLocalization) || null;
+  setDateLocalization(localization: DateLocalization | null | undefined): void {
+    this._dateLocalization = localization || null;
     if (this._rawDataset) {
       // dynamic boundary: cast unknown → unknown[] (normalizeDataset validates at runtime)
       const { metadata, rows } = normalizeDataset(this._rawDataset as unknown[]);
@@ -646,8 +652,8 @@ class PivotEngine {
     return { ...this._dateFormats };
   }
 
-  setDateFormats(map: unknown): void {
-    this._dateFormats = map && typeof map === "object" ? { ...(map as Record<string, string>) } : {};
+  setDateFormats(map: Record<string, string> | null | undefined): void {
+    this._dateFormats = map && typeof map === "object" ? { ...map } : {};
     this._dirty = true;
     this._emit("formatChange");
   }
@@ -658,8 +664,8 @@ class PivotEngine {
     return [...this._fieldOrder];
   }
 
-  setFieldOrder(order: unknown): void {
-    this._fieldOrder = Array.isArray(order) ? (order as unknown[]).filter(Boolean) as string[] : [];
+  setFieldOrder(order: readonly string[] | null | undefined): void {
+    this._fieldOrder = Array.isArray(order) ? order.filter(Boolean) : [];
     // Display-only: no matrix invalidation. The FieldList + DrillThrough
     // dialog re-render via the dataChange event.
     this._emit("dataChange");
@@ -672,14 +678,18 @@ class PivotEngine {
     };
   }
 
-  setDrillThroughConfig(config: unknown): void {
+  setDrillThroughConfig(
+    config:
+      | { fields?: DrillThroughFieldsMap; frozenCount?: number }
+      | null
+      | undefined,
+  ): void {
     if (!config) return;
-    const c = config as { fields?: unknown; frozenCount?: unknown };
-    if (c.fields && typeof c.fields === "object") {
-      this._drillThroughFields = { ...(c.fields as DrillThroughFieldsMap) };
+    if (config.fields && typeof config.fields === "object") {
+      this._drillThroughFields = { ...config.fields };
     }
-    if (Number.isFinite(c.frozenCount)) {
-      this._drillThroughFrozenCount = Math.max(0, Math.floor(c.frozenCount as number));
+    if (Number.isFinite(config.frozenCount)) {
+      this._drillThroughFrozenCount = Math.max(0, Math.floor(config.frozenCount as number));
     }
     this._emit("dataChange");
   }
@@ -749,9 +759,13 @@ class PivotEngine {
     return this._calculatedFields.map((f) => ({ ...f }));
   }
 
-  setCalculatedFields(fields: unknown): void {
+  setCalculatedFields(
+    fields: readonly Partial<InternalCalculatedField>[] | null | undefined,
+  ): void {
     this._calculatedFields = Array.isArray(fields)
-      ? (fields as unknown[]).map((f) => ({ ...(f as InternalCalculatedField) }))
+      // Entries coming from the public `options` schema may omit `caption`;
+      // the read paths already treat it as best-effort.
+      ? fields.map((f) => ({ ...f }) as InternalCalculatedField)
       : [];
     this._dirty = true;
     this._emit("dataChange");
@@ -762,10 +776,11 @@ class PivotEngine {
    * is `{ uniqueName, caption }`; missing entries leave the data-source value
    * untouched.
    */
-  setFields(fields: unknown): void {
+  setFields(
+    fields: readonly { uniqueName?: string; caption?: string }[] | null | undefined,
+  ): void {
     if (!Array.isArray(fields)) return;
-    (fields as unknown[]).forEach((f) => {
-      const field = f as { uniqueName?: string; caption?: string } | null;
+    fields.forEach((field) => {
       if (!field?.uniqueName) return;
       if (field.caption !== undefined)
         this.setFieldCaption(field.uniqueName, field.caption);
@@ -812,17 +827,20 @@ class PivotEngine {
 
   // ---- slice / options ----------------------------------------------
 
-  setSlice(slice: unknown, { silent = false } = {}): void {
-    const s = (slice || {}) as Record<string, unknown>;
+  setSlice(
+    slice: Partial<InternalSlice> | null | undefined,
+    { silent = false } = {},
+  ): void {
+    const s = slice || {};
     this._slice = {
       ...DEFAULT_SLICE,
       ...s,
-      rows: (s["rows"] as InternalSliceField[]) || [],
-      columns: (s["columns"] as InternalSliceField[]) || [],
-      measures: (s["measures"] as InternalSliceMeasure[]) || [],
-      expands: (s["expands"] as InternalExpands) || { expandAll: true },
-      filters: (s["filters"] as FilterEntry[]) || [],
-      sort: migrateSort(s["sort"]),
+      rows: s.rows || [],
+      columns: s.columns || [],
+      measures: s.measures || [],
+      expands: s.expands || { expandAll: true },
+      filters: s.filters || [],
+      sort: migrateSort(s.sort),
     };
     this._dirty = true;
     if (!silent) this._emit("reportChange");
@@ -832,8 +850,8 @@ class PivotEngine {
     return { ...this._slice };
   }
 
-  setOptions(options: unknown): void {
-    this._options = { ...this._options, ...(options || {}) } as InternalOptions;
+  setOptions(options: Partial<InternalOptions> | null | undefined): void {
+    this._options = { ...this._options, ...(options || {}) };
   }
 
   getOptions(): InternalOptions {
@@ -1088,7 +1106,7 @@ class PivotEngine {
     return this._matrix;
   }
 
-  setSort(colKey: string | null | undefined, direction: string | null = "desc", measure: unknown = null): void {
+  setSort(colKey: string | null | undefined, direction: string | null = "desc", measure: SortMeasureRef | null = null): void {
     const prev = this._slice.sort || {};
     const next: InternalSort = { ...prev };
     if (colKey && direction) {
@@ -1106,7 +1124,7 @@ class PivotEngine {
     this._emit("reportChange");
   }
 
-  setSortByRow(rowKey: string | null | undefined, direction: string | null = "desc", measure: unknown = null): void {
+  setSortByRow(rowKey: string | null | undefined, direction: string | null = "desc", measure: SortMeasureRef | null = null): void {
     const prev = this._slice.sort || {};
     const next: InternalSort = { ...prev };
     if (rowKey && direction) {

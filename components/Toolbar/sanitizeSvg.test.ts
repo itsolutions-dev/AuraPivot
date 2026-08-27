@@ -64,4 +64,26 @@ describe('sanitizeSvgMarkup', () => {
   test('returns null for unparseable markup', () => {
     expect(sanitizeSvgMarkup('<svg><unclosed')).toBeNull();
   });
+
+  test('removes SMIL elements that could rewrite href after sanitization', () => {
+    const out = sanitizeSvgMarkup(
+      '<svg xmlns:xlink="http://www.w3.org/1999/xlink"><a href="#safe">' +
+        '<set attributeName="href" to="javascript:alert(1)"/>' +
+        '<animate attributeName="xlink:href" values="javascript:alert(1)"/>' +
+        '<text>hi</text></a></svg>'
+    );
+    expect(out).not.toMatch(/<set/i);
+    expect(out).not.toMatch(/<animate/i);
+    expect(out).not.toMatch(/javascript:/i);
+    expect(out).toContain('<text');
+  });
+
+  test('removes style elements', () => {
+    const out = sanitizeSvgMarkup(
+      '<svg><style>@import url(http://evil/x.css);</style><rect/></svg>'
+    );
+    expect(out).not.toMatch(/<style/i);
+    expect(out).not.toContain('@import');
+    expect(out).toContain('<rect');
+  });
 });

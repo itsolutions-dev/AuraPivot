@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 
 // Build-time flag injected by rollup `build-flags` plugin. Outside the
 // bundler the token stays unresolved — `typeof` guard prevents
@@ -49,6 +49,7 @@ import RemoveIcon from "@mui/icons-material/Remove";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { usePivot } from "../../context/PivotContext";
 import { usePortalContainer } from "../../hooks/usePortalContainer";
+import useEngineVersion from "../../hooks/useEngineVersion";
 import CalculatedFieldDialog from "../CalculatedFieldDialog/CalculatedFieldDialog";
 import type { InternalSlice } from "../../pivot-core/PivotEngine";
 
@@ -194,9 +195,19 @@ const ZONES: { id: string; labelKey: string }[] = [
 ];
 
 /**
+ * Stable React key for a slice entry. The measures zone may hold the same
+ * field several times with different aggregations, so the aggregation is
+ * part of the identity — never the array index, since every zone is
+ * drag-reorderable.
+ */
+const chipKey = (item: InternalSliceField): string =>
+  item.aggregation ? `${item.uniqueName}:${item.aggregation}` : item.uniqueName;
+
+/**
  * Parses a drag payload. Existing chips send a JSON blob with source zone +
  * index; items coming from the "all fields" list send a plain uniqueName for
- * backward compatibility.
+ * backward compatibility (a bare uniqueName is not JSON, so the parse failure
+ * is the expected path for those — not an error worth logging).
  */
 const parseDragPayload = (raw: string): DragPayload | null => {
   if (!raw) return null;
@@ -208,9 +219,8 @@ const parseDragPayload = (raw: string): DragPayload | null => {
       (parsed as Record<string, unknown>).uniqueName
     )
       return parsed as DragPayload;
-  } catch (_err) {
-    console.log(_err);
-    // fall through
+  } catch {
+    // fall through: plain-uniqueName payload from the "all fields" list.
   }
   return { source: "all", uniqueName: raw };
 };
@@ -609,7 +619,7 @@ const DropZone = function DropZone({
           };
           return (
             <Box
-              key={`${item.uniqueName}-${idx}`}
+              key={chipKey(item)}
               sx={{
                 cursor: "grab",
                 mr: "4px",
@@ -631,15 +641,45 @@ const DropZone = function DropZone({
 // Main FieldList component
 // ---------------------------------------------------------------------------
 
-const FieldList = function FieldList({
+/** The measure axis needs an anchor field on one of the two zones. */
+const ensureMeasuresAnchor = (
+  s: LocalSlice,
+  measuresAxis: FieldListProps["measuresAxis"],
+): LocalSlice => {
+  const inRows = (s.rows || []).some((f) => f.uniqueName === "Measures");
+  const inCols = (s.columns || []).some((f) => f.uniqueName === "Measures");
+  if (inRows || inCols) return s;
+  // Default placement honors the `measuresAxis` prop; columns otherwise.
+  if (measuresAxis === "rows") {
+    return { ...s, rows: [...(s.rows || []), { uniqueName: "Measures" }] };
+  }
+  return { ...s, columns: [...(s.columns || []), { uniqueName: "Measures" }] };
+};
+
+/** Drop a field from every zone of the local draft slice. */
+const stripFromSlice = (s: LocalSlice, uniqueName: string): LocalSlice => ({
+  ...s,
+  rows: (s.rows || []).filter((f) => f.uniqueName !== uniqueName),
+  columns: (s.columns || []).filter((f) => f.uniqueName !== uniqueName),
+  measures: (s.measures || []).filter((f) => f.uniqueName !== uniqueName),
+  filters: (s.filters || []).filter((f) => f.uniqueName !== uniqueName),
+});
+
+const FieldListBody = function FieldListBody({
   open,
   onClose,
   measuresAxis,
 }: FieldListProps): React.ReactElement {
   const { engine, localization: t } = usePivot();
   const portalContainer = usePortalContainer();
-  const [slice, setSliceState] = useState<LocalSlice>(
-    () => engine.getSlice() as unknown as LocalSlice,
+  // Every draft below is seeded once, on mount: the wrapper remounts this
+  // body each time the dialog opens, so there is no reset effect and an
+  // engine event can never overwrite an edit the user has not applied yet.
+  const [slice, setSliceState] = useState<LocalSlice>(() =>
+    ensureMeasuresAnchor(
+      engine.getSlice() as unknown as LocalSlice,
+      measuresAxis,
+    ),
   );
   const [calcDialog, setCalcDialog] = useState<{
     open: boolean;
@@ -649,32 +689,29 @@ const FieldList = function FieldList({
     editField: null,
   });
 
-  const [calcFields, setCalcFields] = useState<CalculatedField[]>(
-    () => engine.getCalculatedFields() as CalculatedField[],
+  // Calculated fields are the exception: the nested CalculatedFieldDialog
+  // commits them to the engine immediately, so they are read back rather
+  // than drafted.
+  const engineVersion = useEngineVersion(engine);
+  const calcFields = useMemo<CalculatedField[]>(
+    () => engine.getCalculatedFields(),
+    [engine, engineVersion],
   );
 
   // Local draft of per-date-field formats. Committed to the engine on Apply.
   const [dateFormats, setDateFormats] = useState<Record<string, string>>(
-    () => engine.getDateFormats() as Record<string, string>,
+    () => engine.getDateFormats(),
   );
   // Local drafts for the "All fields" reorder and the drill-through config.
   // Persisted on Apply via engine.setFieldOrder / setDrillThroughConfig.
   const [fieldOrder, setFieldOrder] = useState<string[]>(
-    () => engine.getFieldOrder() as string[],
+    () => engine.getFieldOrder(),
   );
   const [drillThroughFields, setDrillThroughFields] = useState<
     Record<string, boolean | undefined>
-  >(
-    () =>
-      (
-        engine.getDrillThroughConfig() as {
-          fields: Record<string, boolean | undefined>;
-        }
-      ).fields,
-  );
+  >(() => engine.getDrillThroughConfig().fields);
   const [frozenCount, setFrozenCount] = useState<number>(
-    () =>
-      (engine.getDrillThroughConfig() as { frozenCount: number }).frozenCount,
+    () => engine.getDrillThroughConfig().frozenCount,
   );
   // Popover anchor/state for the per-field format editor. `subpart` selects
   // the preset list; null means the parent date field (free date formatter).
@@ -702,7 +739,7 @@ const FieldList = function FieldList({
   const tButtons = (t as Record<string, Record<string, string>>)?.buttons ?? {};
 
   const openCaptionEditor = (target: HTMLElement, uniqueName: string) => {
-    const meta = (engine.getMetadata() as Record<string, { caption?: string }>)[
+    const meta = engine.getMetadata()[
       uniqueName
     ];
     const calc = calcFields.find((c) => c.uniqueName === uniqueName);
@@ -712,62 +749,12 @@ const FieldList = function FieldList({
 
   const saveCaption = () => {
     if (!captionEditor.uniqueName) return;
-    (engine.setFieldCaption as (un: string, caption: string) => void)(
+    engine.setFieldCaption(
       captionEditor.uniqueName,
       captionEditor.value,
     );
     setCaptionEditor({ anchor: null, uniqueName: null, value: "" });
   };
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const ensureMeasuresAnchor = (s: LocalSlice): LocalSlice => {
-      const inRows = (s.rows || []).some((f) => f.uniqueName === "Measures");
-      const inCols = (s.columns || []).some((f) => f.uniqueName === "Measures");
-      if (inRows || inCols) return s;
-      // Default placement honors the `measuresAxis` prop; columns otherwise.
-      if (measuresAxis === "rows") {
-        return { ...s, rows: [...(s.rows || []), { uniqueName: "Measures" }] };
-      }
-      return {
-        ...s,
-        columns: [...(s.columns || []), { uniqueName: "Measures" }],
-      };
-    };
-    const sync = () =>
-      setSliceState(
-        ensureMeasuresAnchor({
-          ...(engine.getSlice() as unknown as LocalSlice),
-        }),
-      );
-    const syncCalc = () =>
-      setCalcFields(engine.getCalculatedFields() as CalculatedField[]);
-    const syncDateFormats = () =>
-      setDateFormats(engine.getDateFormats() as Record<string, string>);
-    const syncFieldOrder = () =>
-      setFieldOrder(engine.getFieldOrder() as string[]);
-    const syncDrillThrough = () => {
-      const cfg = engine.getDrillThroughConfig() as {
-        fields: Record<string, boolean | undefined>;
-        frozenCount: number;
-      };
-      setDrillThroughFields(cfg.fields);
-      setFrozenCount(cfg.frozenCount);
-    };
-    engine.on("reportChange", sync);
-    engine.on("dataChange", syncCalc);
-    engine.on("formatChange", syncDateFormats);
-    sync();
-    syncCalc();
-    syncDateFormats();
-    syncFieldOrder();
-    syncDrillThrough();
-    return () => {
-      engine.off("reportChange", sync);
-      engine.off("dataChange", syncCalc);
-      engine.off("formatChange", syncDateFormats);
-    };
-  }, [engine, open, measuresAxis]);
 
   // Filter-slot fields are intentionally NOT removed from the available list:
   // a user may want the same dimension both as a page-level filter AND as a
@@ -1153,20 +1140,18 @@ const FieldList = function FieldList({
     (slice.measures || []).length === 0 || visibleMeasureCount > 0;
 
   const handleApply = () => {
-    (engine.setDateFormats as (df: Record<string, string>) => void)(
+    engine.setDateFormats(
       dateFormats,
     );
-    (engine.setFieldOrder as (fo: string[]) => void)(fieldOrder);
-    (
-      engine.setDrillThroughConfig as (cfg: {
-        fields: Record<string, boolean | undefined>;
-        frozenCount: number;
-      }) => void
-    )({
-      fields: drillThroughFields,
+    engine.setFieldOrder(fieldOrder);
+    engine.setDrillThroughConfig({
+      fields: drillThroughFields as Record<string, boolean>,
       frozenCount,
     });
-    engine.setSlice(slice);
+    // LocalSlice keeps every zone as InternalSliceField[] for uniform DnD, so
+    // measures lack the engine's required `aggregation` at the type level;
+    // the zone handlers always set it before Apply.
+    engine.setSlice(slice as Partial<InternalSlice>);
     onClose?.();
   };
 
@@ -1237,7 +1222,7 @@ const FieldList = function FieldList({
     ): React.ReactElement {
       return (
         <Chip
-          key={`${item.uniqueName}-${idx}`}
+          key={chipKey(item)}
           icon={
             item.uniqueName === "Measures" ? (
               <FunctionsIcon fontSize="small" />
@@ -1293,7 +1278,7 @@ const FieldList = function FieldList({
       );
       return (
         <Chip
-          key={`${item.uniqueName}-${idx}`}
+          key={chipKey(item)}
           onDelete={() => removeFromZone(zone, idx)}
           deleteIcon={<DeleteOutlineIcon />}
           sx={{
@@ -1389,8 +1374,12 @@ const FieldList = function FieldList({
                       size="small"
                       onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                         e.stopPropagation();
-                        (engine.removeCalculatedField as (un: string) => void)(
-                          item.uniqueName,
+                        // The engine also strips the field from its own
+                        // slice — mirror that into the draft so Apply does
+                        // not resurrect it.
+                        engine.removeCalculatedField(item.uniqueName);
+                        setSliceState((prev) =>
+                          stripFromSlice(prev, item.uniqueName),
                         );
                       }}
                       sx={(theme) => ({
@@ -2221,6 +2210,22 @@ const FieldList = function FieldList({
       </Popover>
     </>
   );
+};
+
+/**
+ * Thin wrapper that gives the body a new key on every open, so all of its
+ * drafts re-seed from the engine without a reset effect.
+ */
+const FieldList = function FieldList(props: FieldListProps): React.ReactElement {
+  const [session, setSession] = useState(0);
+  const [wasOpen, setWasOpen] = useState(props.open);
+  if (props.open !== wasOpen) {
+    // Adjusting state during render (React's documented alternative to an
+    // effect): no extra commit, the body mounts already seeded.
+    setWasOpen(props.open);
+    if (props.open) setSession((n) => n + 1);
+  }
+  return <FieldListBody key={session} {...props} />;
 };
 
 export default FieldList;

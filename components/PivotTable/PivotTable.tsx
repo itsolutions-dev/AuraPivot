@@ -33,6 +33,7 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutlined";
 import { findNodeByKey } from "../../pivot-core/slice/TreeBuilder";
 import { usePivot } from "../../context/PivotContext";
 import usePivotMatrix from "../../hooks/usePivotMatrix";
+import useEngineVersion from "../../hooks/useEngineVersion";
 import {
   resolveCellStyle,
   formatNumberWithFormat,
@@ -187,9 +188,13 @@ const PivotTable = function PivotTable() {
   const { engine, localization, options } = usePivot();
   const t = localization as GridLocalization;
   const { matrix, loading } = usePivotMatrix(engine);
-  const [format, setFormat] = useState(() => engine.getFormat());
-  const [slice, setSliceState] = useState<InternalSlice>(() =>
-    engine.getSlice(),
+  // The engine object mutates in place, so its state is read through a memo
+  // keyed on the shared subscription counter (see useEngineVersion).
+  const engineVersion = useEngineVersion(engine);
+  const format = useMemo(() => engine.getFormat(), [engine, engineVersion]);
+  const slice = useMemo<InternalSlice>(
+    () => engine.getSlice(),
+    [engine, engineVersion],
   );
   // Engine snapshot and formatter input share their runtime shape; their
   // index signatures make them nominally incompatible — single boundary cast.
@@ -211,19 +216,6 @@ const PivotTable = function PivotTable() {
   // them, so the user can choose which measure drives the column ordering.
   const [rowSortPicker, setRowSortPicker] =
     useState<RowSortPickerState | null>(null);
-
-  useEffect(() => {
-    const onFormat = () => setFormat(engine.getFormat());
-    const onReport = () => setSliceState({ ...engine.getSlice() });
-    engine.on("formatChange", onFormat);
-    engine.on("reportChange", onReport);
-    engine.on("dataChange", onReport);
-    return () => {
-      engine.off("formatChange", onFormat);
-      engine.off("reportChange", onReport);
-      engine.off("dataChange", onReport);
-    };
-  }, [engine]);
 
   const compact = (options?.grid?.type || "compact") === "compact";
 
@@ -1467,7 +1459,23 @@ const PivotTable = function PivotTable() {
     [gtRows, renderRow, density.rowHeight],
   );
 
-  if (!matrix) return null;
+  // No matrix yet: above the row threshold usePivotMatrix defers the first
+  // compute so the loader can paint — show it instead of a blank panel.
+  if (!matrix) {
+    return loading ? (
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+          color: "primary.main",
+        }}
+      >
+        {t?.grid?.loading || "Processing…"}
+      </Box>
+    ) : null;
+  }
 
   if (rowLeaves.length === 0 || colLeaves.length === 0) {
     return (

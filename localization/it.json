@@ -73,7 +73,9 @@
     "sortAsc": "Crescente",
     "sortDesc": "Decrescente",
     "sortByMeasure": "Ordina per valore",
-    "removeSort": "Rimuovi ordinamento"
+    "removeSort": "Rimuovi ordinamento",
+    "errorTitle": "Si è verificato un errore",
+    "errorBody": "Impossibile visualizzare la tabella pivot. Annulla l’ultima modifica e riprova."
   },
   "aggregations": {
     "sum": "Somma",
@@ -96,7 +98,8 @@
     "delete": "Elimina",
     "saveChanges": "Salva modifiche",
     "create": "Crea campo",
-    "removeFilter": "Rimuovi filtro"
+    "removeFilter": "Rimuovi filtro",
+    "retry": "Riprova"
   },
   "toolbar": {
     "fields": "Campi",
