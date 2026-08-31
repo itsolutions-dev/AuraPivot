@@ -54,7 +54,7 @@ recognises its own emitted object and does not re-apply it.
 | `alternateRows` | boolean | `false` | Zebra striping. |
 | `enableDrillThrough` | boolean | `true` | Allow data-cell drill-through. |
 | `drillThroughStickyColumns` | integer ≥ 0 | `2` | Left-pinned columns in the drill-through table. |
-| `totalsRowsPosition` | string | `before` \| `after` \| `none` | Grand-total row placement. |
+| `totalsRowsPosition` | string | `before` \| `after` \| `none` | Grand-total row placement. With `after`, an expanded row group keeps its header row on top (it owns the expand/collapse control) and gains a closing subtotal row below its children. |
 | `totalsRowsSticky` | boolean | `false` | Pin grand-total rows on scroll. |
 | `totalsColumnsPosition` | string | `before` \| `after` \| `none` | Grand-total column placement. |
 | `totalsColumnsSticky` | boolean | `false` | Pin grand-total columns on scroll. |

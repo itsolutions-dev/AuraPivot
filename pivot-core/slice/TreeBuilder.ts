@@ -190,21 +190,39 @@ export const buildTree = ({
  * or after its children:
  *   - 'before' (default): parent row, then its descendants
  *   - 'after':            descendants first, then the parent as a subtotal row
- *   - 'none':             emit only leaves; grand total and subtotals are skipped
+ *   - 'none':             grand total is skipped and group rows carry no
+ *                         aggregated values, but they are still emitted —
+ *                         in compact layout the group row IS the row that
+ *                         owns the expand/collapse control, so dropping it
+ *                         would make the hierarchy unnavigable.
  * The setting is applied at every depth, so intermediate subtotals move too.
+ *
+ * `emitGroupHeaders` matters only for 'after'. In compact layout a group is
+ * represented by a single node that doubles as its header (the row naming the
+ * level and owning the expand/collapse control) and as its subtotal. Moving
+ * that node below its children therefore deletes the header: an expanded
+ * hierarchy starts at its deepest leaf and every level above it disappears
+ * until its children end. With the flag on, an expanded group emits a header
+ * clone (`isGroupHeader`) above its children and the node itself is flagged
+ * `isSubtotal` when emitted below them. The row axis needs this; the column
+ * axis does not, because its parents keep their own header band.
  */
 export const flattenTreeCompact = (
   root: TreeNode,
-  { includeRoot = true, totalsPosition = 'before' }: { includeRoot?: boolean; totalsPosition?: string } = {}
+  {
+    includeRoot = true,
+    totalsPosition = 'before',
+    emitGroupHeaders = false,
+  }: { includeRoot?: boolean; totalsPosition?: string; emitGroupHeaders?: boolean } = {}
 ): TreeNode[] => {
   const out: TreeNode[] = [];
   if (totalsPosition === 'none') {
     const walk = (node: TreeNode): void => {
-      const hasKids = node.children && node.children.length > 0;
-      if (hasKids) {
-        if (node.isExpanded !== false) node.children.forEach(walk);
-      } else if (node !== root || includeRoot) {
-        out.push(node);
+      if (node !== root) out.push(node);
+      // The root row is never emitted here, so its collapsed state is
+      // unreachable from the UI — always descend into it.
+      if (node === root || node.isExpanded !== false) {
+        (node.children || []).forEach(walk);
       }
     };
     walk(root);
@@ -212,15 +230,22 @@ export const flattenTreeCompact = (
   }
   const after = totalsPosition === 'after';
   const walk = (node: TreeNode): void => {
-    const emitSelf = (): void => {
-      if (node !== root || includeRoot) out.push(node);
+    const emitSelf = (asSubtotal = false): void => {
+      if (node !== root || includeRoot) {
+        out.push(asSubtotal ? { ...node, isSubtotal: true } : node);
+      }
     };
     const emitChildren = (): void => {
       if (node.isExpanded !== false) node.children.forEach(walk);
     };
     if (after && node.children && node.children.length > 0) {
+      // A collapsed group shows no children, so its single row is both the
+      // header and the subtotal — no clone, no subtotal flag.
+      const splitRow =
+        emitGroupHeaders && node !== root && node.isExpanded !== false;
+      if (splitRow) out.push({ ...node, isGroupHeader: true });
       emitChildren();
-      emitSelf();
+      emitSelf(splitRow);
     } else {
       emitSelf();
       emitChildren();

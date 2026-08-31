@@ -18,12 +18,6 @@ import { evaluateFormulaExpression } from './FormulaEvaluator';
 import type { DataRow, TreeNode, MatrixCell, MetadataRow, AggregationType } from '../types';
 import type { RichSliceField } from '../slice/TreeBuilder';
 
-// Build-time flag injected by rollup `build-flags` plugin. Outside the
-// bundler the token stays unresolved — `typeof` guard prevents
-// ReferenceError.
-const IS_FREEPLAN =
-  typeof __FREEPLAN__ !== 'undefined' ? !!__FREEPLAN__ : false;
-
 /** A measure enriched with optional engine-level fields. aggregation is wider than AggregationType to include internal kinds. */
 export interface EnrichedMeasure {
   uniqueName: string;
@@ -64,6 +58,15 @@ export interface AxisLeaf extends TreeNode {
   measureKey: string | null;
   measureCaption?: string;
   isFirstMeasure: boolean;
+  /**
+   * True for group nodes kept on the axis only to carry the expand/collapse
+   * control while totals are turned off (`totalsPosition: 'none'`), and for
+   * the header clones of `totalsPosition: 'after'`. Their cells must render
+   * empty — the aggregate they'd show IS the subtotal.
+   */
+  totalsHidden?: boolean;
+  /** Undecorated member caption, before the ` — <measure>` suffix. */
+  memberCaption?: string;
 }
 
 /** The extended matrix returned by computeMatrix (superset of PivotMatrix). */
@@ -87,13 +90,23 @@ export interface ComputedMatrix {
  * expand/collapse toggling) while `.key` becomes an axis-unique composite
  * that matches the cell storage key.
  */
-const buildAxisLeaves = (visible: TreeNode[], measures: EnrichedMeasure[], hasMeasures: boolean): AxisLeaf[] => {
+const buildAxisLeaves = (
+  visible: TreeNode[],
+  measures: EnrichedMeasure[],
+  hasMeasures: boolean,
+  totalsOff = false
+): AxisLeaf[] => {
+  const hidesTotals = (leaf: TreeNode): boolean =>
+    !!leaf.isGroupHeader ||
+    (totalsOff && !!leaf.children && leaf.children.length > 0);
   if (!hasMeasures || !measures || measures.length === 0) {
     return visible.map((leaf) => ({
       ...leaf,
       nodeKey: leaf.key,
       measureKey: null,
       isFirstMeasure: true,
+      totalsHidden: hidesTotals(leaf),
+      memberCaption: leaf.caption,
     }));
   }
   const out: AxisLeaf[] = [];
@@ -116,6 +129,8 @@ const buildAxisLeaves = (visible: TreeNode[], measures: EnrichedMeasure[], hasMe
         measureKey,
         measureCaption,
         isFirstMeasure: mIdx === 0,
+        totalsHidden: hidesTotals(leaf),
+        memberCaption: leaf.caption,
       });
     });
   });
@@ -175,12 +190,7 @@ const evalFormula = (formula: string, resolver: (agg: string, fieldName: string)
     }
     // Safe AST evaluation — `^`, AND/OR keywords and IF/ABS/MIN/MAX are part
     // of the evaluator grammar; no dynamic code generation involved.
-    // FREEPLAN: `allowIf: false` makes IF() throw, surfacing the error
-    // through the existing try/catch as `{ value: null, error: '…' }`
-    // which the cell renderer displays.
-    const result = evaluateFormulaExpression(patched, {
-      allowIf: !IS_FREEPLAN,
-    });
+    const result = evaluateFormulaExpression(patched);
     if (typeof result === 'number' && Number.isFinite(result)) {
       return { value: result, error: null };
     }
@@ -658,14 +668,19 @@ export const computeMatrix = ({
     });
   }
 
+  // `emitGroupHeaders` only on the row axis: the column axis renders parents
+  // in its own header band, so a header clone there would just duplicate
+  // columns.
   const rowVisibleSrc = flattenTreeCompact(rowRoot, {
     includeRoot: true,
     totalsPosition: rowsTotalsPosition,
+    emitGroupHeaders: true,
   });
   const rowLeaves = buildAxisLeaves(
     rowVisibleSrc,
     effectiveMeasures,
-    measuresOnRows
+    measuresOnRows,
+    rowsTotalsPosition === 'none'
   );
 
   // Re-flatten column leaves after per-dimension sort may have reordered
@@ -678,7 +693,8 @@ export const computeMatrix = ({
   const colLeavesFinal = buildAxisLeaves(
     colVisibleFinal,
     effectiveMeasures,
-    measuresOnCols
+    measuresOnCols,
+    colsTotalsPosition === 'none'
   );
 
   // effectiveMeasures already includes calcMeasures; append only standalone

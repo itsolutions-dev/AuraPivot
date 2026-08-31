@@ -54,7 +54,7 @@ componente riconosce l'oggetto che ha emesso e non lo riapplica.
 | `alternateRows` | boolean | `false` | Righe a zebra. |
 | `enableDrillThrough` | boolean | `true` | Abilita il drill-through sulle celle. |
 | `drillThroughStickyColumns` | intero ≥ 0 | `2` | Colonne bloccate a sinistra nel drill-through. |
-| `totalsRowsPosition` | string | `before` \| `after` \| `none` | Posizione delle righe totali. |
+| `totalsRowsPosition` | string | `before` \| `after` \| `none` | Posizione delle righe totali. Con `after` un gruppo di righe espanso mantiene in alto la riga di intestazione (che contiene il comando espandi/comprimi) e riceve una riga di subtotale sotto le proprie righe figlie. |
 | `totalsRowsSticky` | boolean | `false` | Fissa le righe totali allo scroll. |
 | `totalsColumnsPosition` | string | `before` \| `after` \| `none` | Posizione delle colonne totali. |
 | `totalsColumnsSticky` | boolean | `false` | Fissa le colonne totali allo scroll. |

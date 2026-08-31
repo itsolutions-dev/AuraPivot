@@ -1,11 +1,5 @@
 import React, { useMemo, useState } from "react";
 
-// Build-time flag injected by rollup `build-flags` plugin. Outside the
-// bundler the token stays unresolved — `typeof` guard prevents
-// ReferenceError.
-declare const __FREEPLAN__: boolean | undefined;
-const IS_FREEPLAN =
-  typeof __FREEPLAN__ !== "undefined" ? !!__FREEPLAN__ : false;
 import {
   Box,
   Dialog,
@@ -1423,39 +1417,37 @@ const FieldListBody = function FieldListBody({
         <DialogContent dividers>
           <Box sx={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 2 }}>
             <Box style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              {IS_FREEPLAN ? null : (
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 0.5,
-                    flexWrap: "wrap",
-                  }}
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  flexWrap: "wrap",
+                }}
+              >
+                <Typography
+                  variant="caption"
+                  sx={{ fontWeight: 600, opacity: 0.75 }}
                 >
-                  <Typography
-                    variant="caption"
-                    sx={{ fontWeight: 600, opacity: 0.75 }}
-                  >
-                    {tFL.allFields || "All fields"}
-                  </Typography>
-                  <Tooltip
-                    arrow
-                    placement="top"
-                    title={
-                      tFL.drillThroughOrder ||
-                      "Tick a field to include it in the drill-through table. Drag rows to reorder — the order here is the column order in the drill-through."
-                    }
-                  >
-                    <InfoOutlinedIcon
-                      sx={(theme) => ({
-                        fontSize: theme.typography.caption.fontSize,
-                        opacity: 0.65,
-                        cursor: "help",
-                      })}
-                    />
-                  </Tooltip>
-                </Box>
-              )}
+                  {tFL.allFields || "All fields"}
+                </Typography>
+                <Tooltip
+                  arrow
+                  placement="top"
+                  title={
+                    tFL.drillThroughOrder ||
+                    "Tick a field to include it in the drill-through table. Drag rows to reorder — the order here is the column order in the drill-through."
+                  }
+                >
+                  <InfoOutlinedIcon
+                    sx={(theme) => ({
+                      fontSize: theme.typography.caption.fontSize,
+                      opacity: 0.65,
+                      cursor: "help",
+                    })}
+                  />
+                </Tooltip>
+              </Box>
               <Box
                 onDragOver={(e: React.DragEvent<HTMLDivElement>) => {
                   e.preventDefault();
@@ -1644,29 +1636,27 @@ const FieldListBody = function FieldListBody({
                                   <TuneIcon fontSize="inherit" />
                                 </IconButton>
                               </Tooltip>
-                              {IS_FREEPLAN ? null : (
-                                <Tooltip
-                                  title={
-                                    tFL.showInDrillThrough ||
-                                    "Show in drill-through"
+                              <Tooltip
+                                title={
+                                  tFL.showInDrillThrough ||
+                                  "Show in drill-through"
+                                }
+                              >
+                                <Checkbox
+                                  size="small"
+                                  checked={isDrillThroughOn(f.uniqueName)}
+                                  onChange={(
+                                    e: React.ChangeEvent<HTMLInputElement>,
+                                  ) => {
+                                    e.stopPropagation();
+                                    toggleDrillThroughField(f.uniqueName);
+                                  }}
+                                  onClick={(e: React.MouseEvent) =>
+                                    e.stopPropagation()
                                   }
-                                >
-                                  <Checkbox
-                                    size="small"
-                                    checked={isDrillThroughOn(f.uniqueName)}
-                                    onChange={(
-                                      e: React.ChangeEvent<HTMLInputElement>,
-                                    ) => {
-                                      e.stopPropagation();
-                                      toggleDrillThroughField(f.uniqueName);
-                                    }}
-                                    onClick={(e: React.MouseEvent) =>
-                                      e.stopPropagation()
-                                    }
-                                    sx={{ p: "2px" }}
-                                  />
-                                </Tooltip>
-                              )}
+                                  sx={{ p: "2px" }}
+                                />
+                              </Tooltip>
                             </Box>
                           </Tooltip>
                           {isExpanded &&
@@ -1922,8 +1912,7 @@ const FieldListBody = function FieldListBody({
                             </Tooltip>
                           )}
                           {!f.isCalculated &&
-                            f.uniqueName !== "Measures" &&
-                            !IS_FREEPLAN && (
+                            f.uniqueName !== "Measures" && (
                               <Tooltip
                                 title={
                                   tFL.showInDrillThrough ||
@@ -2015,26 +2004,24 @@ const FieldListBody = function FieldListBody({
                 {tFL.addCalculated || "Add calculated value"}
               </Button>
 
-              {IS_FREEPLAN ? null : (
-                <Box sx={{ mt: 1.5 }}>
-                  <NumericField
-                    fullWidth
-                    size="small"
-                    min={0}
-                    step={1}
-                    value={frozenCount}
-                    onChange={(v) => setFrozenCount(v)}
-                    label={
-                      tFL.drillThroughStickyColumns ||
-                      "Frozen drill-through columns"
-                    }
-                    helperText={
-                      tFL.drillThroughStickyColumnsHelp ||
-                      "Number of left-pinned columns"
-                    }
-                  />
-                </Box>
-              )}
+              <Box sx={{ mt: 1.5 }}>
+                <NumericField
+                  fullWidth
+                  size="small"
+                  min={0}
+                  step={1}
+                  value={frozenCount}
+                  onChange={(v) => setFrozenCount(v)}
+                  label={
+                    tFL.drillThroughStickyColumns ||
+                    "Frozen drill-through columns"
+                  }
+                  helperText={
+                    tFL.drillThroughStickyColumnsHelp ||
+                    "Number of left-pinned columns"
+                  }
+                />
+              </Box>
             </Box>
 
             <Box>

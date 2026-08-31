@@ -1,23 +1,15 @@
 /**
- * Post-build assertion: the produced bundle is the variant the script was
- * told to expect. Guards against the publish-wrong-variant hazard (both
- * variants used to share `dist/`) and against degraded build artifacts
- * (stub sourcemaps, bundled exceljs, missing types/locales).
+ * Post-build assertion: the produced bundle is not degraded (stub
+ * sourcemaps, bundled exceljs, missing types/locales).
  *
- * Usage: node scripts/verify-dist.mjs <standard|freeplan>
- * Chained after rollup in every npm build script.
+ * Usage: node scripts/verify-dist.mjs
+ * Chained after rollup in the npm build script.
  */
 
 import fs from "node:fs";
 import path from "node:path";
 
-const variant = process.argv[2];
-if (!["standard", "freeplan"].includes(variant)) {
-  console.error("usage: node scripts/verify-dist.mjs <standard|freeplan>");
-  process.exit(2);
-}
-
-const outDir = variant === "freeplan" ? "dist-free" : "dist";
+const outDir = "dist";
 const problems = [];
 const fail = (msg) => problems.push(msg);
 
@@ -38,8 +30,7 @@ for (const f of requiredFiles) {
 const MAX_PLAIN_BYTES = 700 * 1024;
 const MAX_OBFUSCATED_BYTES = 1500 * 1024;
 
-const STAMP_RE =
-  /__AURA_PIVOT_BUILD__\s*=\s*\{variant:"(standard|freeplan)",obfuscated:"(yes|no)"/;
+const STAMP_RE = /__AURA_PIVOT_BUILD__\s*=\s*\{obfuscated:"(yes|no)"/;
 
 for (const name of ["index.js", "index.esm.js"]) {
   const p = path.join(outDir, name);
@@ -51,10 +42,7 @@ for (const name of ["index.js", "index.esm.js"]) {
     fail(`${p}: build stamp missing`);
     continue;
   }
-  if (stamp[1] !== variant) {
-    fail(`${p}: stamped '${stamp[1]}' but expected '${variant}'`);
-  }
-  const obfuscated = stamp[2] === "yes";
+  const obfuscated = stamp[1] === "yes";
 
   const maxBytes = obfuscated ? MAX_OBFUSCATED_BYTES : MAX_PLAIN_BYTES;
   if (code.length > maxBytes) {
@@ -70,20 +58,6 @@ for (const name of ["index.js", "index.esm.js"]) {
   // obfuscator's string array).
   if (!code.includes("exceljs")) {
     fail(`${p}: literal 'exceljs' specifier missing — lazy import broken`);
-  }
-
-  // The FREEPLAN watermark <Box> is dead-code-eliminated from standard
-  // builds; 'blur(4px)' only occurs inside it. Obfuscated builds encode
-  // string literals, so there the variant stamp is the authoritative
-  // signal and this grep is skipped.
-  if (!obfuscated) {
-    const hasWatermark = code.includes("blur(4px)");
-    if (variant === "freeplan" && !hasWatermark) {
-      fail(`${p}: freeplan watermark missing`);
-    }
-    if (variant === "standard" && hasWatermark) {
-      fail(`${p}: freeplan watermark leaked into the standard build`);
-    }
   }
 
   const mapPath = `${p}.map`;
@@ -107,4 +81,4 @@ if (problems.length > 0) {
   for (const msg of problems) console.error(`verify-dist FAIL: ${msg}`);
   process.exit(1);
 }
-console.log(`verify-dist OK — ${variant} build in ${outDir}/`);
+console.log(`verify-dist OK — build in ${outDir}/`);

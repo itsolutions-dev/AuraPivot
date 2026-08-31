@@ -78,3 +78,47 @@ describe('AuraPivot mount smoke', () => {
     expect(await screen.findByText('Alice')).toBeDefined();
   });
 });
+
+describe('totals turned off (layout.totalsRowsPosition: "none")', () => {
+  const nestedOptions: PivotOptions = {
+    data: {
+      ...options.data,
+      dimensions: [
+        { axis: 'row', uniqueName: 'region' },
+        { axis: 'row', uniqueName: 'agentName' },
+      ],
+    },
+    layout: { totalsRowsPosition: 'none' },
+  };
+
+  const renderPivot = (opts: PivotOptions) =>
+    render(
+      <VirtuosoMockContext.Provider value={virtuosoMock}>
+        <Pivot
+          options={opts}
+          dataSource={rows}
+          localization={dict}
+          width={800}
+          height={600}
+        />
+      </VirtuosoMockContext.Provider>
+    );
+
+  test('group rows keep their expand/collapse control', async () => {
+    const { container } = renderPivot(nestedOptions);
+    // Group rows are still on the axis…
+    expect(await screen.findByText('North')).toBeDefined();
+    expect(await screen.findByText('South')).toBeDefined();
+    // …and they own an active chevron.
+    const chevrons = container.querySelectorAll(
+      'td.pvt-chevron:not(.pvt-chevron-empty)'
+    );
+    expect(chevrons.length).toBeGreaterThan(0);
+  });
+
+  test('the grand-total row is gone', async () => {
+    renderPivot(nestedOptions);
+    expect(await screen.findByText('North')).toBeDefined();
+    expect(screen.queryByText(/Sum Total of Revenue/)).toBeNull();
+  });
+});

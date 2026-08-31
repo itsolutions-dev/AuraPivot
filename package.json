@@ -23,40 +23,39 @@
     "react-dom": ">=18"
   },
   "dependencies": {
-    "@mui/icons-material": "^9.0.1",
+    "@mui/icons-material": "^9.3.1",
     "exceljs": "^4.4.0",
     "file-saver": "^2.0.5"
   },
   "devDependencies": {
-    "@babel/core": "^7.29.0",
-    "@babel/preset-env": "^7.29.5",
-    "@babel/preset-react": "^7.28.5",
-    "@babel/preset-typescript": "^7.28.5",
+    "@babel/core": "^7.29.7",
+    "@babel/preset-env": "^7.29.7",
+    "@babel/preset-react": "^7.29.7",
+    "@babel/preset-typescript": "^7.29.7",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@mui/material": "^9.0.1",
-    "@rollup/plugin-babel": "^7.0.0",
-    "@rollup/plugin-commonjs": "^29.0.2",
+    "@mui/material": "^9.3.1",
+    "@rollup/plugin-babel": "^7.1.0",
+    "@rollup/plugin-commonjs": "^29.0.3",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^1.0.0",
     "@testing-library/react": "^16.3.2",
     "@types/file-saver": "^2.0.7",
-    "@types/react": "^19.2.15",
-    "@types/react-dom": "^19.2.3",
-    "cross-env": "^10.1.0",
-    "happy-dom": "^20.10.2",
-    "javascript-obfuscator": "^5.4.2",
-    "magic-string": "^0.30.21",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "react-virtuoso": "^4.18.7",
-    "rollup": "^4.60.4",
-    "rollup-plugin-dts": "^6.4.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "happy-dom": "^20.11.10",
+    "javascript-obfuscator": "^5.6.0",
+    "magic-string": "^1.2.3",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-virtuoso": "^4.18.12",
+    "rollup": "^4.63.0",
+    "rollup-plugin-dts": "^6.5.1",
     "rollup-plugin-obfuscator": "^1.1.0",
     "rollup-plugin-peer-deps-external": "^2.2.4",
     "rollup-plugin-postcss": "^4.0.2",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
   },
   "files": [
     "dist"
@@ -64,16 +63,10 @@
   "overrides": {
     "uuid": "^11.1.1"
   },
-  "freeplan": {
-    "maxBytes": 1048576,
-    "infoUrl": "https://aurapivot.dev"
-  },
   "scripts": {
     "check": "tsc --noEmit",
     "test": "vitest run",
-    "build": "npm run check && rollup -c && node scripts/verify-dist.mjs standard",
-    "build:freeplan": "npm run check && cross-env FREEPLAN=1 OBFUSCATOR=1 rollup -c && node scripts/verify-dist.mjs freeplan",
-    "build:freeplan2": "npm run check && cross-env FREEPLAN=1 OBFUSCATOR=0 rollup -c && node scripts/verify-dist.mjs freeplan",
+    "build": "npm run check && rollup -c && node scripts/verify-dist.mjs",
     "prepublishOnly": "npm run build"
   }
 }

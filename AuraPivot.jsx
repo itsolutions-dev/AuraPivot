@@ -13,7 +13,6 @@ import {
   Alert,
   ThemeProvider,
   Typography,
-  Link,
 } from "@mui/material";
 import PivotEngine from "./pivot-core";
 import { PivotProvider } from "./context/PivotContext";
@@ -25,35 +24,6 @@ import FormatDialog from "./components/FormatDialog/FormatDialog";
 import FilterBar from "./components/FilterBar/FilterBar";
 import { optionsToEngine, engineToOptions } from "./options/optionsAdapter";
 import optionsPropType from "./options/optionsPropType";
-
-// Build-time flags injected by rollup `build-flags` plugin. The `typeof`
-// guards keep the source runnable outside the bundler (tests, sibling-package
-// resolver) where the tokens stay unresolved.
-const IS_FREEPLAN =
-  typeof __FREEPLAN__ !== "undefined" ? !!__FREEPLAN__ : false;
-const FREEPLAN_MAX_BYTES =
-  typeof __FREEPLAN_MAX_BYTES__ !== "undefined"
-    ? __FREEPLAN_MAX_BYTES__
-    : 1024 * 1024;
-const FREEPLAN_INFO_URL =
-  typeof __FREEPLAN_INFO_URL__ !== "undefined"
-    ? __FREEPLAN_INFO_URL__
-    : "https://aurapivot.web.app";
-const FREEPLAN_WATERMARK_ICON =
-  typeof __FREEPLAN_WATERMARK_ICON__ !== "undefined"
-    ? __FREEPLAN_WATERMARK_ICON__
-    : "";
-
-const estimateDatasetBytes = (data) => {
-  try {
-    const json = JSON.stringify(data);
-    if (typeof Blob === "function") return new Blob([json]).size;
-    // Fallback: rough UTF-8 byte count for non-browser hosts.
-    return unescape(encodeURIComponent(json)).length;
-  } catch {
-    return 0;
-  }
-};
 
 /**
  * AuraPivot — a configurable React pivot table.
@@ -112,7 +82,6 @@ const Pivot = forwardRef(function Pivot(props, ref) {
   const [snack, setSnack] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [optsTick, setOptsTick] = useState(0);
-  const [freeplanBlock, setFreeplanBlock] = useState(null);
   const [layoutFormat, setLayoutFormat] = useState(
     () => engine.getFormat()?.layout || {},
   );
@@ -198,29 +167,9 @@ const Pivot = forwardRef(function Pivot(props, ref) {
   // no-op, so a host that echoes `onOptionsChange` back never loops.
   useEffect(() => {
     if (options && options === lastEmittedRef.current) return;
-    // FREEPLAN: reject an oversized dataset, apply config without the rows.
-    if (IS_FREEPLAN && dataSource) {
-      const bytes = estimateDatasetBytes(dataSource);
-      if (bytes > FREEPLAN_MAX_BYTES) {
-        setFreeplanBlock({ bytes, limit: FREEPLAN_MAX_BYTES });
-        applyingRef.current = true;
-        try {
-          optionsToEngine(engine, options, undefined);
-          // FREEPLAN: drill-through is always disabled regardless of intent.
-          engine.setOptions({ enableDrillThrough: false });
-        } finally {
-          applyingRef.current = false;
-        }
-        setOptsTick((t) => t + 1);
-        return;
-      }
-    }
-    setFreeplanBlock(null);
     applyingRef.current = true;
     try {
       optionsToEngine(engine, options, dataSource);
-      // FREEPLAN: drill-through is always disabled regardless of caller intent.
-      if (IS_FREEPLAN) engine.setOptions({ enableDrillThrough: false });
     } finally {
       applyingRef.current = false;
     }
@@ -356,40 +305,15 @@ const Pivot = forwardRef(function Pivot(props, ref) {
         )}
         <FilterBar />
         <Box sx={{ flex: 1, minHeight: 0 }}>
-          {freeplanBlock ? (
-            <Alert severity="warning" sx={{ m: 2 }} variant="outlined">
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                {localization?.freeplan?.title ||
-                  "Dataset too large for the free plan"}
-              </Typography>
-              <Typography variant="body2" sx={{ mt: 0.5 }}>
-                {localization?.freeplan?.body ||
-                  `This build limits the dataset to ${Math.round(
-                    freeplanBlock.limit / 1024,
-                  )} KB. Current dataset is ~${Math.round(
-                    freeplanBlock.bytes / 1024,
-                  )} KB.`}{" "}
-                <Link
-                  href={FREEPLAN_INFO_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {localization?.freeplan?.cta ||
-                    "Upgrade on aurapivot.web.app"}
-                </Link>
-              </Typography>
-            </Alert>
-          ) : (
-            // A render-time throw inside the grid must not take the host app
-            // down with it.
-            <ErrorBoundary
-              title={localization?.grid?.errorTitle}
-              message={localization?.grid?.errorBody}
-              retryLabel={localization?.buttons?.retry}
-            >
-              <PivotTable />
-            </ErrorBoundary>
-          )}
+          {/* A render-time throw inside the grid must not take the host app
+              down with it. */}
+          <ErrorBoundary
+            title={localization?.grid?.errorTitle}
+            message={localization?.grid?.errorBody}
+            retryLabel={localization?.buttons?.retry}
+          >
+            <PivotTable />
+          </ErrorBoundary>
         </Box>
         {layoutFormat?.note ? (
           <Typography
@@ -411,48 +335,6 @@ const Pivot = forwardRef(function Pivot(props, ref) {
           measuresAxis={options?.layout?.measuresAxis}
         />
         <FormatDialog open={formatOpen} onClose={() => setFormatOpen(false)} />
-        {IS_FREEPLAN && (
-          <Box
-            component="a"
-            href={FREEPLAN_INFO_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={FREEPLAN_INFO_URL}
-            sx={{
-              position: "absolute",
-              right: 8,
-              bottom: 8,
-              zIndex: 1200,
-              display: "flex",
-              alignItems: "center",
-              gap: 0.75,
-              px: 1,
-              py: 0.5,
-              borderRadius: 1,
-              fontSize: 11,
-              lineHeight: 1,
-              textDecoration: "none",
-              color: "text.secondary",
-              backgroundColor: "rgba(255,255,255,0.75)",
-              backdropFilter: "blur(4px)",
-              border: "1px solid",
-              borderColor: "divider",
-              opacity: 0.85,
-              pointerEvents: "auto",
-              "&:hover": { opacity: 1 },
-            }}
-          >
-            {FREEPLAN_WATERMARK_ICON ? (
-              <Box
-                component="img"
-                src={FREEPLAN_WATERMARK_ICON}
-                alt=""
-                sx={{ width: 16, height: 16, display: "block" }}
-              />
-            ) : null}
-            <span>aurapivot.web.app</span>
-          </Box>
-        )}
       </Box>
       <Snackbar
         open={!!snack}

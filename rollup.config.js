@@ -9,26 +9,13 @@ import peerDepsExternal from "rollup-plugin-peer-deps-external";
 import obfuscator from "rollup-plugin-obfuscator";
 import pkg from "./package.json" with { type: "json" };
 
-// FREEPLAN compile-time flag. Build with `npm run build:freeplan` or
-// `FREEPLAN=1 rollup -c`. When active:
-//   - __FREEPLAN__ token replaced with `true` (gates drillthrough + size check)
-//   - __FREEPLAN_MAX_BYTES__ replaced with the byte limit from package.json
-//   - __FREEPLAN_INFO_URL__ replaced with the upgrade link
-//
-// OBFUSCATOR=1 adds per-module javascript-obfuscator passes (heavy for UI /
-// gating code, light for the hot compute paths — see HOT_PATHS); terser
-// always runs as the output finalizer. Independent of FREEPLAN — run
-// `FREEPLAN=1 OBFUSCATOR=0 rollup -c` for a fast non-obfuscated FREEPLAN
-// build during development.
-const FREEPLAN = process.env.FREEPLAN === "1";
+// OBFUSCATOR=1 adds per-module javascript-obfuscator passes (heavy for UI
+// code, light for the hot compute paths — see HOT_PATHS); terser always
+// runs as the output finalizer. Run `OBFUSCATOR=0 rollup -c` for a fast
+// non-obfuscated build during development.
 const OBFUSCATOR = process.env.OBFUSCATOR === "1";
 
-// Each variant gets its own output directory so a FREEPLAN build can never
-// silently overwrite `dist/` and ship as the standard package. The package
-// entries (`main` / `module` / `types`) point at `dist/`; publishing the
-// free variant is an explicit copy from `dist-free/`.
-const VARIANT = FREEPLAN ? "freeplan" : "standard";
-const OUT_DIR = FREEPLAN ? "dist-free" : "dist";
+const OUT_DIR = "dist";
 
 const cleanOutDir = () => ({
   name: "clean-out-dir",
@@ -64,63 +51,6 @@ const copyTypes = () => ({
     );
   },
 });
-const FREEPLAN_MAX_BYTES =
-  Number(process.env.FREEPLAN_MAX_BYTES) ||
-  pkg.freeplan?.maxBytes ||
-  1024 * 1024;
-const FREEPLAN_INFO_URL =
-  process.env.FREEPLAN_INFO_URL ||
-  pkg.freeplan?.infoUrl ||
-  "https://aurapivot.web.app";
-
-// Inline the sibling PresentationApp favicon as a data URL so the FREEPLAN
-// watermark is self-contained in the bundle. Only read when FREEPLAN is on
-// to avoid noise in standard builds.
-const readWatermarkDataUrl = () => {
-  if (!FREEPLAN) return "";
-  const candidates = [path.resolve("./favicon.ico")];
-  for (const p of candidates) {
-    try {
-      const buf = fs.readFileSync(p);
-      return `data:image/x-icon;base64,${buf.toString("base64")}`;
-    } catch {
-      /* try next */
-    }
-  }
-  return "";
-};
-const FREEPLAN_WATERMARK_ICON = readWatermarkDataUrl();
-
-const buildFlags = () => {
-  const replacements = {
-    __FREEPLAN__: String(FREEPLAN),
-    __FREEPLAN_MAX_BYTES__: String(FREEPLAN_MAX_BYTES),
-    __FREEPLAN_INFO_URL__: JSON.stringify(FREEPLAN_INFO_URL),
-    __FREEPLAN_WATERMARK_ICON__: JSON.stringify(FREEPLAN_WATERMARK_ICON),
-  };
-  const pattern = new RegExp(
-    `\\b(${Object.keys(replacements).join("|")})\\b`,
-    "g",
-  );
-  return {
-    name: "build-flags",
-    transform(code, id) {
-      if (id.includes("node_modules")) return null;
-      if (!/\.([jt]sx?|mjs)$/.test(id)) return null;
-      pattern.lastIndex = 0;
-      if (!pattern.test(code)) return null;
-      pattern.lastIndex = 0;
-      // MagicString keeps the sourcemap chain intact — a bare string
-      // replace here degrades every downstream map to an empty stub.
-      const s = new MagicString(code);
-      let m;
-      while ((m = pattern.exec(code)) !== null) {
-        s.overwrite(m.index, m.index + m[0].length, replacements[m[0]]);
-      }
-      return { code: s.toString(), map: s.generateMap({ hires: true }) };
-    },
-  };
-};
 
 const obfuscatorOptions = {
   compact: true,
@@ -213,13 +143,13 @@ const finalizer = terser({
 const processShim =
   'if(typeof globalThis.process==="undefined"){globalThis.process={env:{NODE_ENV:"production"},browser:true,version:"v20.0.0",versions:{node:"20.0.0"},platform:"browser",nextTick:function(cb){Promise.resolve().then(cb);}};}';
 
-// Machine-readable variant stamp. Lives in the intro (real code, not a
+// Machine-readable build stamp. Lives in the intro (real code, not a
 // comment) so neither terser nor the obfuscator strips it; scripts/
 // verify-dist.mjs asserts it after every build, and it is inspectable at
 // runtime via globalThis.__AURA_PIVOT_BUILD__.
-const buildStamp = `globalThis.__AURA_PIVOT_BUILD__={variant:${JSON.stringify(
-  VARIANT,
-)},obfuscated:${JSON.stringify(OBFUSCATOR ? "yes" : "no")},version:${JSON.stringify(pkg.version)}};`;
+const buildStamp = `globalThis.__AURA_PIVOT_BUILD__={obfuscated:${JSON.stringify(
+  OBFUSCATOR ? "yes" : "no",
+)},version:${JSON.stringify(pkg.version)}};`;
 
 const intro = processShim + buildStamp;
 
@@ -259,7 +189,6 @@ export default {
         return { code: s.toString(), map: s.generateMap({ hires: true }) };
       },
     },
-    buildFlags(),
     peerDepsExternal(),
     resolve({
       extensions: [".js", ".jsx", ".ts", ".tsx", ".json"],

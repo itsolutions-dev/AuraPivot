@@ -403,12 +403,10 @@ function App() {
 ```bash
 npm run check           # tsc --noEmit (also runs as part of every build)
 npm test                # vitest
-npm run build           # standard build (terser-minified) → dist/
-npm run build:freeplan  # FREEPLAN build, obfuscated → dist-free/
-npm run build:freeplan2 # FREEPLAN build, non-obfuscated (fast, for development) → dist-free/
+npm run build           # full build (terser-minified) → dist/
 ```
 
-Outputs (standard; the FREEPLAN variant writes the same layout to `dist-free/`):
+Outputs:
 
 | File                  | Format       | Use                            |
 | --------------------- | ------------ | ------------------------------ |
@@ -418,8 +416,8 @@ Outputs (standard; the FREEPLAN variant writes the same layout to `dist-free/`):
 | `dist/index.d.ts`     | TypeScript   | Public type declarations       |
 | `dist/locales/*.json` | JSON         | Opt-in localization dictionaries |
 
-Every build is asserted by `scripts/verify-dist.mjs` (variant stamp, artifact
-completeness, sourcemap integrity, size ceiling). The built variant is also
+Every build is asserted by `scripts/verify-dist.mjs` (build stamp, artifact
+completeness, sourcemap integrity, size ceiling). The build is also
 inspectable at runtime via `globalThis.__AURA_PIVOT_BUILD__`.
 
 Excel export note: `exceljs` (~900 KB) is **not** bundled — it loads through a

@@ -29,6 +29,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SettingsIcon from "@mui/icons-material/Settings";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import UnfoldMoreIcon from "@mui/icons-material/UnfoldMore";
+import UnfoldLessIcon from "@mui/icons-material/UnfoldLess";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutlined";
 import { findNodeByKey } from "../../pivot-core/slice/TreeBuilder";
 import { usePivot } from "../../context/PivotContext";
@@ -669,6 +670,22 @@ const PivotTable = function PivotTable() {
       .join(" · ");
   }, [matrix?.measures, matrix?.measuresOnColumns, metadata, t]);
 
+  // Caption of a totals-'after' subtotal row. The member name is templated
+  // ("IT" → "IT Total") so the row reads as the group's closing total rather
+  // than as a second copy of its header; with measures on rows the measure
+  // suffix is re-appended after the template.
+  const subtotalCaption = useCallback(
+    (rowNode: AxisLeaf) => {
+      const template = t?.grid?.subtotalCaptionTemplate || "{member} Total";
+      const member = rowNode.memberCaption ?? rowNode.caption;
+      const labelled = template.replace("{member}", member);
+      return rowNode.measureCaption
+        ? `${labelled} — ${rowNode.measureCaption}`
+        : labelled;
+    },
+    [t],
+  );
+
   const captionFor = useCallback(
     (uniqueName: string) => {
       if (uniqueName === "Measures") {
@@ -798,6 +815,16 @@ const PivotTable = function PivotTable() {
     },
     [engine],
   );
+
+  // Same predicate the global branch of handleToggleChildren uses, so the
+  // button's icon always matches what the next click will do.
+  const gridFullyExpanded = useMemo(() => {
+    const expands = slice.expands || {};
+    return (
+      expands.expandAll !== false &&
+      (expands.expandedMembers || []).length === 0
+    );
+  }, [slice.expands]);
 
   /**
    * Called when the user clicks a non-null value cell. Walks the row/col
@@ -956,7 +983,11 @@ const PivotTable = function PivotTable() {
                       },
                     })}
                   >
-                    <UnfoldMoreIcon fontSize="inherit" />
+                    {gridFullyExpanded ? (
+                      <UnfoldLessIcon fontSize="inherit" />
+                    ) : (
+                      <UnfoldMoreIcon fontSize="inherit" />
+                    )}
                   </IconButton>
                 )}
               </Box>
@@ -1164,6 +1195,10 @@ const PivotTable = function PivotTable() {
       const hasGrandchildren =
         hasChildren &&
         rowNode.children.some((c) => c && c.children && c.children.length > 0);
+      // Drives the level-below button icon — engine.toggleChildrenExpansion
+      // decides its direction with the very same predicate.
+      const childrenExpanded =
+        hasChildren && rowNode.children.every((c) => c.isExpanded !== false);
       const indent = Math.max(0, rowNode.depth) * INDENT_PX;
       // Grand total is the root-level synthetic node (depth === -1). We shade
       // it noticeably deeper than per-group subtotals so it reads as the
@@ -1187,8 +1222,16 @@ const PivotTable = function PivotTable() {
       const showNodeControls =
         rowNode.measureKey == null || rowNode.isFirstMeasure === true;
 
+      // With totals 'after' a group renders as two rows: the header clone on
+      // top and the subtotal below its children. The controls belong to the
+      // header only — duplicating them on the subtotal row would give the
+      // same node two chevrons.
       const showChevron =
-        hasChildren && compact && showNodeControls && !rowNode.isTotal;
+        hasChildren &&
+        compact &&
+        showNodeControls &&
+        !rowNode.isTotal &&
+        !rowNode.isSubtotal;
 
       return (
         <>
@@ -1243,14 +1286,20 @@ const PivotTable = function PivotTable() {
               isTotal={rowNode.isTotal}
               isGrandTotal={isGrandTotal}
               onToggleChildren={
-                hasGrandchildren && !rowNode.isTotal && showNodeControls
+                hasGrandchildren &&
+                !rowNode.isTotal &&
+                !rowNode.isSubtotal &&
+                showNodeControls
                   ? () => handleToggleChildren(nodeKeyOf(rowNode))
                   : undefined
               }
+              childrenExpanded={childrenExpanded}
               caption={
                 rowNode.isTotal && !rowNode.measureKey
                   ? totalCaption
-                  : rowNode.caption
+                  : rowNode.isSubtotal
+                    ? subtotalCaption(rowNode)
+                    : rowNode.caption
               }
               style={isGrandTotal ? grandTotalLabelStyle : dimensionStyle}
               shade={shade}
@@ -1351,15 +1400,20 @@ const PivotTable = function PivotTable() {
             const hideCurrentRatioOnTotal =
               aggFromKey === "currentRatio" &&
               (isTotalOfTotalCell || !!col.isTotal);
-            const displayValue = hideCurrentRatioOnTotal
-              ? ""
-              : cell
-                ? formatNumberWithFormat(cell.value, effectiveSection) ||
-                  cell.formattedValue
-                : "";
+            // Totals turned off ('none'): the group row/column is kept only
+            // to carry its expand/collapse control, so its cells stay empty.
+            const hideAsTotal = !!rowNode.totalsHidden || !!col.totalsHidden;
+            const displayValue =
+              hideCurrentRatioOnTotal || hideAsTotal
+                ? ""
+                : cell
+                  ? formatNumberWithFormat(cell.value, effectiveSection) ||
+                    cell.formattedValue
+                  : "";
             const cellClickable = !!(
               options?.enableDrillThrough !== false &&
               !hideCurrentRatioOnTotal &&
+              !hideAsTotal &&
               cell &&
               cell.value !== null &&
               cell.value !== undefined
@@ -1387,7 +1441,13 @@ const PivotTable = function PivotTable() {
                 <BodyValueCell
                   isTotal={rowNode.isTotal}
                   isGrandTotal={isGrandTotal}
-                  style={isGrandTotal ? gtCellStyle : resolved}
+                  style={
+                    hideAsTotal
+                      ? undefined
+                      : isGrandTotal
+                        ? gtCellStyle
+                        : resolved
+                  }
                   shade={shade}
                   density={density}
                   clickable={cellClickable}
@@ -1427,6 +1487,7 @@ const PivotTable = function PivotTable() {
       handleToggleChildren,
       handleLabelClick,
       openDrillThrough,
+      subtotalCaption,
       t,
       sort,
       format,
@@ -2247,7 +2308,7 @@ const ChevronCell = function ChevronCell({
           {expanded ? (
             <ExpandMoreIcon fontSize="inherit" />
           ) : (
-            <ExpandLessIcon fontSize="inherit" />
+            <ChevronRightIcon fontSize="inherit" />
           )}
         </IconButton>
       )}
@@ -2272,6 +2333,7 @@ interface BodyLabelCellProps {
   isGrandTotal?: boolean;
   caption?: React.ReactNode;
   onToggleChildren?: () => void;
+  childrenExpanded?: boolean;
   style?: Partial<CellStyle> | null;
   shade?: number;
   density?: DensityConfig;
@@ -2287,6 +2349,7 @@ const BodyLabelCell = function BodyLabelCell({
   isGrandTotal,
   caption,
   onToggleChildren,
+  childrenExpanded,
   style,
   shade,
   density,
@@ -2417,7 +2480,11 @@ const BodyLabelCell = function BodyLabelCell({
             "& svg": { fontSize: theme.typography.body2.fontSize },
           })}
         >
-          <UnfoldMoreIcon fontSize="inherit" />
+          {childrenExpanded ? (
+            <UnfoldLessIcon fontSize="inherit" />
+          ) : (
+            <UnfoldMoreIcon fontSize="inherit" />
+          )}
         </IconButton>
       )}
     </Box>
@@ -2430,6 +2497,7 @@ BodyLabelCell.propTypes = {
   isGrandTotal: PropTypes.bool,
   caption: PropTypes.string,
   onToggleChildren: PropTypes.func,
+  childrenExpanded: PropTypes.bool,
   style: PropTypes.object,
   shade: PropTypes.number,
   density: PropTypes.object,

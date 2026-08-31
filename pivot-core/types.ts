@@ -69,6 +69,19 @@ export interface TreeNode {
   rowIndexes: number[];
   field?: string;
   value?: string | number | null;
+  /** Axis-leaf only: group node whose aggregate is suppressed (totals 'none'). */
+  totalsHidden?: boolean;
+  /**
+   * Axis-leaf only, totals 'after': header clone emitted above the group's
+   * children. Carries the expand/collapse control; its cells stay empty
+   * because the aggregate belongs to the matching `isSubtotal` row.
+   */
+  isGroupHeader?: boolean;
+  /**
+   * Axis-leaf only, totals 'after': the group node emitted below its own
+   * children as the subtotal row, paired with an `isGroupHeader` clone.
+   */
+  isSubtotal?: boolean;
 }
 
 export interface MatrixCell {

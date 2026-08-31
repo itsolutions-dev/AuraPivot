@@ -66,6 +66,7 @@
     "empty": "Nessun dato da visualizzare",
     "expandCollapseAll": "Espandi/Comprimi tutto",
     "expandCollapseChildren": "Espandi / Comprimi livello successivo",
+    "subtotalCaptionTemplate": "Totale {member}",
     "grandTotalMeasureCaptionTemplate": "Totale di {field} ({agg})",
     "measureCaptionTemplate": "{field} ({agg})",
     "hiddenMeasures": "Altri valori",
@@ -141,7 +142,15 @@
     "title": "Dettaglio dati",
     "record": "record",
     "recordsFound": "record trovati",
-    "noRecords": "Nessun record."
+    "noRecords": "Nessun record.",
+    "eyebrow": "Dettaglio record",
+    "records": "record",
+    "columns": "colonne",
+    "filtered": "filtrati",
+    "filter": "Filtra record…",
+    "noMatch": "Nessun record corrisponde al filtro.",
+    "of": "di",
+    "close": "Chiudi"
   },
   "calculatedField": {
     "groupArithmetic": "Aritmetica",
@@ -258,7 +267,7 @@
     "ruleValueConstant": "Costante",
     "ruleValueMeasure": "Misura",
     "selectMeasure": "Seleziona misura",
-    "ruleValueUpperBound": "Upper bound",
+    "ruleValueUpperBound": "Limite superiore",
     "expression": "Espressione",
     "addClause": "Aggiungi clausola",
     "expressionJoin": "Combina le espressioni con",
@@ -271,7 +280,9 @@
     "exprEndsWith": "Termina con",
     "exprContains": "Contiene",
     "exprEquals": "Eguale a",
-    "exprNot": "NON"
+    "exprNot": "NON",
+    "enableDrillThrough": "DRILL-THROUGH",
+    "enableDrillThroughToggle": "Abilita il drill-through (doppio clic su una cella per vedere le righe sottostanti)"
   },
   "dates": {
     "monthNames": [

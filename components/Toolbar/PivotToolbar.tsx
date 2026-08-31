@@ -1,11 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
-// Build-time flag injected by rollup `build-flags` plugin. Outside the
-// bundler the token stays unresolved — `typeof` guard prevents
-// ReferenceError.
-declare const __FREEPLAN__: boolean | undefined;
-const IS_FREEPLAN =
-  typeof __FREEPLAN__ !== 'undefined' ? !!__FREEPLAN__ : false;
 import {
   Box,
   Button,
@@ -311,11 +305,8 @@ const PivotToolbar = function PivotToolbar({
         return options?.toolbar?.showFields !== false;
       if (tab.id === 'wdr-tab-format')
         return options?.toolbar?.showFormat !== false;
-      if (tab.id === 'wdr-tab-export') {
-        // FREEPLAN: export tab is always hidden regardless of caller intent.
-        if (IS_FREEPLAN) return false;
+      if (tab.id === 'wdr-tab-export')
         return options?.toolbar?.showExport !== false;
-      }
       if (tab.id === 'wdr-tab-fullscreen')
         return options?.toolbar?.showFullscreen !== false;
       /*       if (tab.id.startsWith('reset-'))

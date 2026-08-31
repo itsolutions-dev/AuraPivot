@@ -66,6 +66,7 @@
     "empty": "No data to display",
     "expandCollapseAll": "Expand/Collapse all",
     "expandCollapseChildren": "Expand / Collapse level below",
+    "subtotalCaptionTemplate": "{member} Total",
     "grandTotalMeasureCaptionTemplate": "Total of {field} ({agg})",
     "measureCaptionTemplate": "{field} ({agg})",
     "hiddenMeasures": "Other measures",
@@ -141,7 +142,15 @@
     "title": "Detail data",
     "record": "record",
     "recordsFound": "records found",
-    "noRecords": "No records."
+    "noRecords": "No records.",
+    "eyebrow": "Drill-through",
+    "records": "records",
+    "columns": "columns",
+    "filtered": "filtered",
+    "filter": "Filter records…",
+    "noMatch": "No records match the filter.",
+    "of": "of",
+    "close": "Close"
   },
   "calculatedField": {
     "groupArithmetic": "Arithmetic",
@@ -271,7 +280,9 @@
     "exprEndsWith": "Ends with",
     "exprContains": "Contains",
     "exprEquals": "Equals",
-    "exprNot": "NOT"
+    "exprNot": "NOT",
+    "enableDrillThrough": "DRILL-THROUGH",
+    "enableDrillThroughToggle": "Enable drill-through (double-click a cell to see underlying rows)"
   },
   "dates": {
     "monthNames": [

@@ -11,18 +11,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 npm run check           # tsc --noEmit (chained into every build script)
 npm test                # vitest (FormulaEvaluator, sanitizeSvg, usePivotMatrix, ExcelExporter)
-npm run build           # standard → dist/ (cjs + esm + index.d.ts + locales + sourcemaps)
-npm run build:freeplan  # FREEPLAN=1 OBFUSCATOR=1 — obfuscated free build → dist-free/
-npm run build:freeplan2 # FREEPLAN=1 OBFUSCATOR=0 — fast free build for development → dist-free/
+npm run build           # → dist/ (cjs + esm + index.d.ts + locales + sourcemaps)
 ```
 
 No lint script, no dev server. Rollup config reads `package.json` with an import assertion (`assert { type: "json" }`) so Node ≥ 18 is required. `components/PivotTable/PivotTable.tsx` carries `@ts-nocheck` (pre-existing conversion debt) — do not add new `@ts-nocheck` files.
 
-Variant hygiene: each variant builds into its own directory (`dist/` vs `dist-free/`, cleaned at build start) and the bundle intro carries a runtime stamp `globalThis.__AURA_PIVOT_BUILD__ = { variant, obfuscated, version }`. Every build script chains `scripts/verify-dist.mjs`, which asserts the stamp matches the expected variant, the lazy `import('exceljs')` specifier survived, sourcemaps are real (non-obfuscated builds) or absent (obfuscated), watermark presence/absence, and size ceilings. `npm publish` runs the standard build via `prepublishOnly`; only `dist/` is in `files`, so the free variant can never ship by accident.
+Build hygiene: `dist/` is cleaned at build start and the bundle intro carries a runtime stamp `globalThis.__AURA_PIVOT_BUILD__ = { obfuscated, version }`. The build script chains `scripts/verify-dist.mjs`, which asserts the stamp is present, the lazy `import('exceljs')` specifier survived, sourcemaps are real (non-obfuscated builds) or absent (obfuscated), and size ceilings hold. `npm publish` runs the build via `prepublishOnly`; only `dist/` is in `files`.
 
 exceljs is NOT bundled: `ExcelExporter` lazy-loads it with `import('exceljs')` on the first export and rollup marks it `external` — the consumer's bundler code-splits it from `dependencies`. The `'exceljs'` specifier is in the obfuscator's `reservedStrings` so string-array encoding cannot break resolution.
 
-When `OBFUSCATOR=1`, obfuscation runs per-module after babel: heavy options for UI/gating code, a light set (no control-flow flattening / dead-code injection) for the hot compute paths listed in `HOT_PATHS`; terser always finalizes the bundle.
+When `OBFUSCATOR=1`, obfuscation runs per-module after babel: heavy options for UI code, a light set (no control-flow flattening / dead-code injection) for the hot compute paths listed in `HOT_PATHS`; terser always finalizes the bundle.
 
 Public entry: `index.js` re-exports `Pivot` (default + named), `PivotProvider`/`usePivot`, `usePivotMatrix`, and the `mergeLocalization` helper. Public type declarations are hand-maintained in `index.d.ts` (root) and copied to `dist/index.d.ts` by the `copyTypes` rollup plugin — keep it in sync when the public surface changes. Locale dictionaries are NOT bundled — they ship as separate JSON files at `dist/locales/{it,en}.json`, exposed via package `exports` subpaths (`@its/aura-pivot/locales/it.json`, `…/en.json`). The rollup `copyLocales` plugin copies `localization/*.json` to `dist/locales/` on build.
 

@@ -149,18 +149,6 @@ describe('functions', () => {
   });
 });
 
-describe('FREEPLAN gate', () => {
-  test('IF throws the freeplan message when allowIf is false', () => {
-    expect(() =>
-      evaluateFormulaExpression('IF(1, 2, 3)', { allowIf: false })
-    ).toThrow('IF() is not available in the free plan');
-  });
-
-  test('other functions unaffected by allowIf', () => {
-    expect(evaluateFormulaExpression('ABS(-1)', { allowIf: false })).toBe(1);
-  });
-});
-
 describe('identifiers', () => {
   test('resolved through the provided resolver', () => {
     const resolve = (name: string) => (name === 'revenue' ? 10 : null);

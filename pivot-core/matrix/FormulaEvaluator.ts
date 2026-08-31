@@ -29,8 +29,6 @@
  */
 
 export interface FormulaEvalOptions {
-  /** When false, IF() throws the free-plan error at evaluation time. */
-  allowIf?: boolean;
   /**
    * Resolves a bare identifier to a numeric value (legacy "chip" references
    * already substituted by the caller normally make this unnecessary).
@@ -280,7 +278,6 @@ const parse = (src: string): AstNode => {
 // Evaluator
 // ---------------------------------------------------------------------------
 
-const FREEPLAN_IF_ERROR = 'IF() is not available in the free plan';
 
 const evalNode = (node: AstNode, opts: FormulaEvalOptions): unknown => {
   switch (node.type) {
@@ -346,7 +343,6 @@ const evalNode = (node: AstNode, opts: FormulaEvalOptions): unknown => {
     }
     case 'call': {
       if (node.name === 'if') {
-        if (opts.allowIf === false) throw new Error(FREEPLAN_IF_ERROR);
         const cond = evalNode(node.args[0], opts);
         if (cond) return evalNode(node.args[1], opts);
         return node.args.length > 2 ? evalNode(node.args[2], opts) : undefined;

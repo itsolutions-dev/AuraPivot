@@ -1,12 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 
-// Build-time flag injected by rollup `build-flags` plugin. Outside the
-// bundler the token stays unresolved — `typeof` guard prevents
-// ReferenceError.
-declare const __FREEPLAN__: boolean | undefined;
-const IS_FREEPLAN =
-  typeof __FREEPLAN__ !== 'undefined' ? !!__FREEPLAN__ : false;
-
 import {
   Accordion,
   AccordionDetails,
@@ -1311,15 +1304,10 @@ const RuleEditor = function RuleEditor({
         value: 'between',
         label: tOps.between || 'Between',
       },
-      // FREEPLAN: the `expression` operator is removed from the list.
-      ...(IS_FREEPLAN
-        ? []
-        : [
-            {
-              value: 'expression',
-              label: tOps.expression || 'Expression',
-            },
-          ]),
+      {
+        value: 'expression',
+        label: tOps.expression || 'Expression',
+      },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [t],

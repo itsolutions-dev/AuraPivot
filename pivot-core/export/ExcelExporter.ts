@@ -79,6 +79,12 @@ export const exportMatrixToExcel = async ({
     const prefix = "  ".repeat(Math.max(0, rowNode.depth));
     const rowData: (string | number | null)[] = [`${prefix}${rowNode.caption}`];
     colLeaves.forEach((colNode) => {
+      // Mirror the grid: group rows/cols kept alive by `totalsPosition: 'none'`
+      // exist only to carry the expand/collapse control — no aggregate.
+      if (rowNode.totalsHidden || colNode.totalsHidden) {
+        rowData.push("");
+        return;
+      }
       const cell = matrix.cells.get(`${rowNode.key}::${colNode.key}`);
       rowData.push(cell ? (cell.value ?? "") : "");
     });

@@ -31,7 +31,6 @@ export interface LocalizationDictionary {
   formatDialog?: Record<string, unknown>;
   /** Month / weekday names and date-related labels. */
   dates?: Record<string, unknown>;
-  freeplan?: Record<string, unknown>;
   [section: string]: unknown;
 }
 
