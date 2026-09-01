@@ -14,7 +14,6 @@ import path from "node:path";
 import { execSync } from "node:child_process";
 
 const OUT = "THIRD-PARTY-NOTICES.md";
-const LICENSE_FILES = ["LICENSE", "LICENSE.md", "LICENSE.txt", "LICENCE"];
 
 const tree = JSON.parse(
   execSync("npm ls --omit=dev --long --json --all", {
@@ -42,24 +41,68 @@ const walk = (node, isRoot = false) => {
 };
 walk(tree, true);
 
+const issues = [];
 const sections = [];
 for (const [name, dir] of [...seen].sort(([a], [b]) => a.localeCompare(b))) {
   const pkgPath = path.join(dir, "package.json");
-  if (!fs.existsSync(pkgPath)) continue;
-  const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+  if (!fs.existsSync(pkgPath)) {
+    console.warn(`⚠ ${name}: package.json not found or not readable`);
+    issues.push(name);
+    continue;
+  }
 
+  let pkg;
+  try {
+    pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+  } catch {
+    console.warn(`⚠ ${name}: package.json not parseable`);
+    issues.push(name);
+    continue;
+  }
+
+  // Find licence file by scanning directory.
   let text = "";
-  for (const f of LICENSE_FILES) {
-    const p = path.join(dir, f);
-    if (fs.existsSync(p)) {
+  try {
+    const files = fs.readdirSync(dir);
+    const licenceFile = files
+      .filter((f) => /^(licen[cs]e|copying|notice)(\.|$)/i.test(f))
+      .sort()[0];
+    if (licenceFile) {
+      const p = path.join(dir, licenceFile);
       text = fs.readFileSync(p, "utf8").trim();
-      break;
     }
+  } catch {
+    // Silently skip unreadable directories.
+  }
+
+  // Build the licence line based on what's present.
+  let licenceLine;
+  if (pkg.license) {
+    licenceLine = `License: ${pkg.license}\n`;
+    if (!text) {
+      // Has field but no file — legitimate, but make absence explicit.
+      licenceLine += "No licence file is distributed with this package.\n";
+      console.warn(
+        `⚠ ${name}@${pkg.version}: has license field but no licence file`,
+      );
+      issues.push(`${name} (field only)`);
+    }
+  } else if (text) {
+    // Has file but no field — unusual but reproducible.
+    licenceLine = "License: see below\n";
+  } else {
+    // Has neither — must be explicit about the gap.
+    licenceLine =
+      "License: UNKNOWN — no licence field and no licence file found; verify manually before release.\n";
+    console.warn(
+      `⚠ ${name}@${pkg.version}: has neither license field nor licence file`,
+    );
+    issues.push(`${name} (unknown)`);
   }
 
   sections.push(
     `## ${name}@${pkg.version}\n\n` +
-      `License: ${pkg.license ?? "see below"}\n` +
+      licenceLine +
       (pkg.homepage ? `Homepage: ${pkg.homepage}\n` : "") +
       (text ? `\n\`\`\`\n${text}\n\`\`\`\n` : "\n"),
   );
@@ -72,4 +115,9 @@ const header =
   "its own licence and copyright notice, as those licences require.\n\n---\n\n";
 
 fs.writeFileSync(OUT, header + sections.join("\n---\n\n"));
-console.log(`third-party-notices: wrote ${OUT} (${sections.length} packages)`);
+
+let summary = `third-party-notices: wrote ${OUT} (${sections.length} packages)`;
+if (issues.length > 0) {
+  summary += ` — ${issues.length} without complete licence info`;
+}
+console.log(summary);

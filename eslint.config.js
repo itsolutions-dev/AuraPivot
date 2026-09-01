@@ -34,7 +34,7 @@ export default tseslint.config(
     rules: { "@typescript-eslint/no-explicit-any": "off" },
   },
   {
-    // The only plain-JS files in the repo, both build tooling — they run
+    // The only plain-JS files in the repo, all build tooling — they run
     // under Node, not the library's browser/React runtime.
     files: [
       "scripts/verify-dist.mjs",
