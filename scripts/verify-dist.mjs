@@ -66,6 +66,25 @@ for (const name of ["index.js", "index.esm.js"]) {
   }
 }
 
+// The public type surface is generated, so a refactor that stops exporting
+// a consumer-facing type would otherwise reach npm silently.
+const REQUIRED_TYPES = [
+  "PivotOptions",
+  "AuraPivotProps",
+  "AuraPivotRef",
+  "PivotEngine",
+  "LocalizationDictionary",
+];
+const dtsPath = path.join(outDir, "index.d.ts");
+if (fs.existsSync(dtsPath)) {
+  const dts = fs.readFileSync(dtsPath, "utf8");
+  for (const name of REQUIRED_TYPES) {
+    if (!new RegExp(`\\b${name}\\b`).test(dts)) {
+      fail(`${dtsPath}: public type '${name}' is no longer exported`);
+    }
+  }
+}
+
 if (problems.length > 0) {
   for (const msg of problems) console.error(`verify-dist FAIL: ${msg}`);
   process.exit(1);

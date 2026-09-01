@@ -48,17 +48,6 @@ export interface Slice {
   flatOrder?: string[];
 }
 
-export interface PivotOptions {
-  sorting?: "columns" | "rows" | "none";
-  drillThrough?: boolean;
-}
-
-export interface Report {
-  slice: Slice;
-  dataSource?: { data?: unknown[]; dataSourceType?: "json" };
-  options?: PivotOptions;
-}
-
 export interface TreeNode {
   key: string;
   caption: string;

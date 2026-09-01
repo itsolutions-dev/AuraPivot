@@ -25,7 +25,7 @@ import { sanitizeSvgMarkup } from './sanitizeSvg';
 // Internal types
 // ---------------------------------------------------------------------------
 
-interface TabMenuItem {
+export interface TabMenuItem {
   id: string;
   title: string;
   icon?: string | React.ReactNode;
@@ -34,7 +34,7 @@ interface TabMenuItem {
   tooltip?: string;
 }
 
-interface TabDef {
+export interface TabDef {
   id: string;
   title: string;
   handler?: () => void;

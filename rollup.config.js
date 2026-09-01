@@ -6,6 +6,7 @@ import commonjs from "@rollup/plugin-commonjs";
 import terser from "@rollup/plugin-terser";
 import babel from "@rollup/plugin-babel";
 import peerDepsExternal from "rollup-plugin-peer-deps-external";
+import dts from "rollup-plugin-dts";
 import pkg from "./package.json" with { type: "json" };
 
 const OUT_DIR = "dist";
@@ -30,18 +31,6 @@ const copyLocales = () => ({
         fs.copyFileSync(path.join(src, f), path.join(dest, f));
       }
     }
-  },
-});
-
-// Hand-maintained public declarations (index.d.ts at the repo root) shipped
-// next to the bundles — the `types` entry in package.json points there.
-const copyTypes = () => ({
-  name: "copy-types",
-  writeBundle() {
-    fs.copyFileSync(
-      path.resolve("index.d.ts"),
-      path.resolve(OUT_DIR, "index.d.ts"),
-    );
   },
 });
 
@@ -70,7 +59,7 @@ const buildStamp = `globalThis.__AURA_PIVOT_BUILD__={version:${JSON.stringify(
 
 const intro = processShim + buildStamp;
 
-export default {
+const jsConfig = {
   input: "index.ts",
   // Nothing in `dependencies` is bundled. exceljs (~900 KB) is loaded by
   // ExcelExporter through a dynamic import() on the first export; the other
@@ -133,6 +122,17 @@ export default {
     }),
     finalizer,
     copyLocales(),
-    copyTypes(),
   ],
 };
+
+// Declarations are bundled from source rather than hand-maintained: a
+// contributor changing a prop type gets the shipped .d.ts updated for
+// free, and cannot silently desynchronise it.
+const dtsConfig = {
+  input: "index.ts",
+  output: { file: `${OUT_DIR}/index.d.ts`, format: "es" },
+  external: [/\.css$/, /^@mui\//, /^react/, "exceljs", "react-virtuoso"],
+  plugins: [dts()],
+};
+
+export default [jsConfig, dtsConfig];
