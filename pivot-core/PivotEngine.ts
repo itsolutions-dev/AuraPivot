@@ -114,6 +114,10 @@ export interface CellStyleFormat {
 
 /** Layout format section. */
 export interface LayoutFormat {
+  /** Report title rendered above the toolbar; empty/absent hides it. */
+  title?: string;
+  /** Footnote rendered under the grid; empty/absent hides it. */
+  note?: string;
   totalsRowsPosition?: string;
   totalsRowsSticky?: boolean;
   totalsColumnsPosition?: string;

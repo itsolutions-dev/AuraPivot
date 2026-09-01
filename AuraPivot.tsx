@@ -5,23 +5,106 @@ import React, {
   useMemo,
   useRef,
   useState,
-} from "react";
+} from 'react';
 import {
   Box,
   Snackbar,
   Alert,
   ThemeProvider,
   Typography,
-} from "@mui/material";
-import PivotEngine from "./pivot-core";
-import { PivotProvider } from "./context/PivotContext";
-import PivotToolbar from "./components/Toolbar/PivotToolbar";
-import PivotTable from "./components/PivotTable/PivotTable";
-import ErrorBoundary from "./components/ErrorBoundary";
-import FieldList from "./components/FieldList/FieldList";
-import FormatDialog from "./components/FormatDialog/FormatDialog";
-import FilterBar from "./components/FilterBar/FilterBar";
-import { optionsToEngine, engineToOptions } from "./options/optionsAdapter";
+} from '@mui/material';
+import type { AlertColor } from '@mui/material';
+import type { Theme } from '@mui/material/styles';
+import PivotEngine from './pivot-core';
+import type { LayoutFormat } from './pivot-core/PivotEngine';
+import type {
+  AuraPivotOptions,
+  AuraPivotProps as SharedAuraPivotProps,
+} from './pivot-core/types';
+import type { LocalizationDictionary } from './localization/types';
+import { PivotProvider } from './context/PivotContext';
+import PivotToolbar from './components/Toolbar/PivotToolbar';
+import type { ToolbarApi } from './components/Toolbar/PivotToolbar';
+import PivotTable from './components/PivotTable/PivotTable';
+import ErrorBoundary from './components/ErrorBoundary';
+import FieldList from './components/FieldList/FieldList';
+import FormatDialog from './components/FormatDialog/FormatDialog';
+import FilterBar from './components/FilterBar/FilterBar';
+import { optionsToEngine, engineToOptions } from './options/optionsAdapter';
+
+/**
+ * Public props. `AuraPivotProps` in pivot-core/types.ts is the single source
+ * of truth for the shape; pivot-core is framework-agnostic on purpose, so the
+ * three fields it can only type loosely down there (no MUI, no React, no
+ * component-local types) are narrowed here, in the React layer.
+ */
+export interface AuraPivotProps
+  extends Omit<
+    SharedAuraPivotProps,
+    'theme' | 'localization' | 'beforeToolbarCreated'
+  > {
+  /** Caption dictionary; English fallbacks are built in. */
+  localization?: LocalizationDictionary;
+  /** Receives the toolbar API so consumers can add / filter / reorder tabs. */
+  beforeToolbarCreated?: (api: ToolbarApi) => void;
+  /** MUI theme object, or `(outerTheme) => theme` for partial overrides. */
+  theme?: Theme | ((outer: Theme) => Theme);
+}
+
+/** Imperative handle exposed on the component ref. */
+export interface AuraPivotRef {
+  auraPivot: {
+    /** Returns the current `options` schema. */
+    getOptions: () => AuraPivotOptions;
+  };
+  /** Raw engine escape hatch. */
+  engine: PivotEngine;
+}
+
+interface SnackState {
+  severity: AlertColor;
+  message: string;
+}
+
+/**
+ * Vendor-prefixed Fullscreen API. The prefixed names are real on older Safari
+ * and IE; widening the standard DOM types (rather than reaching for `any`)
+ * keeps the call sites checked and documents why they exist. Prefixed
+ * implementations return nothing, hence `Promise<void> | undefined`.
+ */
+type FullscreenRequest = (
+  options?: FullscreenOptions,
+) => Promise<void> | undefined;
+type FullscreenExit = () => Promise<void> | undefined;
+
+type FullscreenElement = HTMLElement & {
+  webkitRequestFullscreen?: FullscreenRequest;
+  msRequestFullscreen?: FullscreenRequest;
+};
+
+type FullscreenDocument = Document & {
+  webkitFullscreenElement?: Element | null;
+  msFullscreenElement?: Element | null;
+  webkitExitFullscreen?: FullscreenExit;
+  msExitFullscreen?: FullscreenExit;
+};
+
+/** Localization sections are `Record<string, unknown>` — narrow to a caption. */
+const caption = (value: unknown): string | undefined =>
+  typeof value === 'string' ? value : undefined;
+
+/**
+ * `catch` binds `unknown` under strict mode. Duck-typed on `message` rather
+ * than `instanceof Error` to keep the pre-conversion behaviour for
+ * cross-realm errors and plain `{ message }` rejections.
+ */
+const errorMessage = (err: unknown, fallback: string): string => {
+  if (err && typeof err === 'object' && 'message' in err) {
+    const message = (err as { message?: unknown }).message;
+    if (typeof message === 'string' && message) return message;
+  }
+  return fallback;
+};
 
 /**
  * AuraPivot — a configurable React pivot table.
@@ -45,10 +128,13 @@ import { optionsToEngine, engineToOptions } from "./options/optionsAdapter";
  * partial overrides); when provided the subtree is wrapped in a
  * `<ThemeProvider>`.
  */
-const Pivot = forwardRef(function Pivot(props, ref) {
+const Pivot = forwardRef<AuraPivotRef, AuraPivotProps>(function Pivot(
+  props,
+  ref,
+) {
   const {
-    width = "100%",
-    height = "100%",
+    width = '100%',
+    height = '100%',
     locale,
     localization: localizationProp,
     options,
@@ -62,86 +148,90 @@ const Pivot = forwardRef(function Pivot(props, ref) {
 
   // Loop guard: the object last handed to `onOptionsChange`. When the host
   // feeds it straight back as `options`, the inbound effect skips it.
-  const lastEmittedRef = useRef(null);
+  const lastEmittedRef = useRef<AuraPivotOptions | null>(null);
   // True while an inbound apply is running, so its engine events do not
   // bounce back out through `onOptionsChange`.
   const applyingRef = useRef(false);
   const onOptionsChangeRef = useRef(onOptionsChange);
   onOptionsChangeRef.current = onOptionsChange;
 
-  const engineRef = useRef(null);
+  const engineRef = useRef<PivotEngine | null>(null);
   if (engineRef.current === null) {
     engineRef.current = new PivotEngine();
   }
-  const engine = engineRef.current;
+  const engine: PivotEngine = engineRef.current;
 
   const [fieldsOpen, setFieldsOpen] = useState(false);
   const [formatOpen, setFormatOpen] = useState(false);
-  const [snack, setSnack] = useState(null);
+  const [snack, setSnack] = useState<SnackState | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [optsTick, setOptsTick] = useState(0);
-  const [layoutFormat, setLayoutFormat] = useState(
+  const [layoutFormat, setLayoutFormat] = useState<LayoutFormat>(
     () => engine.getFormat()?.layout || {},
   );
-  const rootRef = useRef(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const onFormat = () => setLayoutFormat(engine.getFormat()?.layout || {});
-    engine.on("formatChange", onFormat);
-    return () => engine.off("formatChange", onFormat);
+    engine.on('formatChange', onFormat);
+    return () => engine.off('formatChange', onFormat);
   }, [engine]);
 
   const handleToggleFullscreen = () => {
-    const el = rootRef.current;
+    const el: FullscreenElement | null = rootRef.current;
     if (!el) return;
-    const doc = typeof document !== "undefined" ? document : null;
+    const doc: FullscreenDocument | null =
+      typeof document !== 'undefined' ? document : null;
     const fsEl =
       doc?.fullscreenElement ||
       doc?.webkitFullscreenElement ||
       doc?.msFullscreenElement;
     if (!fsEl) {
-      const req =
+      const req: FullscreenRequest | undefined =
         el.requestFullscreen ||
         el.webkitRequestFullscreen ||
         el.msRequestFullscreen;
       if (req) {
         const p = req.call(el);
-        if (p && typeof p.catch === "function") {
-          p.catch((err) =>
+        if (p && typeof p.catch === 'function') {
+          p.catch((err: unknown) =>
             setSnack({
-              severity: "error",
-              message: err?.message || "Fullscreen error",
+              severity: 'error',
+              message: errorMessage(err, 'Fullscreen error'),
             }),
           );
         }
       }
     } else {
-      const exit =
-        doc.exitFullscreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
-      if (exit) exit.call(doc);
+      const exit: FullscreenExit | undefined =
+        doc?.exitFullscreen ||
+        doc?.webkitExitFullscreen ||
+        doc?.msExitFullscreen;
+      if (doc && exit) exit.call(doc);
     }
   };
 
   useEffect(() => {
     const handler = () => {
+      const doc: FullscreenDocument = document;
       const fsEl =
-        document.fullscreenElement ||
-        document.webkitFullscreenElement ||
-        document.msFullscreenElement;
+        doc.fullscreenElement ||
+        doc.webkitFullscreenElement ||
+        doc.msFullscreenElement;
       setIsFullscreen(!!fsEl && fsEl === rootRef.current);
     };
-    document.addEventListener("fullscreenchange", handler);
-    document.addEventListener("webkitfullscreenchange", handler);
-    document.addEventListener("msfullscreenchange", handler);
+    document.addEventListener('fullscreenchange', handler);
+    document.addEventListener('webkitfullscreenchange', handler);
+    document.addEventListener('msfullscreenchange', handler);
     return () => {
-      document.removeEventListener("fullscreenchange", handler);
-      document.removeEventListener("webkitfullscreenchange", handler);
-      document.removeEventListener("msfullscreenchange", handler);
+      document.removeEventListener('fullscreenchange', handler);
+      document.removeEventListener('webkitfullscreenchange', handler);
+      document.removeEventListener('msfullscreenchange', handler);
     };
   }, []);
 
   // No bundled fallback — engine treats missing keys as empty strings.
-  const localization = useMemo(
+  const localization = useMemo<LocalizationDictionary>(
     () => localizationProp || {},
     [localizationProp],
   );
@@ -187,7 +277,7 @@ const Pivot = forwardRef(function Pivot(props, ref) {
       if (cancelled) return;
       const next = engineToOptions(engine);
       lastEmittedRef.current = next;
-      if (typeof onOptionsChangeRef.current === "function") {
+      if (typeof onOptionsChangeRef.current === 'function') {
         onOptionsChangeRef.current(next);
       }
     };
@@ -197,14 +287,14 @@ const Pivot = forwardRef(function Pivot(props, ref) {
       scheduled = true;
       queueMicrotask(emit);
     };
-    engine.on("dataChange", schedule);
-    engine.on("reportChange", schedule);
-    engine.on("formatChange", schedule);
+    engine.on('dataChange', schedule);
+    engine.on('reportChange', schedule);
+    engine.on('formatChange', schedule);
     return () => {
       cancelled = true;
-      engine.off("dataChange", schedule);
-      engine.off("reportChange", schedule);
-      engine.off("formatChange", schedule);
+      engine.off('dataChange', schedule);
+      engine.off('reportChange', schedule);
+      engine.off('formatChange', schedule);
     };
   }, [engine]);
 
@@ -223,13 +313,17 @@ const Pivot = forwardRef(function Pivot(props, ref) {
 
   const handleExportExcel = async () => {
     try {
-      await engine.exportExcel("pivot.xlsx");
+      await engine.exportExcel('pivot.xlsx');
       setSnack({
-        severity: "success",
-        message: localization?.toolbar?.exportSuccess || "Export complete",
+        severity: 'success',
+        message:
+          caption(localization?.toolbar?.exportSuccess) || 'Export complete',
       });
     } catch (err) {
-      setSnack({ severity: "error", message: err?.message || "Export error" });
+      setSnack({
+        severity: 'error',
+        message: errorMessage(err, 'Export error'),
+      });
     }
   };
 
@@ -263,16 +357,16 @@ const Pivot = forwardRef(function Pivot(props, ref) {
       <Box
         ref={rootRef}
         sx={(theme) => ({
-          position: "relative",
+          position: 'relative',
           width,
           height,
-          display: "flex",
-          flexDirection: "column",
+          display: 'flex',
+          flexDirection: 'column',
           backgroundColor: theme.palette.background.paper,
           color: theme.palette.text.primary,
-          fontFamily: theme.font?.primary || "Inter",
+          fontFamily: theme.font?.primary || 'Inter',
           borderRadius: 2,
-          overflow: "hidden",
+          overflow: 'hidden',
           border: `1px solid ${theme.palette.divider}`,
         })}
       >
@@ -306,9 +400,9 @@ const Pivot = forwardRef(function Pivot(props, ref) {
           {/* A render-time throw inside the grid must not take the host app
               down with it. */}
           <ErrorBoundary
-            title={localization?.grid?.errorTitle}
-            message={localization?.grid?.errorBody}
-            retryLabel={localization?.buttons?.retry}
+            title={caption(localization?.grid?.errorTitle)}
+            message={caption(localization?.grid?.errorBody)}
+            retryLabel={caption(localization?.buttons?.retry)}
           >
             <PivotTable />
           </ErrorBoundary>
@@ -319,7 +413,7 @@ const Pivot = forwardRef(function Pivot(props, ref) {
             sx={(theme) => ({
               px: 2,
               py: 1,
-              whiteSpace: "pre-wrap",
+              whiteSpace: 'pre-wrap',
               color: theme.palette.text.secondary,
               borderTop: `1px solid ${theme.palette.divider}`,
             })}
@@ -338,10 +432,11 @@ const Pivot = forwardRef(function Pivot(props, ref) {
         open={!!snack}
         autoHideDuration={4000}
         onClose={() => setSnack(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        // Re-portal inside the fullscreen element when active, otherwise the
-        // snackbar is hidden by the Fullscreen API top-layer.
-        container={isFullscreen ? rootRef.current : undefined}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        // No `container`: MUI v9's Snackbar is not Modal-based and declares
+        // no such prop, so the value was only ever spread onto the root div
+        // as an unknown DOM attribute. Re-portaling it into the fullscreen
+        // element needs a different mechanism than the dialogs use.
       >
         {snack ? (
           <Alert severity={snack.severity} onClose={() => setSnack(null)}>

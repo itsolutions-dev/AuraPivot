@@ -71,7 +71,7 @@ const buildStamp = `globalThis.__AURA_PIVOT_BUILD__={version:${JSON.stringify(
 const intro = processShim + buildStamp;
 
 export default {
-  input: "index.js",
+  input: "index.ts",
   // Nothing in `dependencies` is bundled. exceljs (~900 KB) is loaded by
   // ExcelExporter through a dynamic import() on the first export; the other
   // three are ordinary imports the consumer's bundler resolves and

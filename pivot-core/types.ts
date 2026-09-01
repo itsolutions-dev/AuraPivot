@@ -236,13 +236,11 @@ export interface AuraPivotOptions {
 }
 
 // ---------------------------------------------------------------------------
-// Ref handle and component props
+// Component props
+//
+// The ref handle is declared in AuraPivot.tsx, where PivotEngine can be named
+// without dragging the React layer into the framework-agnostic core.
 // ---------------------------------------------------------------------------
-
-export interface AuraPivotHandle {
-  auraPivot: { getOptions: () => AuraPivotOptions };
-  engine: unknown; // narrowed to PivotEngine where consumed
-}
 
 export interface AuraPivotProps {
   width?: string | number;

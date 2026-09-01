@@ -44,7 +44,7 @@ interface TabDef {
   menu?: TabMenuItem[];
 }
 
-interface ToolbarApi {
+export interface ToolbarApi {
   getTabs: () => TabDef[];
 }
 
