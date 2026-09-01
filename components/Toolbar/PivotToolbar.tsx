@@ -134,7 +134,9 @@ const buildDefaultTabs = ({
   ];
 };
 
-const IconFor = function IconFor({ name }: IconForProps): React.ReactElement | null {
+const IconFor = function IconFor({
+  name,
+}: IconForProps): React.ReactElement | null {
   if (name === 'fields') return <ViewColumnIcon fontSize="small" />;
   if (name === 'format') return <TuneIcon fontSize="small" />;
   if (name === 'export') return <FileDownloadIcon fontSize="small" />;
@@ -146,7 +148,9 @@ const IconFor = function IconFor({ name }: IconForProps): React.ReactElement | n
   return null;
 };
 
-const renderIcon = (icon: string | React.ReactNode | undefined): React.ReactNode => {
+const renderIcon = (
+  icon: string | React.ReactNode | undefined,
+): React.ReactNode => {
   if (!icon) return null;
   // Support consumer-provided SVG markup strings (auraPivot convention).
   // Markup is sanitized first — icon configs can round-trip through
@@ -158,7 +162,6 @@ const renderIcon = (icon: string | React.ReactNode | undefined): React.ReactNode
     return (
       <Box
         component="span"
-        // eslint-disable-next-line react/no-danger
         dangerouslySetInnerHTML={{ __html: safeMarkup }}
         sx={{
           display: 'inline-flex',
@@ -172,7 +175,9 @@ const renderIcon = (icon: string | React.ReactNode | undefined): React.ReactNode
   return icon;
 };
 
-const ToolbarButton = function ToolbarButton({ tab }: ToolbarButtonProps): React.ReactElement {
+const ToolbarButton = function ToolbarButton({
+  tab,
+}: ToolbarButtonProps): React.ReactElement {
   const [anchor, setAnchor] = React.useState<HTMLElement | null>(null);
   const portalContainer = usePortalContainer();
   const hasMenu = Array.isArray(tab.menu) && tab.menu.length > 0;
@@ -269,7 +274,14 @@ const PivotToolbar = function PivotToolbar({
         isFullscreen,
         t,
       }),
-    [onOpenFields, onOpenFormat, onExportExcel, onToggleFullscreen, isFullscreen, t],
+    [
+      onOpenFields,
+      onOpenFormat,
+      onExportExcel,
+      onToggleFullscreen,
+      isFullscreen,
+      t,
+    ],
   );
 
   // `beforeToolbarCreated` is consumer code that may mutate the DOM or call

@@ -14,7 +14,7 @@ import {
 } from '../aggregation/Aggregator';
 import { flattenTreeCompact, sortTreeSiblings } from '../slice/TreeBuilder';
 import { evaluateFormulaExpression } from './FormulaEvaluator';
-import type { DataRow, TreeNode, MatrixCell, MetadataRow, AggregationType } from '../types';
+import type { DataRow, TreeNode, MatrixCell, MetadataRow } from '../types';
 import type { RichSliceField } from '../slice/TreeBuilder';
 
 /** A measure enriched with optional engine-level fields. aggregation is wider than AggregationType to include internal kinds. */
@@ -78,7 +78,11 @@ export interface ComputedMatrix {
   sourceRows: DataRow[];
   measures: EnrichedMeasure[];
   sort: SortConfig | null;
-  layout: { totalsRowsPosition: string; totalsColumnsPosition: string; alternateRows: boolean };
+  layout: {
+    totalsRowsPosition: string;
+    totalsColumnsPosition: string;
+    alternateRows: boolean;
+  };
   measuresOnRows: boolean;
   measuresOnColumns: boolean;
 }
@@ -93,7 +97,7 @@ const buildAxisLeaves = (
   visible: TreeNode[],
   measures: EnrichedMeasure[],
   hasMeasures: boolean,
-  totalsOff = false
+  totalsOff = false,
 ): AxisLeaf[] => {
   const hidesTotals = (leaf: TreeNode): boolean =>
     !!leaf.isGroupHeader ||
@@ -164,9 +168,14 @@ const intersectIndexes = (a: number[], b: number[]): number[] => {
  * @param {Function} resolver (aggregation, uniqueName) => number | null
  * @param {string[]} fieldNames known data-field uniqueNames used to detect bare references
  */
-const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const escapeRegExp = (s: string): string =>
+  s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const evalFormula = (formula: string, resolver: (agg: string, fieldName: string) => number | null, fieldNames: string[] = []): { value: number | null; error: string | null } => {
+const evalFormula = (
+  formula: string,
+  resolver: (agg: string, fieldName: string) => number | null,
+  fieldNames: string[] = [],
+): { value: number | null; error: string | null } => {
   try {
     const resolveValue = (agg: string, fieldName: string): string => {
       const val = resolver(agg, fieldName);
@@ -178,7 +187,7 @@ const evalFormula = (formula: string, resolver: (agg: string, fieldName: string)
         const aggLower = agg.toLowerCase();
         const normalized = aggLower === 'running' ? 'runningsum' : aggLower;
         return resolveValue(normalized, fieldName);
-      }
+      },
     );
     // Bare field references (chips) → default to sum(field). Longer names
     // matched first so "revenueGross" doesn't get shortened to "revenue".
@@ -240,11 +249,8 @@ export const computeMatrix = ({
   const rowsTotalsPosition = layout.totalsRowsPosition || 'before';
   const colsTotalsPosition = layout.totalsColumnsPosition || 'before';
 
-  const regularMeasures = (measures || []).filter(
-    (m) => m.aggregation !== 'formula'
-  );
   const calcMeasures = (measures || []).filter(
-    (m) => m.aggregation === 'formula'
+    (m) => m.aggregation === 'formula',
   );
   // Merge calc fields — calculatedFields (from the engine) carry the actual
   // `formula` string, while slice-side calcMeasures only carry uniqueName +
@@ -253,7 +259,7 @@ export const computeMatrix = ({
     ...(calculatedFields || []),
     ...calcMeasures.filter(
       (m) =>
-        !(calculatedFields || []).some((cf) => cf.uniqueName === m.uniqueName)
+        !(calculatedFields || []).some((cf) => cf.uniqueName === m.uniqueName),
     ),
   ];
   // Calc-field measures must share axis expansion with regular measures so
@@ -272,7 +278,7 @@ export const computeMatrix = ({
   const colLeaves = buildAxisLeaves(
     colVisible,
     effectiveMeasures,
-    measuresOnCols
+    measuresOnCols,
   );
 
   // Initial row traversal — unsorted, 'before' orientation — used to compute
@@ -285,7 +291,7 @@ export const computeMatrix = ({
   const rowTraversal = buildAxisLeaves(
     rowTraversalSrc,
     effectiveMeasures,
-    measuresOnRows
+    measuresOnRows,
   );
 
   const cells = new Map<string, MatrixCell & { error?: string | null }>();
@@ -315,7 +321,7 @@ export const computeMatrix = ({
     colLeaves.forEach((colLeaf) => {
       const intersection = intersectIndexes(
         rowLeaf.rowIndexes,
-        colLeaf.rowIndexes
+        colLeaf.rowIndexes,
       );
 
       // Which measure drives this cell?
@@ -330,7 +336,7 @@ export const computeMatrix = ({
           : null);
       const measure = measureKey
         ? effectiveMeasures.find(
-            (m) => `${m.uniqueName}:${m.aggregation}` === measureKey
+            (m) => `${m.uniqueName}:${m.aggregation}` === measureKey,
           ) || effectiveMeasures[0]
         : null;
       if (!measure) return;
@@ -380,7 +386,8 @@ export const computeMatrix = ({
           }
           value = den > 0 ? num / den : 0;
         } else {
-          const den = (measureKey ? ratioDenominators.get(measureKey) : undefined) || 0;
+          const den =
+            (measureKey ? ratioDenominators.get(measureKey) : undefined) || 0;
           value = den > 0 ? num / den : 0;
         }
       } else if (intersection.length > 0) {
@@ -443,13 +450,13 @@ export const computeMatrix = ({
             : null);
         const measure = measureKey
           ? effectiveMeasures.find(
-              (m) => `${m.uniqueName}:${m.aggregation}` === measureKey
+              (m) => `${m.uniqueName}:${m.aggregation}` === measureKey,
             )
           : null;
         if (!measure || measure.aggregation !== 'formula') return;
 
         const cf = allCalcFields.find(
-          (c) => c.uniqueName === measure.uniqueName
+          (c) => c.uniqueName === measure.uniqueName,
         );
         if (!cf || !cf.formula) return;
 
@@ -466,7 +473,7 @@ export const computeMatrix = ({
             }
             const inter = intersectIndexes(
               rowLeaf.rowIndexes,
-              colLeaf.rowIndexes
+              colLeaf.rowIndexes,
             );
             const nums = inter
               .map((i) => Number(rows[i]?.[fieldName]))
@@ -479,7 +486,7 @@ export const computeMatrix = ({
           }
           const inter = intersectIndexes(
             rowLeaf.rowIndexes,
-            colLeaf.rowIndexes
+            colLeaf.rowIndexes,
           );
           if (inter.length === 0) {
             return agg === 'count' || agg === 'distinctcount' ? 0 : null;
@@ -494,11 +501,7 @@ export const computeMatrix = ({
           return applyAggregation(agg, nums);
         };
 
-        const { value, error } = evalFormula(
-          cf.formula,
-          resolver,
-          fieldNames
-        );
+        const { value, error } = evalFormula(cf.formula, resolver, fieldNames);
         cells.set(`${rowLeaf.key}::${colLeaf.key}`, {
           rowKey: rowLeaf.key,
           colKey: colLeaf.key,
@@ -515,14 +518,18 @@ export const computeMatrix = ({
   // `fieldSort` of shape { mode: 'measure', measure: { uniqueName,
   // aggregation }, direction }. We walk each tree and sort a node's
   // children using the cell value at the grand-total of the opposite axis.
-  const applyDimensionSort = (root: TreeNode, fields: RichSliceField[], axis: 'row' | 'col'): void => {
+  const applyDimensionSort = (
+    root: TreeNode,
+    fields: RichSliceField[],
+    axis: 'row' | 'col',
+  ): void => {
     const fieldByDepth = (fields || []).filter(
-      (f) => f && f.uniqueName !== 'Measures'
+      (f) => f && f.uniqueName !== 'Measures',
     );
     if (fieldByDepth.length === 0) return;
     const hasAnyMeasureSort = fieldByDepth.some(
       (f) =>
-        f.fieldSort && f.fieldSort.mode === 'measure' && f.fieldSort.measure
+        f.fieldSort && f.fieldSort.mode === 'measure' && f.fieldSort.measure,
     );
     if (!hasAnyMeasureSort) return;
 
@@ -567,7 +574,7 @@ export const computeMatrix = ({
             String(a.caption || '').localeCompare(
               String(b.caption || ''),
               locale || undefined,
-              { numeric: true }
+              { numeric: true },
             ) * dir
           );
         });
@@ -593,7 +600,7 @@ export const computeMatrix = ({
       effectiveMeasures.find(
         (m) =>
           m.uniqueName === sortMeasure.uniqueName &&
-          m.aggregation === sortMeasure.aggregation
+          m.aggregation === sortMeasure.aggregation,
       );
     const colKeySuffix = measuresOnCols
       ? measureForKey
@@ -616,7 +623,7 @@ export const computeMatrix = ({
         String(a.caption || '').localeCompare(
           String(b.caption || ''),
           locale || undefined,
-          { numeric: true }
+          { numeric: true },
         ) * dir
       );
     });
@@ -638,7 +645,7 @@ export const computeMatrix = ({
       effectiveMeasures.find(
         (m) =>
           m.uniqueName === sortMeasure.uniqueName &&
-          m.aggregation === sortMeasure.aggregation
+          m.aggregation === sortMeasure.aggregation,
       );
     const rowKeySuffix = measuresOnRows
       ? measureForKey
@@ -661,7 +668,7 @@ export const computeMatrix = ({
         String(a.caption || '').localeCompare(
           String(b.caption || ''),
           locale || undefined,
-          { numeric: true }
+          { numeric: true },
         ) * dir
       );
     });
@@ -679,7 +686,7 @@ export const computeMatrix = ({
     rowVisibleSrc,
     effectiveMeasures,
     measuresOnRows,
-    rowsTotalsPosition === 'none'
+    rowsTotalsPosition === 'none',
   );
 
   // Re-flatten column leaves after per-dimension sort may have reordered
@@ -693,14 +700,14 @@ export const computeMatrix = ({
     colVisibleFinal,
     effectiveMeasures,
     measuresOnCols,
-    colsTotalsPosition === 'none'
+    colsTotalsPosition === 'none',
   );
 
   // effectiveMeasures already includes calcMeasures; append only standalone
   // calculated fields that aren't in the slice so the engine can still
   // surface them in report metadata without duplicating axis leaves.
   const standaloneCalc = allCalcFields.filter(
-    (cf) => !calcMeasures.some((m) => m.uniqueName === cf.uniqueName)
+    (cf) => !calcMeasures.some((m) => m.uniqueName === cf.uniqueName),
   );
   const allMeasures: EnrichedMeasure[] = [
     ...effectiveMeasures,
@@ -729,4 +736,3 @@ export const computeMatrix = ({
     measuresOnColumns: measuresOnCols,
   };
 };
-

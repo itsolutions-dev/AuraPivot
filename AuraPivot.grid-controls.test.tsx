@@ -43,7 +43,7 @@ const renderPivot = (dict: LocalizationDictionary) =>
         width={800}
         height={600}
       />
-    </VirtuosoMockContext.Provider>
+    </VirtuosoMockContext.Provider>,
   );
 
 const iconOf = (el: Element | null | undefined) =>
@@ -54,9 +54,7 @@ const firstNodeChevron = (container: HTMLElement) =>
   container.querySelector('td.pvt-chevron:not(.pvt-chevron-empty)');
 
 const expandAllButton = (dict: LocalizationDictionary) =>
-  screen.getByTitle(
-    (dict.grid as Record<string, string>).expandCollapseAll
-  );
+  screen.getByTitle((dict.grid as Record<string, string>).expandCollapseAll);
 
 describe('expand / collapse icons reflect state', () => {
   test('a node chevron points down when expanded, right when collapsed', async () => {
@@ -79,14 +77,14 @@ describe('expand / collapse icons reflect state', () => {
 
     fireEvent.click(button);
     expect(iconOf(expandAllButton(en as LocalizationDictionary))).toBe(
-      'UnfoldMoreIcon'
+      'UnfoldMoreIcon',
     );
   });
 });
 
 describe('drill-through localization', () => {
   test('the Italian dictionary drives every drill-through label', async () => {
-    const { container } = renderPivot(it as LocalizationDictionary);
+    renderPivot(it as LocalizationDictionary);
     await screen.findByText('North');
 
     // Any rendered measure value opens the drill-through dialog. The number

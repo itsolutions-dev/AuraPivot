@@ -90,14 +90,21 @@ const inferInitialMode = (filter: FilterEntry, type: string): FilterMode => {
   if (filter.range) return 'range';
   if (Array.isArray(filter?.members) && filter.members.length > 1)
     return 'multi';
-  if (filter.value !== undefined && filter.value !== null && filter.value !== '') {
+  if (
+    filter.value !== undefined &&
+    filter.value !== null &&
+    filter.value !== ''
+  ) {
     return 'single';
   }
   const modes = MODES_BY_TYPE[type] || MODES_BY_TYPE.string;
   return modes[0]?.value || 'multi';
 };
 
-const filterSummary = (filter: FilterEntry, t: Record<string, unknown>): string => {
+const filterSummary = (
+  filter: FilterEntry,
+  t: Record<string, unknown>,
+): string => {
   const range = filter.range;
   // dynamic boundary: localization values are unknown
   const tb = (t as Record<string, Record<string, string>>)?.filterBar ?? {};
@@ -111,7 +118,11 @@ const filterSummary = (filter: FilterEntry, t: Record<string, unknown>): string 
     if (filter.members.length === 1) return String(filter.members[0]);
     return `${filter.members.length} ${tb.values || 'values'}`;
   }
-  if (filter.value !== undefined && filter.value !== null && filter.value !== '') {
+  if (
+    filter.value !== undefined &&
+    filter.value !== null &&
+    filter.value !== ''
+  ) {
     return `= ${filter.value}`;
   }
   return tb.all || 'All';
@@ -152,12 +163,19 @@ const toDateInputValue = (value: unknown): string => {
 // FilterEditor sub-component
 // ---------------------------------------------------------------------------
 
-const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }: FilterEditorProps): React.ReactElement {
+const FilterEditor = function FilterEditor({
+  filter,
+  meta,
+  onApply,
+  onClose,
+}: FilterEditorProps): React.ReactElement {
   const { engine, localization: t, locale } = usePivot();
   const type = meta?.type || 'string';
-  const [mode, setMode] = useState<FilterMode>(() => inferInitialMode(filter, type));
+  const [mode, setMode] = useState<FilterMode>(() =>
+    inferInitialMode(filter, type),
+  );
   const [members, setMembers] = useState<string[]>(() =>
-    Array.isArray(filter?.members) ? filter.members.map(String) : []
+    Array.isArray(filter?.members) ? filter.members.map(String) : [],
   );
   const [value, setValue] = useState<string>(() => {
     return filter.value != null ? String(filter.value) : '';
@@ -180,7 +198,8 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }: F
   const engineVersion = useEngineVersion(engine);
   const distinct = useMemo(
     () => distinctValuesFor(engine, filter.uniqueName, locale),
-    [engine, engineVersion, filter.uniqueName, locale]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [engine, engineVersion, filter.uniqueName, locale],
   );
 
   const filteredDistinct = useMemo(() => {
@@ -196,7 +215,7 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }: F
   const toggleAll = () => {
     if (allChecked) {
       setMembers(
-        members.filter((m) => !filteredDistinct.some((v) => String(v) === m))
+        members.filter((m) => !filteredDistinct.some((v) => String(v) === m)),
       );
     } else {
       const next = new Set(members);
@@ -213,7 +232,7 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }: F
       return;
     }
     setMembers((prev) =>
-      prev.includes(s) ? prev.filter((m) => m !== s) : [...prev, s]
+      prev.includes(s) ? prev.filter((m) => m !== s) : [...prev, s],
     );
   };
 
@@ -288,7 +307,9 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }: F
             label={tb.rangeFrom || 'From'}
             type={isDateLike ? 'date' : 'number'}
             value={isDateLike ? toDateInputValue(range.min) : range.min}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRange({ ...range, min: e.target.value })}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setRange({ ...range, min: e.target.value })
+            }
             slotProps={{ inputLabel: { shrink: true } }}
             fullWidth
           />
@@ -297,7 +318,9 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }: F
             label={tb.rangeTo || 'To'}
             type={isDateLike ? 'date' : 'number'}
             value={isDateLike ? toDateInputValue(range.max) : range.max}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRange({ ...range, max: e.target.value })}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setRange({ ...range, max: e.target.value })
+            }
             slotProps={{ inputLabel: { shrink: true } }}
             fullWidth
           />
@@ -310,7 +333,9 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }: F
           fullWidth
           label={tb.value || 'Value'}
           value={value}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setValue(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            setValue(e.target.value)
+          }
           sx={{ mb: 1 }}
         />
       )}
@@ -322,7 +347,9 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }: F
           type="date"
           label={tb.date || 'Date'}
           value={toDateInputValue(value)}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setValue(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            setValue(e.target.value)
+          }
           slotProps={{ inputLabel: { shrink: true } }}
           sx={{ mb: 1 }}
         />
@@ -335,7 +362,9 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }: F
             fullWidth
             placeholder={tb.search || 'Search…'}
             value={search}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setSearch(e.target.value)
+            }
             sx={{ mb: 1 }}
           />
           <Box
@@ -398,14 +427,17 @@ const FilterEditor = function FilterEditor({ filter, meta, onApply, onClose }: F
 
       <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
         <Button size="small" onClick={handleClear}>
-          {(t as Record<string, Record<string, string>>)?.buttons?.removeFilter || 'Remove filter'}
+          {(t as Record<string, Record<string, string>>)?.buttons
+            ?.removeFilter || 'Remove filter'}
         </Button>
         <Box sx={{ flex: 1 }} />
         <Button size="small" onClick={onClose}>
-          {(t as Record<string, Record<string, string>>)?.buttons?.cancel || 'Cancel'}
+          {(t as Record<string, Record<string, string>>)?.buttons?.cancel ||
+            'Cancel'}
         </Button>
         <Button size="small" variant="contained" onClick={handleApply}>
-          {(t as Record<string, Record<string, string>>)?.buttons?.apply || 'Apply'}
+          {(t as Record<string, Record<string, string>>)?.buttons?.apply ||
+            'Apply'}
         </Button>
       </Stack>
     </Box>
@@ -438,6 +470,7 @@ const FilterBar = function FilterBar(): React.ReactElement | null {
   // subscription counter moves (see useEngineVersion) rather than mirrored
   // into local state from an effect.
   const engineVersion = useEngineVersion(engine);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const slice = useMemo(() => engine.getSlice(), [engine, engineVersion]);
   // The open popover tracks its chip by key, not by index: removing another
   // chip must not silently re-point the editor at a different filter.
@@ -501,7 +534,9 @@ const FilterBar = function FilterBar(): React.ReactElement | null {
         const summary = filterSummary(filter, t);
         const isActive =
           (Array.isArray(filter.members) && filter.members.length > 0) ||
-          (filter.value !== undefined && filter.value !== null && filter.value !== '') ||
+          (filter.value !== undefined &&
+            filter.value !== null &&
+            filter.value !== '') ||
           (filter.range != null &&
             (filter.range.min != null || filter.range.max != null));
         return (

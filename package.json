@@ -70,6 +70,7 @@
     "@babel/preset-typescript": "^7.29.7",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@eslint/js": "^9.39.1",
     "@mui/material": "^9.3.1",
     "@rollup/plugin-babel": "^7.1.0",
     "@rollup/plugin-commonjs": "^29.0.3",
@@ -79,16 +80,21 @@
     "@types/file-saver": "^2.0.7",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
-    "@typescript/typescript6": "^6.0.2",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "happy-dom": "^20.11.10",
     "magic-string": "^1.2.3",
+    "prettier": "^3.9.6",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "rollup": "^4.63.0",
     "rollup-plugin-dts": "^6.5.1",
     "rollup-plugin-peer-deps-external": "^2.2.4",
     "rollup-plugin-postcss": "^4.0.2",
-    "typescript": "^7.0.2",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.69.0",
     "vitest": "^4.1.11"
   },
   "files": [
@@ -102,6 +108,10 @@
     "check": "tsc --noEmit",
     "test": "vitest run",
     "build": "npm run check && rollup -c && node scripts/verify-dist.mjs",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   }
 }

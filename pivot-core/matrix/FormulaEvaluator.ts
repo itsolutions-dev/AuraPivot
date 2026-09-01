@@ -278,7 +278,6 @@ const parse = (src: string): AstNode => {
 // Evaluator
 // ---------------------------------------------------------------------------
 
-
 const evalNode = (node: AstNode, opts: FormulaEvalOptions): unknown => {
   switch (node.type) {
     case 'num':
@@ -328,10 +327,8 @@ const evalNode = (node: AstNode, opts: FormulaEvalOptions): unknown => {
         case '>=':
           return l >= r;
         case '==':
-          // eslint-disable-next-line eqeqeq -- legacy loose comparison
           return l == r;
         case '!=':
-          // eslint-disable-next-line eqeqeq -- legacy loose comparison
           return l != r;
         case '===':
           return l === r;

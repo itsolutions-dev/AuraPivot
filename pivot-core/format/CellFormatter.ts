@@ -21,8 +21,8 @@
  * The first matching rule wins.
  */
 
-import type { MatrixCell } from "../types";
-import { getNumberFormat } from "./intlCache";
+import type { MatrixCell } from '../types';
+import { getNumberFormat } from './intlCache';
 
 /** A single clause inside an expression-type conditional rule. */
 interface ConditionalClause {
@@ -109,7 +109,12 @@ export interface CellStyle {
   textAlign: string;
 }
 
-const resolveOperand = (kind: string | undefined, constVal: unknown, measureRef: string | undefined, getMeasureValue: ((ref: string) => number | null) | undefined): number => {
+const resolveOperand = (
+  kind: string | undefined,
+  constVal: unknown,
+  measureRef: string | undefined,
+  getMeasureValue: ((ref: string) => number | null) | undefined,
+): number => {
   if (kind === 'measure') {
     if (!measureRef || typeof getMeasureValue !== 'function') return NaN;
     const resolved = getMeasureValue(measureRef);
@@ -118,7 +123,11 @@ const resolveOperand = (kind: string | undefined, constVal: unknown, measureRef:
   return Number(constVal);
 };
 
-const cmpString = (operator: string, value: unknown, target: unknown): boolean => {
+const cmpString = (
+  operator: string,
+  value: unknown,
+  target: unknown,
+): boolean => {
   const a = value === null || value === undefined ? '' : String(value);
   const b = target === null || target === undefined ? '' : String(target);
   switch (operator) {
@@ -135,7 +144,12 @@ const cmpString = (operator: string, value: unknown, target: unknown): boolean =
   }
 };
 
-const cmpNumeric = (operator: string, value: number, target: number, target2?: number): boolean => {
+const cmpNumeric = (
+  operator: string,
+  value: number,
+  target: number,
+  target2?: number,
+): boolean => {
   if (!Number.isFinite(value)) return false;
   if (!Number.isFinite(target)) return false;
   switch (operator) {
@@ -154,19 +168,26 @@ const cmpNumeric = (operator: string, value: number, target: number, target2?: n
     case 'between':
       if (target2 === undefined || !Number.isFinite(target2)) return false;
       return (
-        value >= Math.min(target, target2) &&
-        value <= Math.max(target, target2)
+        value >= Math.min(target, target2) && value <= Math.max(target, target2)
       );
     default:
       return false;
   }
 };
 
-const evaluateClause = (clause: ConditionalClause, cellValue: number | null | undefined, getMeasureValue: ((ref: string) => number | null) | undefined, dimensionValues: Record<string, unknown> | undefined): boolean => {
+const evaluateClause = (
+  clause: ConditionalClause,
+  cellValue: number | null | undefined,
+  getMeasureValue: ((ref: string) => number | null) | undefined,
+  dimensionValues: Record<string, unknown> | undefined,
+): boolean => {
   if (!clause) return false;
   let result;
   if (clause.kind === 'dim') {
-    const dv = dimensionValues && clause.target ? dimensionValues[clause.target] : undefined;
+    const dv =
+      dimensionValues && clause.target
+        ? dimensionValues[clause.target]
+        : undefined;
     result = cmpString(clause.operator, dv, clause.value);
   } else {
     const ref = clause.target;
@@ -182,7 +203,7 @@ const evaluateClause = (clause: ConditionalClause, cellValue: number | null | un
       clause.operator,
       Number(raw),
       Number(clause.value),
-      Number(clause.value2)
+      Number(clause.value2),
     );
   }
   return clause.not ? !result : result;
@@ -192,24 +213,29 @@ const evaluateExpression = (
   expression: ConditionalExpression | undefined,
   cellValue: number | null | undefined,
   getMeasureValue: ((ref: string) => number | null) | undefined,
-  dimensionValues: Record<string, unknown> | undefined
+  dimensionValues: Record<string, unknown> | undefined,
 ): boolean => {
   if (!expression || !Array.isArray(expression.clauses)) return false;
   if (expression.clauses.length === 0) return false;
   const join = expression.join === 'or' ? 'or' : 'and';
   const results = expression.clauses.map((c) =>
-    evaluateClause(c, cellValue, getMeasureValue, dimensionValues)
+    evaluateClause(c, cellValue, getMeasureValue, dimensionValues),
   );
   return join === 'or' ? results.some(Boolean) : results.every(Boolean);
 };
 
-const evaluate = (rule: ConditionalRule, value: number | null | undefined, getMeasureValue: ((ref: string) => number | null) | undefined, dimensionValues: Record<string, unknown> | undefined): boolean => {
+const evaluate = (
+  rule: ConditionalRule,
+  value: number | null | undefined,
+  getMeasureValue: ((ref: string) => number | null) | undefined,
+  dimensionValues: Record<string, unknown> | undefined,
+): boolean => {
   if (rule.operator === 'expression') {
     return evaluateExpression(
       rule.expression,
       value,
       getMeasureValue,
-      dimensionValues
+      dimensionValues,
     );
   }
   if (value === null || value === undefined || !Number.isFinite(value)) {
@@ -219,13 +245,13 @@ const evaluate = (rule: ConditionalRule, value: number | null | undefined, getMe
     rule.valueKind,
     rule.value,
     rule.valueRef,
-    getMeasureValue
+    getMeasureValue,
   );
   const v2 = resolveOperand(
     rule.value2Kind,
     rule.value2,
     rule.value2Ref,
-    getMeasureValue
+    getMeasureValue,
   );
   return cmpNumeric(rule.operator, value, v, v2);
 };
@@ -237,7 +263,11 @@ const evaluate = (rule: ConditionalRule, value: number | null | undefined, getMe
  *   - 'dimensions' → row label / dimension cells
  * Falls back to the legacy `general` key for back-compat.
  */
-const pickSection = (format: FormatObject, scope: string, measureKey: string | null | undefined): FormatSection | null => {
+const pickSection = (
+  format: FormatObject,
+  scope: string,
+  measureKey: string | null | undefined,
+): FormatSection | null => {
   if (!format) return null;
   if (scope === 'headers') return format.headers || format.general || null;
   if (scope === 'dimensions')
@@ -252,7 +282,10 @@ const pickSection = (format: FormatObject, scope: string, measureKey: string | n
  * per-measure override (if any) over the default values section. The measure
  * uniqueName is extracted from the `<uniqueName>:<aggregation>` measureKey.
  */
-export const getValuesSection = (format: FormatObject | null | undefined, measureKey: string | null | undefined): FormatSection | null => {
+export const getValuesSection = (
+  format: FormatObject | null | undefined,
+  measureKey: string | null | undefined,
+): FormatSection | null => {
   if (!format) return null;
   const base = format.values || format.general || {};
   if (!measureKey) return base;
@@ -333,8 +366,7 @@ export const resolveCellStyle = ({
       fontWeight: r.style?.fontWeight ?? style.fontWeight,
       fontStyle: r.style?.italic ? 'italic' : style.fontStyle,
     };
-    const ruleMode =
-      r.mode && r.mode !== 'inherit' ? r.mode : mode;
+    const ruleMode = r.mode && r.mode !== 'inherit' ? r.mode : mode;
     if (ruleMode === 'first') break;
   }
   return matched ? style : baseStyle;
@@ -358,7 +390,7 @@ const getSystemSeparators = () => {
       group: parts.find((p) => p.type === 'group')?.value || ',',
       decimal: parts.find((p) => p.type === 'decimal')?.value || '.',
     };
-  } catch (e) {
+  } catch {
     result = { group: ',', decimal: '.' };
   }
   separatorsCache.set(locale, result);
@@ -407,7 +439,10 @@ const getSystemCurrency = () => {
  * The legacy flags (thousandsSeparator bool, decimalPlaces, currencySymbol as a
  * plain string) are still honored for back-compat with saved formats.
  */
-export const formatNumberWithFormat = (value: number | null | undefined, section: FormatSection | null | undefined): string => {
+export const formatNumberWithFormat = (
+  value: number | null | undefined,
+  section: FormatSection | null | undefined,
+): string => {
   const s = section || {};
   const nullText = s.nullValue ?? '';
   if (value === null || value === undefined || !Number.isFinite(value)) {
@@ -433,7 +468,7 @@ export const formatNumberWithFormat = (value: number | null | undefined, section
   const numDecimals =
     s.numberOfDecimals !== undefined ? s.numberOfDecimals : s.decimalPlaces;
 
-  let displayValue = s.percentage ? value * 100.0 : value;
+  const displayValue = s.percentage ? value * 100.0 : value;
 
   let intPart;
   let fracPart;

@@ -106,7 +106,12 @@ interface MetricProps {
   accent?: boolean;
 }
 
-function Metric({ label, value, hint, accent }: MetricProps): React.ReactElement {
+function Metric({
+  label,
+  value,
+  hint,
+  accent,
+}: MetricProps): React.ReactElement {
   return (
     <Box>
       <Typography
@@ -133,8 +138,7 @@ function Metric({ label, value, hint, accent }: MetricProps): React.ReactElement
               ? theme.palette.primary.main
               : theme.palette.text.primary,
             fontFamily:
-              theme.font?.mono ||
-              '"JetBrains Mono", ui-monospace, monospace',
+              theme.font?.mono || '"JetBrains Mono", ui-monospace, monospace',
             lineHeight: 1.2,
           })}
         >
@@ -161,7 +165,8 @@ interface EmptyStateProps {
 }
 
 function EmptyState({ t }: EmptyStateProps): React.ReactElement {
-  const tDrill = (t as Record<string, Record<string, string>>)?.drillThrough ?? {};
+  const tDrill =
+    (t as Record<string, Record<string, string>>)?.drillThrough ?? {};
   return (
     <Box
       sx={{
@@ -220,15 +225,18 @@ const DrillThroughDialog = function DrillThroughDialog({
   const engineVersion = useEngineVersion(engine);
   const drillConfig = useMemo<DrillThroughConfig>(
     () => engine.getDrillThroughConfig(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [engine, engineVersion],
   );
   const fieldOrder = useMemo<string[]>(
     () => engine.getFieldOrder(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [engine, engineVersion],
   );
 
   // dynamic boundary: localization is Record<string,unknown>
-  const tDrill = (t as Record<string, Record<string, string>>)?.drillThrough ?? {};
+  const tDrill =
+    (t as Record<string, Record<string, string>>)?.drillThrough ?? {};
 
   useEffect(() => {
     if (open) {
@@ -271,7 +279,10 @@ const DrillThroughDialog = function DrillThroughDialog({
     0,
     Math.min(drillConfig?.frozenCount || 0, columns.length),
   );
-  const frozenStyles = (ci: number, isHead: boolean): React.CSSProperties | null => {
+  const frozenStyles = (
+    ci: number,
+    isHead: boolean,
+  ): React.CSSProperties | null => {
     if (ci >= frozenCount) return null;
     return {
       position: 'sticky',
@@ -409,9 +420,7 @@ const DrillThroughDialog = function DrillThroughDialog({
                     theme.palette.common.black,
                     0.18,
                   )}, 0 0 0 1px ${alpha(theme.palette.common.black, 0.04)}`,
-            fontFamily:
-              theme.font?.primary ||
-              theme.typography.fontFamily,
+            fontFamily: theme.font?.primary || theme.typography.fontFamily,
           }),
         },
       }}
@@ -458,7 +467,11 @@ const DrillThroughDialog = function DrillThroughDialog({
         <Stack
           direction="row"
           spacing={2}
-          sx={{ position: 'relative', alignItems: 'flex-start', justifyContent: 'space-between' }}
+          sx={{
+            position: 'relative',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+          }}
         >
           <Box sx={{ minWidth: 0, flex: 1 }}>
             <Stack
@@ -542,7 +555,12 @@ const DrillThroughDialog = function DrillThroughDialog({
             {breadcrumbs && breadcrumbs.length > 0 && (
               <Stack
                 direction="row"
-                sx={{ mt: 1.75, gap: 0.75, flexWrap: 'wrap', alignItems: 'center' }}
+                sx={{
+                  mt: 1.75,
+                  gap: 0.75,
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                }}
               >
                 {breadcrumbs.map((b, idx) => (
                   <React.Fragment key={idx}>
@@ -676,7 +694,9 @@ const DrillThroughDialog = function DrillThroughDialog({
                 fullWidth
                 placeholder={tDrill.filter || 'Filter records…'}
                 value={filterText}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilterText(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setFilterText(e.target.value)
+                }
                 slotProps={{
                   input: {
                     startAdornment: (
@@ -684,34 +704,38 @@ const DrillThroughDialog = function DrillThroughDialog({
                         <SearchIcon fontSize="small" sx={{ opacity: 0.55 }} />
                       </InputAdornment>
                     ),
-                    endAdornment: filterText && rows ? (
-                      <InputAdornment position="end">
-                        <Chip
-                          size="small"
-                          icon={
-                            <FilterAltOutlinedIcon
-                              sx={(theme) => ({
-                                fontSize: theme.typography.fontSize,
-                              })}
-                            />
-                          }
-                          label={`${displayedRows.length.toLocaleString(
-                            locale || undefined,
-                          )} / ${rows.length.toLocaleString(locale || undefined)}`}
-                          sx={(theme) => ({
-                            height: 22,
-                            fontSize: theme.typography.caption.fontSize,
-                            background: alpha(theme.palette.primary.main, 0.12),
-                            color: theme.palette.primary.main,
-                            border: 'none',
-                            '& .MuiChip-icon': {
+                    endAdornment:
+                      filterText && rows ? (
+                        <InputAdornment position="end">
+                          <Chip
+                            size="small"
+                            icon={
+                              <FilterAltOutlinedIcon
+                                sx={(theme) => ({
+                                  fontSize: theme.typography.fontSize,
+                                })}
+                              />
+                            }
+                            label={`${displayedRows.length.toLocaleString(
+                              locale || undefined,
+                            )} / ${rows.length.toLocaleString(locale || undefined)}`}
+                            sx={(theme) => ({
+                              height: 22,
+                              fontSize: theme.typography.caption.fontSize,
+                              background: alpha(
+                                theme.palette.primary.main,
+                                0.12,
+                              ),
                               color: theme.palette.primary.main,
-                              ml: 0.5,
-                            },
-                          })}
-                        />
-                      </InputAdornment>
-                    ) : undefined,
+                              border: 'none',
+                              '& .MuiChip-icon': {
+                                color: theme.palette.primary.main,
+                                ml: 0.5,
+                              },
+                            })}
+                          />
+                        </InputAdornment>
+                      ) : undefined,
                     sx: (theme: Theme) => ({
                       borderRadius: 2,
                       background: theme.palette.background.paper,
@@ -883,8 +907,7 @@ const DrillThroughDialog = function DrillThroughDialog({
                           fontSize: theme.typography.caption.fontSize,
                         })}
                       >
-                        {tDrill.noMatch ||
-                          'No records match the filter.'}
+                        {tDrill.noMatch || 'No records match the filter.'}
                       </TableCell>
                     </TableRow>
                   )}

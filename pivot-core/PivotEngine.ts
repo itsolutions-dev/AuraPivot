@@ -21,18 +21,18 @@ import type {
   MetadataRow,
   DataRow,
   TreeNode,
-} from "./types";
-import type { ExpandedMetadataRow } from "./data/DateHierarchyExpander";
-import type { ComputedMatrix, EnrichedMeasure } from "./matrix/MatrixComputer";
-import { normalizeDataset } from "./data/DataNormalizer";
-import { expandHierarchies } from "./data/DateHierarchyExpander";
-import type { RichSliceField } from "./slice/TreeBuilder";
-import { buildTree, findNodeByKey } from "./slice/TreeBuilder";
-import { applyFilters } from "./slice/FilterEngine";
-import type { FilterEntry } from "./slice/FilterEngine";
-import { computeMatrix } from "./matrix/MatrixComputer";
-import { exportMatrixToExcel } from "./export/ExcelExporter";
-import { formatDateValue, formatSubpartValue } from "./format/DateFormatter";
+} from './types';
+import type { ExpandedMetadataRow } from './data/DateHierarchyExpander';
+import type { ComputedMatrix, EnrichedMeasure } from './matrix/MatrixComputer';
+import { normalizeDataset } from './data/DataNormalizer';
+import { expandHierarchies } from './data/DateHierarchyExpander';
+import type { RichSliceField } from './slice/TreeBuilder';
+import { buildTree, findNodeByKey } from './slice/TreeBuilder';
+import { applyFilters } from './slice/FilterEngine';
+import type { FilterEntry } from './slice/FilterEngine';
+import { computeMatrix } from './matrix/MatrixComputer';
+import { exportMatrixToExcel } from './export/ExcelExporter';
+import { formatDateValue, formatSubpartValue } from './format/DateFormatter';
 
 // ---------------------------------------------------------------------------
 // Engine-internal type definitions
@@ -144,7 +144,7 @@ export interface InternalFormat {
   dimensions: CellStyleFormat;
   layout: LayoutFormat;
   conditional: ConditionalRule[];
-  conditionalMode: "first" | "all";
+  conditionalMode: 'first' | 'all';
 }
 
 /** Engine-internal options (superset of public AuraPivotOptions). */
@@ -211,7 +211,7 @@ export interface FormatSnapshot {
   /** Back-compat alias for `values` — several call sites still read `general`. */
   general: CellStyleFormat;
   conditional: ConditionalRule[];
-  conditionalMode: "first" | "all";
+  conditionalMode: 'first' | 'all';
 }
 
 /**
@@ -246,29 +246,29 @@ export interface ReportSnapshot {
  * so captions follow the active UI language.
  */
 const AGG_LABEL: Record<string, string> = {
-  sum: "Sum",
-  count: "Count",
-  distinctcount: "Distinct count",
-  avg: "Average",
-  min: "Minimum",
-  max: "Maximum",
-  formula: "Calculated",
-  ratioTotal: "Ratio to total",
-  currentRatio: "Current ratio",
+  sum: 'Sum',
+  count: 'Count',
+  distinctcount: 'Distinct count',
+  avg: 'Average',
+  min: 'Minimum',
+  max: 'Maximum',
+  formula: 'Calculated',
+  ratioTotal: 'Ratio to total',
+  currentRatio: 'Current ratio',
 };
 
 // Maps the engine's internal aggregation keys onto the keys used inside
 // the react-pivot localization dictionaries (which use `average` instead
 // of `avg`).
 const AGG_LOCALE_KEY: Record<string, string> = {
-  sum: "sum",
-  count: "count",
-  distinctcount: "distinctcount",
-  avg: "average",
-  min: "min",
-  max: "max",
-  ratioTotal: "ratioTotal",
-  currentRatio: "currentRatio",
+  sum: 'sum',
+  count: 'count',
+  distinctcount: 'distinctcount',
+  avg: 'average',
+  min: 'min',
+  max: 'max',
+  ratioTotal: 'ratioTotal',
+  currentRatio: 'currentRatio',
 };
 
 const DEFAULT_SLICE: InternalSlice = {
@@ -286,25 +286,25 @@ const DEFAULT_SLICE: InternalSlice = {
 function migrateSort(sort: unknown): InternalSort | null {
   if (!sort) return null;
   const s = sort as Record<string, unknown>;
-  const legacy = s["direction"] !== undefined || s["measure"] !== undefined;
+  const legacy = s['direction'] !== undefined || s['measure'] !== undefined;
   if (!legacy) return s as InternalSort;
   const next: InternalSort = {};
-  if (s["colKey"]) {
-    next.colKey = s["colKey"] as string;
-    next.colDirection = (s["direction"] as string) || "desc";
-    next.colMeasure = s["measure"] || null;
+  if (s['colKey']) {
+    next.colKey = s['colKey'] as string;
+    next.colDirection = (s['direction'] as string) || 'desc';
+    next.colMeasure = s['measure'] || null;
   }
-  if (s["rowKey"]) {
-    next.rowKey = s["rowKey"] as string;
-    next.rowDirection = (s["direction"] as string) || "desc";
-    next.rowMeasure = s["measure"] || null;
+  if (s['rowKey']) {
+    next.rowKey = s['rowKey'] as string;
+    next.rowDirection = (s['direction'] as string) || 'desc';
+    next.rowMeasure = s['measure'] || null;
   }
   return next.colKey || next.rowKey ? next : null;
 }
 
 const DEFAULT_OPTIONS: InternalOptions = {
-  grid: { type: "compact", showHeaders: false },
-  sorting: "columns",
+  grid: { type: 'compact', showHeaders: false },
+  sorting: 'columns',
   enableDrillThrough: true,
   // Toolbar button visibility — set to false to hide a tab.
   toolbar: {
@@ -317,57 +317,57 @@ const DEFAULT_OPTIONS: InternalOptions = {
 };
 
 const DEFAULT_VALUES_FORMAT: CellStyleFormat = {
-  fontFamily: "inherit",
+  fontFamily: 'inherit',
   fontSize: 13,
   fontWeight: 400,
   italic: false,
   textColor: null,
   backgroundColor: null,
-  textAlign: "right",
-  thousandSeparator: "System",
-  decimalSeparator: "System",
-  numberOfDecimals: "Default",
-  currencySymbol: "None",
-  currencyOther: "",
-  currencyAlignment: "Left",
-  nullValue: "",
+  textAlign: 'right',
+  thousandSeparator: 'System',
+  decimalSeparator: 'System',
+  numberOfDecimals: 'Default',
+  currencySymbol: 'None',
+  currencyOther: '',
+  currencyAlignment: 'Left',
+  nullValue: '',
   percentage: false,
 };
 
 const DEFAULT_HEADERS_FORMAT: CellStyleFormat = {
-  fontFamily: "inherit",
+  fontFamily: 'inherit',
   fontSize: 12,
   fontWeight: 600,
   italic: false,
   textColor: null,
   backgroundColor: null,
-  textAlign: "left",
+  textAlign: 'left',
 };
 
 const DEFAULT_DIMENSIONS_FORMAT: CellStyleFormat = {
-  fontFamily: "inherit",
+  fontFamily: 'inherit',
   fontSize: 13,
   fontWeight: 500,
   italic: false,
   textColor: null,
   backgroundColor: null,
-  textAlign: "left",
+  textAlign: 'left',
 };
 
 const DEFAULT_GRAND_TOTALS_FORMAT: CellStyleFormat = {
-  fontFamily: "inherit",
+  fontFamily: 'inherit',
   fontSize: 13,
   fontWeight: 700,
   italic: false,
   textColor: null,
   backgroundColor: null,
-  textAlign: "left",
+  textAlign: 'left',
 };
 
 const DEFAULT_LAYOUT: LayoutFormat = {
-  totalsRowsPosition: "before", // 'before' | 'after' | 'none'
+  totalsRowsPosition: 'before', // 'before' | 'after' | 'none'
   totalsRowsSticky: false, // pin grand-total row(s) during vertical scroll
-  totalsColumnsPosition: "before", // 'before' | 'after' | 'none'
+  totalsColumnsPosition: 'before', // 'before' | 'after' | 'none'
   totalsColumnsSticky: false, // pin grand-total column(s) during horizontal scroll
   alternateRows: false,
 };
@@ -392,7 +392,8 @@ class PivotEngine {
   /** Calculated fields defined by the user. */
   private _calculatedFields: InternalCalculatedField[];
   /** Event listeners map. */
-  private readonly _listeners: Map<EngineEvent, Set<EngineEventHandler>> = new Map();
+  private readonly _listeners: Map<EngineEvent, Set<EngineEventHandler>> =
+    new Map();
   /** Cached pivot matrix (null when dirty or never computed). */
   private _matrix: ComputedMatrix | null;
   /** Whether the cached matrix is stale and needs recomputation. */
@@ -447,7 +448,7 @@ class PivotEngine {
       dimensions: { ...DEFAULT_DIMENSIONS_FORMAT },
       layout: { ...DEFAULT_LAYOUT },
       conditional: [],
-      conditionalMode: "first",
+      conditionalMode: 'first',
     };
     this._calculatedFields = [];
     this._matrix = null;
@@ -478,8 +479,7 @@ class PivotEngine {
       try {
         h(...args);
       } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error("[PivotEngine] listener error", e);
+        console.error('[PivotEngine] listener error', e);
       }
     });
   }
@@ -490,13 +490,17 @@ class PivotEngine {
     this._rawDataset = rawDataset;
     // dynamic boundary: cast unknown → unknown[] (normalizeDataset validates at runtime)
     const { metadata, rows } = normalizeDataset(rawDataset as unknown[]);
-    const expanded = expandHierarchies(metadata, rows, this._dateLocalization ?? undefined);
+    const expanded = expandHierarchies(
+      metadata,
+      rows,
+      this._dateLocalization ?? undefined,
+    );
     this._metadata = metadata;
     this._rows = rows;
     this._expandedMeta = expanded.metadata;
     this._expandedRows = expanded.rows;
     this._dirty = true;
-    this._emit("dataChange");
+    this._emit('dataChange');
   }
 
   /**
@@ -511,7 +515,7 @@ class PivotEngine {
     // it would produce a broken UI with no clue why.
     this._localization = this._validateLocalization(localization);
     this._dirty = true;
-    this._emit("dataChange");
+    this._emit('dataChange');
   }
 
   private _validateLocalization(
@@ -519,13 +523,11 @@ class PivotEngine {
   ): InternalLocalization | null {
     if (localization === null || localization === undefined) return null;
     const isDev =
-      typeof process === "undefined" ||
-      process.env?.NODE_ENV !== "production";
-    if (typeof localization !== "object" || Array.isArray(localization)) {
+      typeof process === 'undefined' || process.env?.NODE_ENV !== 'production';
+    if (typeof localization !== 'object' || Array.isArray(localization)) {
       if (isDev) {
-        // eslint-disable-next-line no-console
         console.warn(
-          "[PivotEngine] invalid localization dictionary: expected an object of sections, got",
+          '[PivotEngine] invalid localization dictionary: expected an object of sections, got',
           localization,
         );
       }
@@ -538,9 +540,8 @@ class PivotEngine {
         if (
           value !== null &&
           value !== undefined &&
-          (typeof value !== "object" || Array.isArray(value))
+          (typeof value !== 'object' || Array.isArray(value))
         ) {
-          // eslint-disable-next-line no-console
           console.warn(
             `[PivotEngine] localization section "${section}" should be an object, got`,
             value,
@@ -559,7 +560,7 @@ class PivotEngine {
   setLocale(locale: string | undefined): void {
     this._locale = locale || undefined;
     this._dirty = true;
-    this._emit("dataChange");
+    this._emit('dataChange');
   }
 
   getLocale(): string | undefined {
@@ -567,7 +568,7 @@ class PivotEngine {
   }
 
   private _totalCaption(): string {
-    return this._localization?.grid?.total || "Total";
+    return this._localization?.grid?.total || 'Total';
   }
 
   private _resolveAggLabel(agg: string): string {
@@ -583,7 +584,9 @@ class PivotEngine {
     this._dateLocalization = localization || null;
     if (this._rawDataset) {
       // dynamic boundary: cast unknown → unknown[] (normalizeDataset validates at runtime)
-      const { metadata, rows } = normalizeDataset(this._rawDataset as unknown[]);
+      const { metadata, rows } = normalizeDataset(
+        this._rawDataset as unknown[],
+      );
       const expanded = expandHierarchies(
         metadata,
         rows,
@@ -592,7 +595,7 @@ class PivotEngine {
       this._expandedMeta = expanded.metadata;
       this._expandedRows = expanded.rows;
       this._dirty = true;
-      this._emit("dataChange");
+      this._emit('dataChange');
     }
   }
 
@@ -607,7 +610,10 @@ class PivotEngine {
    * picks up the new label. Pass an empty string or null to revert to the
    * data-source provided caption.
    */
-  setFieldCaption(uniqueName: string, caption: string | null | undefined): void {
+  setFieldCaption(
+    uniqueName: string,
+    caption: string | null | undefined,
+  ): void {
     if (!uniqueName) return;
     const calc = this._calculatedFields.find(
       (f) => f.uniqueName === uniqueName,
@@ -626,7 +632,7 @@ class PivotEngine {
       this._metadata[uniqueName].caption = target.caption;
     }
     this._dirty = true;
-    this._emit("dataChange");
+    this._emit('dataChange');
   }
 
   getRows(): DataRow[] {
@@ -645,7 +651,7 @@ class PivotEngine {
       this._dateFormats = { ...this._dateFormats, [uniqueName]: format };
     }
     this._dirty = true;
-    this._emit("formatChange");
+    this._emit('formatChange');
   }
 
   getDateFormat(uniqueName: string): string | null {
@@ -657,9 +663,9 @@ class PivotEngine {
   }
 
   setDateFormats(map: Record<string, string> | null | undefined): void {
-    this._dateFormats = map && typeof map === "object" ? { ...map } : {};
+    this._dateFormats = map && typeof map === 'object' ? { ...map } : {};
     this._dirty = true;
-    this._emit("formatChange");
+    this._emit('formatChange');
   }
 
   // ---- field order / drill-through config ---------------------------
@@ -672,10 +678,13 @@ class PivotEngine {
     this._fieldOrder = Array.isArray(order) ? order.filter(Boolean) : [];
     // Display-only: no matrix invalidation. The FieldList + DrillThrough
     // dialog re-render via the dataChange event.
-    this._emit("dataChange");
+    this._emit('dataChange');
   }
 
-  getDrillThroughConfig(): { fields: DrillThroughFieldsMap; frozenCount: number } {
+  getDrillThroughConfig(): {
+    fields: DrillThroughFieldsMap;
+    frozenCount: number;
+  } {
     return {
       fields: { ...this._drillThroughFields },
       frozenCount: this._drillThroughFrozenCount,
@@ -689,13 +698,16 @@ class PivotEngine {
       | undefined,
   ): void {
     if (!config) return;
-    if (config.fields && typeof config.fields === "object") {
+    if (config.fields && typeof config.fields === 'object') {
       this._drillThroughFields = { ...config.fields };
     }
     if (Number.isFinite(config.frozenCount)) {
-      this._drillThroughFrozenCount = Math.max(0, Math.floor(config.frozenCount as number));
+      this._drillThroughFrozenCount = Math.max(
+        0,
+        Math.floor(config.frozenCount as number),
+      );
     }
-    this._emit("dataChange");
+    this._emit('dataChange');
   }
 
   /**
@@ -703,7 +715,10 @@ class PivotEngine {
    * Cast is safe: RichSliceField is structurally compatible with InternalSliceField
    * and MetadataRow is compatible with ExpandedMetadataRow at runtime.
    */
-  private _buildDimensionFormatter(): (field: RichSliceField, value: string | number | null) => string | undefined {
+  private _buildDimensionFormatter(): (
+    field: RichSliceField,
+    value: string | number | null,
+  ) => string | undefined {
     const dateFormats = this._dateFormats;
     const meta = this._expandedMeta;
     const monthNames = this._dateLocalization?.monthNames;
@@ -717,10 +732,10 @@ class PivotEngine {
       if (!m) return undefined;
       if (
         m.subpart &&
-        m.subpart !== "year" &&
-        m.subpart !== "day" &&
-        m.subpart !== "hour" &&
-        m.subpart !== "minute"
+        m.subpart !== 'year' &&
+        m.subpart !== 'day' &&
+        m.subpart !== 'hour' &&
+        m.subpart !== 'minute'
       ) {
         const format = dateFormats[field.uniqueName] || null;
         return formatSubpartValue(value, m.subpart, format, {
@@ -731,15 +746,21 @@ class PivotEngine {
           weekLabel,
         });
       }
-      if (m.type === "date") {
-        const format = dateFormats[field.uniqueName] || "locale-date";
+      if (m.type === 'date') {
+        const format = dateFormats[field.uniqueName] || 'locale-date';
         return formatDateValue(value, format, { monthNames, weekdayNames });
       }
       return undefined;
     };
   }
 
-  getAvailableFields(): Array<{ uniqueName: string; caption: string; type: string; isCalculated?: boolean; formula?: string }> {
+  getAvailableFields(): Array<{
+    uniqueName: string;
+    caption: string;
+    type: string;
+    isCalculated?: boolean;
+    formula?: string;
+  }> {
     const base = Object.entries(this._expandedMeta).map(
       ([uniqueName, meta]) => ({
         uniqueName,
@@ -750,7 +771,7 @@ class PivotEngine {
     const calc = this._calculatedFields.map((f) => ({
       uniqueName: f.uniqueName,
       caption: f.caption,
-      type: "number",
+      type: 'number',
       isCalculated: true,
       formula: f.formula,
     }));
@@ -767,12 +788,12 @@ class PivotEngine {
     fields: readonly Partial<InternalCalculatedField>[] | null | undefined,
   ): void {
     this._calculatedFields = Array.isArray(fields)
-      // Entries coming from the public `options` schema may omit `caption`;
-      // the read paths already treat it as best-effort.
-      ? fields.map((f) => ({ ...f }) as InternalCalculatedField)
+      ? // Entries coming from the public `options` schema may omit `caption`;
+        // the read paths already treat it as best-effort.
+        fields.map((f) => ({ ...f }) as InternalCalculatedField)
       : [];
     this._dirty = true;
-    this._emit("dataChange");
+    this._emit('dataChange');
   }
 
   /**
@@ -781,7 +802,8 @@ class PivotEngine {
    * untouched.
    */
   setFields(
-    fields: readonly { uniqueName?: string; caption?: string }[] | null | undefined,
+    fields:
+      readonly { uniqueName?: string; caption?: string }[] | null | undefined,
   ): void {
     if (!Array.isArray(fields)) return;
     fields.forEach((field) => {
@@ -791,24 +813,35 @@ class PivotEngine {
     });
   }
 
-  addCalculatedField({ uniqueName, caption, formula }: { uniqueName?: string; caption?: string; formula?: string }): void {
+  addCalculatedField({
+    uniqueName,
+    caption,
+    formula,
+  }: {
+    uniqueName?: string;
+    caption?: string;
+    formula?: string;
+  }): void {
     const id = uniqueName || `calc_${Date.now()}`;
     this._calculatedFields = [
       ...this._calculatedFields.filter((f) => f.uniqueName !== id),
-      { uniqueName: id, caption: caption || id, formula: formula || "0" },
+      { uniqueName: id, caption: caption || id, formula: formula || '0' },
     ];
     this._dirty = true;
-    this._emit("dataChange");
+    this._emit('dataChange');
   }
 
-  updateCalculatedField(uniqueName: string, { caption, formula }: { caption?: string; formula?: string }): void {
+  updateCalculatedField(
+    uniqueName: string,
+    { caption, formula }: { caption?: string; formula?: string },
+  ): void {
     this._calculatedFields = this._calculatedFields.map((f) =>
       f.uniqueName === uniqueName
         ? { ...f, caption: caption ?? f.caption, formula: formula ?? f.formula }
         : f,
     );
     this._dirty = true;
-    this._emit("dataChange");
+    this._emit('dataChange');
   }
 
   removeCalculatedField(uniqueName: string): void {
@@ -816,8 +849,9 @@ class PivotEngine {
       (f) => f.uniqueName !== uniqueName,
     );
     // Also remove from any slice arrays where it might have been placed.
-    const strip = (arr: InternalSliceField[] | InternalSliceMeasure[] | FilterEntry[]) =>
-      (arr || []).filter((f) => f.uniqueName !== uniqueName);
+    const strip = (
+      arr: InternalSliceField[] | InternalSliceMeasure[] | FilterEntry[],
+    ) => (arr || []).filter((f) => f.uniqueName !== uniqueName);
     this._slice = {
       ...this._slice,
       measures: strip(this._slice.measures) as InternalSliceMeasure[],
@@ -826,7 +860,7 @@ class PivotEngine {
       filters: strip(this._slice.filters) as FilterEntry[],
     };
     this._dirty = true;
-    this._emit("dataChange");
+    this._emit('dataChange');
   }
 
   // ---- slice / options ----------------------------------------------
@@ -847,7 +881,7 @@ class PivotEngine {
       sort: migrateSort(s.sort),
     };
     this._dirty = true;
-    if (!silent) this._emit("reportChange");
+    if (!silent) this._emit('reportChange');
   }
 
   getSlice(): InternalSlice {
@@ -868,10 +902,13 @@ class PivotEngine {
     if (!format) return;
     const f = format as Record<string, unknown>;
     // Back-compat: accept `general` as an alias of `values`.
-    const incomingValues = (f["values"] || f["general"] || null) as Record<string, unknown> | null;
+    const incomingValues = (f['values'] || f['general'] || null) as Record<
+      string,
+      unknown
+    > | null;
     const incomingByMeasure =
-      f["valuesByMeasure"] && typeof f["valuesByMeasure"] === "object"
-        ? (f["valuesByMeasure"] as Record<string, unknown>)
+      f['valuesByMeasure'] && typeof f['valuesByMeasure'] === 'object'
+        ? (f['valuesByMeasure'] as Record<string, unknown>)
         : null;
     this._format = {
       values: {
@@ -881,38 +918,40 @@ class PivotEngine {
       valuesByMeasure: incomingByMeasure
         ? Object.fromEntries(
             Object.entries(incomingByMeasure)
-              .filter(([, v]) => v && typeof v === "object")
+              .filter(([, v]) => v && typeof v === 'object')
               .map(([k, v]) => [k, { ...(v as CellStyleFormat) }]),
           )
         : { ...this._format.valuesByMeasure },
       headers: {
         ...this._format.headers,
-        ...((f["headers"] as Record<string, unknown>) || {}),
+        ...((f['headers'] as Record<string, unknown>) || {}),
       },
       grandTotals: {
         ...this._format.grandTotals,
-        ...((f["grandTotals"] as Record<string, unknown>) || {}),
+        ...((f['grandTotals'] as Record<string, unknown>) || {}),
       },
       dimensions: {
         ...this._format.dimensions,
-        ...((f["dimensions"] as Record<string, unknown>) || {}),
+        ...((f['dimensions'] as Record<string, unknown>) || {}),
       },
       layout: {
         ...this._format.layout,
-        ...((f["layout"] as Record<string, unknown>) || {}),
+        ...((f['layout'] as Record<string, unknown>) || {}),
       },
-      conditional: Array.isArray(f["conditional"])
-        ? (f["conditional"] as unknown[]).map((r) => ({ ...(r as ConditionalRule) }))
+      conditional: Array.isArray(f['conditional'])
+        ? (f['conditional'] as unknown[]).map((r) => ({
+            ...(r as ConditionalRule),
+          }))
         : this._format.conditional,
       conditionalMode:
-        f["conditionalMode"] === "all" || f["conditionalMode"] === "first"
-          ? (f["conditionalMode"] as "first" | "all")
-          : this._format.conditionalMode || "first",
+        f['conditionalMode'] === 'all' || f['conditionalMode'] === 'first'
+          ? (f['conditionalMode'] as 'first' | 'all')
+          : this._format.conditionalMode || 'first',
     };
     // Layout changes affect total placement and alternating-row metadata that
     // are baked into the matrix output, so invalidate the cached matrix.
-    if (f["layout"]) this._dirty = true;
-    if (!silent) this._emit("formatChange");
+    if (f['layout']) this._dirty = true;
+    if (!silent) this._emit('formatChange');
   }
 
   getFormat(): FormatSnapshot {
@@ -931,7 +970,7 @@ class PivotEngine {
       // Back-compat alias — several call sites still read `general`.
       general: { ...this._format.values },
       conditional: this._format.conditional.map((r) => ({ ...r })),
-      conditionalMode: this._format.conditionalMode || "first",
+      conditionalMode: this._format.conditionalMode || 'first',
     };
   }
 
@@ -943,37 +982,46 @@ class PivotEngine {
     // copy of the report, so re-emitting would create an infinite loop.
     if (!report) return;
     const r = report as Record<string, unknown>;
-    if (r["slice"]) this.setSlice(r["slice"], { silent: true });
-    if (r["options"]) this.setOptions(r["options"]);
+    if (r['slice']) this.setSlice(r['slice'], { silent: true });
+    if (r['options']) this.setOptions(r['options']);
     // NOT silent: the grid (PivotTable) listens to `formatChange` to sync
     // its local format snapshot. Without emitting, a programmatic setReport
     // leaves the grid rendering with stale defaults until the user opens
     // and re-applies the FormatDialog.
-    if (r["formats"]) this.setFormat(r["formats"]);
-    if (r["dateFormats"] && typeof r["dateFormats"] === "object") {
-      this._dateFormats = { ...(r["dateFormats"] as Record<string, string>) };
+    if (r['formats']) this.setFormat(r['formats']);
+    if (r['dateFormats'] && typeof r['dateFormats'] === 'object') {
+      this._dateFormats = { ...(r['dateFormats'] as Record<string, string>) };
     }
-    if (Array.isArray(r["fieldOrder"])) {
-      this._fieldOrder = (r["fieldOrder"] as unknown[]).filter(Boolean) as string[];
+    if (Array.isArray(r['fieldOrder'])) {
+      this._fieldOrder = (r['fieldOrder'] as unknown[]).filter(
+        Boolean,
+      ) as string[];
     }
-    if (r["drillThrough"] && typeof r["drillThrough"] === "object") {
-      const dt = r["drillThrough"] as Record<string, unknown>;
-      if (dt["fields"] && typeof dt["fields"] === "object") {
-        this._drillThroughFields = { ...(dt["fields"] as DrillThroughFieldsMap) };
+    if (r['drillThrough'] && typeof r['drillThrough'] === 'object') {
+      const dt = r['drillThrough'] as Record<string, unknown>;
+      if (dt['fields'] && typeof dt['fields'] === 'object') {
+        this._drillThroughFields = {
+          ...(dt['fields'] as DrillThroughFieldsMap),
+        };
       }
-      if (Number.isFinite(dt["frozenCount"])) {
-        this._drillThroughFrozenCount = Math.max(0, Math.floor(dt["frozenCount"] as number));
+      if (Number.isFinite(dt['frozenCount'])) {
+        this._drillThroughFrozenCount = Math.max(
+          0,
+          Math.floor(dt['frozenCount'] as number),
+        );
       }
     }
-    if (Array.isArray(r["calculatedFields"])) {
-      this._calculatedFields = (r["calculatedFields"] as unknown[]).map((f) => ({ ...(f as InternalCalculatedField) }));
+    if (Array.isArray(r['calculatedFields'])) {
+      this._calculatedFields = (r['calculatedFields'] as unknown[]).map(
+        (f) => ({ ...(f as InternalCalculatedField) }),
+      );
     }
-    const ds = r["dataSource"] as Record<string, unknown> | undefined;
-    if (ds?.["data"]) {
-      this.setData(ds["data"]);
+    const ds = r['dataSource'] as Record<string, unknown> | undefined;
+    if (ds?.['data']) {
+      this.setData(ds['data']);
     } else {
       this._dirty = true;
-      this._emit("dataChange");
+      this._emit('dataChange');
     }
     this._dirty = true;
   }
@@ -996,7 +1044,7 @@ class PivotEngine {
       },
       calculatedFields: this._calculatedFields.map((f) => ({ ...f })),
       dataSource: {
-        dataSourceType: "json",
+        dataSourceType: 'json',
         data: [this._metadata, ...this._rows],
       },
     };
@@ -1012,10 +1060,10 @@ class PivotEngine {
 
     const rowFields = this._slice.rows || [];
     const hasMeasuresOnRows = rowFields.some(
-      (f) => f.uniqueName === "Measures",
+      (f) => f.uniqueName === 'Measures',
     );
     const rowFieldsForTree = rowFields.filter(
-      (f) => f.uniqueName !== "Measures",
+      (f) => f.uniqueName !== 'Measures',
     );
 
     const dimensionFormatter = this._buildDimensionFormatter();
@@ -1034,10 +1082,10 @@ class PivotEngine {
 
     const colFields = this._slice.columns || [];
     const hasMeasuresOnColumns = colFields.some(
-      (f) => f.uniqueName === "Measures",
+      (f) => f.uniqueName === 'Measures',
     );
     const colFieldsForTree = colFields.filter(
-      (f) => f.uniqueName !== "Measures",
+      (f) => f.uniqueName !== 'Measures',
     );
 
     const colRoot = buildTree({
@@ -1064,22 +1112,22 @@ class PivotEngine {
         calc?.caption ||
         this._expandedMeta[m.uniqueName]?.caption ||
         m.uniqueName;
-      const agg = m.aggregation || "sum";
+      const agg = m.aggregation || 'sum';
       const aggLabel = this._resolveAggLabel(agg);
       const template =
         this._localization?.grid?.measureCaptionTemplate ||
-        "{agg} Total of {field}";
+        '{agg} Total of {field}';
       const grandTotalTemplate =
         this._localization?.grid?.grandTotalMeasureCaptionTemplate || template;
       const applyTemplate = (tpl: string): string =>
-        tpl.replace("{agg}", aggLabel).replace("{field}", fieldCaption);
+        tpl.replace('{agg}', aggLabel).replace('{field}', fieldCaption);
       return {
         ...m,
         caption:
           m.caption ||
-          (agg === "formula" ? fieldCaption : applyTemplate(template)),
+          (agg === 'formula' ? fieldCaption : applyTemplate(template)),
         grandTotalCaption:
-          agg === "formula" ? fieldCaption : applyTemplate(grandTotalTemplate),
+          agg === 'formula' ? fieldCaption : applyTemplate(grandTotalTemplate),
       };
     };
     const measuresEnriched = (this._slice.measures || []).map(enrichMeasure);
@@ -1097,10 +1145,14 @@ class PivotEngine {
       rowFields: rowFieldsForTree as unknown as RichSliceField[],
       colFields: colFieldsForTree as unknown as RichSliceField[],
       measures: measuresEnriched,
-      calculatedFields: calcFieldsEnriched as unknown as Parameters<typeof computeMatrix>[0]["calculatedFields"],
+      calculatedFields: calcFieldsEnriched as unknown as Parameters<
+        typeof computeMatrix
+      >[0]['calculatedFields'],
       hasMeasuresOnColumns,
       hasMeasuresOnRows,
-      sort: (this._slice.sort || null) as unknown as Parameters<typeof computeMatrix>[0]["sort"],
+      sort: (this._slice.sort || null) as unknown as Parameters<
+        typeof computeMatrix
+      >[0]['sort'],
       layout: this._format.layout,
       metadata: this._expandedMeta as unknown as MetadataRow,
       locale: this._locale,
@@ -1110,7 +1162,11 @@ class PivotEngine {
     return this._matrix;
   }
 
-  setSort(colKey: string | null | undefined, direction: string | null = "desc", measure: SortMeasureRef | null = null): void {
+  setSort(
+    colKey: string | null | undefined,
+    direction: string | null = 'desc',
+    measure: SortMeasureRef | null = null,
+  ): void {
     const prev = this._slice.sort || {};
     const next: InternalSort = { ...prev };
     if (colKey && direction) {
@@ -1125,10 +1181,14 @@ class PivotEngine {
     const hasAny = next.colKey || next.rowKey;
     this._slice = { ...this._slice, sort: hasAny ? next : null };
     this._dirty = true;
-    this._emit("reportChange");
+    this._emit('reportChange');
   }
 
-  setSortByRow(rowKey: string | null | undefined, direction: string | null = "desc", measure: SortMeasureRef | null = null): void {
+  setSortByRow(
+    rowKey: string | null | undefined,
+    direction: string | null = 'desc',
+    measure: SortMeasureRef | null = null,
+  ): void {
     const prev = this._slice.sort || {};
     const next: InternalSort = { ...prev };
     if (rowKey && direction) {
@@ -1143,7 +1203,7 @@ class PivotEngine {
     const hasAny = next.colKey || next.rowKey;
     this._slice = { ...this._slice, sort: hasAny ? next : null };
     this._dirty = true;
-    this._emit("reportChange");
+    this._emit('reportChange');
   }
 
   /**
@@ -1156,12 +1216,15 @@ class PivotEngine {
    * This powers the "expand all / collapse all" icons rendered next to
    * dimension captions and the "Righe" header in the pivot grid.
    */
-  toggleChildrenExpansion(parentKey: string | null | undefined, axis: string = "row"): void {
+  toggleChildrenExpansion(
+    parentKey: string | null | undefined,
+    axis: string = 'row',
+  ): void {
     const filteredRows = applyFilters(this._expandedRows, this._slice.filters);
     const sourceFields =
-      axis === "column" ? this._slice.columns : this._slice.rows;
+      axis === 'column' ? this._slice.columns : this._slice.rows;
     const fields = (sourceFields || []).filter(
-      (f) => f.uniqueName !== "Measures",
+      (f) => f.uniqueName !== 'Measures',
     );
     const tree = buildTree({
       rows: filteredRows,
@@ -1171,7 +1234,9 @@ class PivotEngine {
       rootCaption: this._totalCaption(),
       locale: this._locale,
     });
-    const parent: TreeNode | null = parentKey ? findNodeByKey(tree, parentKey) : tree;
+    const parent: TreeNode | null = parentKey
+      ? findNodeByKey(tree, parentKey)
+      : tree;
     if (!parent || !parent.children || parent.children.length === 0) return;
 
     const allExpanded = parent.children.every((c) => c.isExpanded !== false);
@@ -1188,7 +1253,7 @@ class PivotEngine {
       expands: { ...defaults, expandedMembers: Array.from(toggled) },
     };
     this._dirty = true;
-    this._emit("reportChange");
+    this._emit('reportChange');
   }
 
   toggleExpanded(nodeKey: string): void {
@@ -1204,7 +1269,7 @@ class PivotEngine {
       },
     };
     this._dirty = true;
-    this._emit("reportChange");
+    this._emit('reportChange');
   }
 
   markDirty(): void {
@@ -1213,7 +1278,7 @@ class PivotEngine {
 
   // ---- export --------------------------------------------------------
 
-  async exportExcel(filename: string = "pivot.xlsx"): Promise<void> {
+  async exportExcel(filename: string = 'pivot.xlsx'): Promise<void> {
     const matrix = this.processMatrix();
     await exportMatrixToExcel({
       matrix,

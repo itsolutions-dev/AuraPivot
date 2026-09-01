@@ -39,7 +39,10 @@ import FormatAlignRightIcon from '@mui/icons-material/FormatAlignRight';
 import { usePivot } from '../../context/PivotContext';
 import { usePortalContainer } from '../../hooks/usePortalContainer';
 import { newId, withIds } from '../../utils/ids';
-import type { FormatSnapshot, InternalCalculatedField } from '../../pivot-core/PivotEngine';
+import type {
+  FormatSnapshot,
+  InternalCalculatedField,
+} from '../../pivot-core/PivotEngine';
 
 /**
  * Format customization dialog. Modeled after the auraPivot format panel:
@@ -224,7 +227,10 @@ interface ColorSwatchesProps {
   onChange: (color: string) => void;
 }
 
-const ColorSwatches = function ColorSwatches({ value, onChange }: ColorSwatchesProps) {
+const ColorSwatches = function ColorSwatches({
+  value,
+  onChange,
+}: ColorSwatchesProps) {
   return (
     <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 0.5 }}>
       {PRESET_COLORS.map((c) => {
@@ -277,7 +283,11 @@ interface ColorFieldProps {
   onChange: (color: string | null) => void;
 }
 
-const ColorField = function ColorField({ label, value, onChange }: ColorFieldProps) {
+const ColorField = function ColorField({
+  label,
+  value,
+  onChange,
+}: ColorFieldProps) {
   return (
     <Stack
       sx={{
@@ -301,7 +311,9 @@ const ColorField = function ColorField({ label, value, onChange }: ColorFieldPro
             component="input"
             type="color"
             value={value || '#000000'}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              onChange(e.target.value)
+            }
             sx={{
               width: 36,
               height: 28,
@@ -315,7 +327,9 @@ const ColorField = function ColorField({ label, value, onChange }: ColorFieldPro
           <TextField
             size="small"
             value={value || ''}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              onChange(e.target.value)
+            }
             placeholder="#RRGGBB"
             sx={(theme) => ({
               flex: 1,
@@ -382,13 +396,12 @@ const SectionEditor = function SectionEditor({
   // dynamic boundary: localization is Record<string, unknown> from context
   const { localization: t } = usePivot();
   const tF = (t as Record<string, Record<string, string>>)?.formatDialog ?? {};
-  const patch = (upd: Partial<SectionValues>) => setSection({ ...section, ...upd });
+  const patch = (upd: Partial<SectionValues>) =>
+    setSection({ ...section, ...upd });
   return (
     <Stack sx={{ gap: 3, pt: 1.5 }}>
       <Stack sx={{ gap: 1.25 }}>
-        <SectionLabel>
-          {tF.sectionTypography || 'Typography'}
-        </SectionLabel>
+        <SectionLabel>{tF.sectionTypography || 'Typography'}</SectionLabel>
         <Stack direction="row" spacing={2}>
           <Stack sx={{ gap: 0.5, flex: 1 }}>
             <Typography variant="caption" sx={{ opacity: 0.75 }}>
@@ -425,9 +438,7 @@ const SectionEditor = function SectionEditor({
       </Stack>
 
       <Stack sx={{ gap: 8.25 }}>
-        <SectionLabel>
-          {tF.sectionStyle || 'Style & alignment'}
-        </SectionLabel>
+        <SectionLabel>{tF.sectionStyle || 'Style & alignment'}</SectionLabel>
         <Stack direction="row" spacing={1.5} style={{ alignItems: 'center' }}>
           <ToggleButtonGroup
             size="small"
@@ -476,9 +487,7 @@ const SectionEditor = function SectionEditor({
       </Stack>
 
       <Stack sx={{ gap: 1.5 }}>
-        <SectionLabel>
-          {tF.sectionColors || 'Colors'}
-        </SectionLabel>
+        <SectionLabel>{tF.sectionColors || 'Colors'}</SectionLabel>
         <ColorField
           label={tF.textColorLabel || 'Text color'}
           value={section.textColor as string | null | undefined}
@@ -500,9 +509,7 @@ const SectionEditor = function SectionEditor({
             }}
           />
 
-          <SectionLabel>
-            {tF.numberFormat || 'NUMBER FORMAT'}
-          </SectionLabel>
+          <SectionLabel>{tF.numberFormat || 'NUMBER FORMAT'}</SectionLabel>
 
           <Stack direction="row" spacing={1.5}>
             <Stack sx={{ gap: 0.5, flex: 1 }}>
@@ -512,7 +519,9 @@ const SectionEditor = function SectionEditor({
               <Select
                 size="small"
                 value={section.thousandSeparator ?? 'System'}
-                onChange={(e) => patch({ thousandSeparator: e.target.value as string })}
+                onChange={(e) =>
+                  patch({ thousandSeparator: e.target.value as string })
+                }
               >
                 <MenuItem value="System">{tF.system || 'System'}</MenuItem>
                 <MenuItem value="None">{tF.none || 'None'}</MenuItem>
@@ -527,7 +536,9 @@ const SectionEditor = function SectionEditor({
               <Select
                 size="small"
                 value={section.decimalSeparator ?? 'System'}
-                onChange={(e) => patch({ decimalSeparator: e.target.value as string })}
+                onChange={(e) =>
+                  patch({ decimalSeparator: e.target.value as string })
+                }
               >
                 <MenuItem value="System">{tF.system || 'System'}</MenuItem>
                 <MenuItem value=".">.</MenuItem>
@@ -541,7 +552,9 @@ const SectionEditor = function SectionEditor({
               <Select
                 size="small"
                 value={section.numberOfDecimals ?? 'Default'}
-                onChange={(e) => patch({ numberOfDecimals: e.target.value as string })}
+                onChange={(e) =>
+                  patch({ numberOfDecimals: e.target.value as string })
+                }
               >
                 <MenuItem value="Default">{tF.default || 'Default'}</MenuItem>
                 {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
@@ -558,7 +571,9 @@ const SectionEditor = function SectionEditor({
               <Select
                 size="small"
                 value={section.currencySymbol ?? 'None'}
-                onChange={(e) => patch({ currencySymbol: e.target.value as string })}
+                onChange={(e) =>
+                  patch({ currencySymbol: e.target.value as string })
+                }
               >
                 <MenuItem value="None">{tF.none || 'None'}</MenuItem>
                 <MenuItem value="System">{tF.system || 'System'}</MenuItem>
@@ -573,7 +588,9 @@ const SectionEditor = function SectionEditor({
               control={
                 <Switch
                   checked={!!section.percentage}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => patch({ percentage: e.target.checked })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    patch({ percentage: e.target.checked })
+                  }
                 />
               }
               label={tF.percentage || 'Format as percentage'}
@@ -591,7 +608,9 @@ const SectionEditor = function SectionEditor({
                   size="small"
                   label={tF.currencyOther || 'Symbol'}
                   value={section.currencyOther || ''}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => patch({ currencyOther: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    patch({ currencyOther: e.target.value })
+                  }
                   sx={{ flex: 1 }}
                 />
               )}
@@ -603,7 +622,9 @@ const SectionEditor = function SectionEditor({
                   size="small"
                   exclusive
                   value={section.currencyAlignment || 'Left'}
-                  onChange={(_, v: string | null) => v && patch({ currencyAlignment: v })}
+                  onChange={(_, v: string | null) =>
+                    v && patch({ currencyAlignment: v })
+                  }
                 >
                   <ToggleButton value="Left" sx={{ textTransform: 'none' }}>
                     {tF.left || 'Left'}
@@ -631,7 +652,9 @@ const SectionEditor = function SectionEditor({
               <TextField
                 size="small"
                 value={section.nullValue ?? ''}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => patch({ nullValue: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  patch({ nullValue: e.target.value })
+                }
               />
             </Stack>
           </Stack>
@@ -657,13 +680,12 @@ const TotalsPositionEditor = function TotalsPositionEditor({
   // dynamic boundary: localization is Record<string, unknown> from context
   const { localization: t } = usePivot();
   const tF = (t as Record<string, Record<string, string>>)?.formatDialog ?? {};
-  const patch = (upd: Partial<LayoutValues>) => setLayout({ ...layout, ...upd });
+  const patch = (upd: Partial<LayoutValues>) =>
+    setLayout({ ...layout, ...upd });
   return (
     <Stack sx={{ gap: 3, pt: 1.5 }}>
       <Stack sx={{ gap: 0.5 }}>
-        <SectionLabel>
-          {tF.totalsPosition || 'TOTALS POSITION'}
-        </SectionLabel>
+        <SectionLabel>{tF.totalsPosition || 'TOTALS POSITION'}</SectionLabel>
         <Typography
           variant="caption"
           sx={(theme) => ({ opacity: 0.7, marginBottom: theme.spacing(2) })}
@@ -686,7 +708,9 @@ const TotalsPositionEditor = function TotalsPositionEditor({
           size="small"
           exclusive
           value={layout.totalsRowsPosition || 'before'}
-          onChange={(_, v: string | null) => v && patch({ totalsRowsPosition: v })}
+          onChange={(_, v: string | null) =>
+            v && patch({ totalsRowsPosition: v })
+          }
         >
           <ToggleButton value="before" sx={{ textTransform: 'none' }}>
             {tF.beforeData || 'Before data'}
@@ -705,7 +729,9 @@ const TotalsPositionEditor = function TotalsPositionEditor({
               <Switch
                 size="small"
                 checked={!!layout.totalsRowsSticky}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => patch({ totalsRowsSticky: e.target.checked })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  patch({ totalsRowsSticky: e.target.checked })
+                }
               />
             }
             label={tF.stickyTotals || 'Pin during scroll'}
@@ -726,7 +752,9 @@ const TotalsPositionEditor = function TotalsPositionEditor({
           size="small"
           exclusive
           value={layout.totalsColumnsPosition || 'before'}
-          onChange={(_, v: string | null) => v && patch({ totalsColumnsPosition: v })}
+          onChange={(_, v: string | null) =>
+            v && patch({ totalsColumnsPosition: v })
+          }
         >
           <ToggleButton value="before" sx={{ textTransform: 'none' }}>
             {tF.beforeData || 'Before data'}
@@ -756,7 +784,8 @@ const LayoutTab = function LayoutTab({ layout, setLayout }: LayoutTabProps) {
   // dynamic boundary: localization is Record<string, unknown> from context
   const { localization: t } = usePivot();
   const tF = (t as Record<string, Record<string, string>>)?.formatDialog ?? {};
-  const patch = (upd: Partial<LayoutValues>) => setLayout({ ...layout, ...upd });
+  const patch = (upd: Partial<LayoutValues>) =>
+    setLayout({ ...layout, ...upd });
   return (
     <Stack sx={{ gap: 3, pt: 1.5 }}>
       <Stack sx={{ gap: 0.5 }}>
@@ -767,7 +796,9 @@ const LayoutTab = function LayoutTab({ layout, setLayout }: LayoutTabProps) {
         <TextField
           size="small"
           value={layout.title ?? ''}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => patch({ title: e.target.value })}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            patch({ title: e.target.value })
+          }
           placeholder={tF.titlePlaceholder || 'Report title'}
           sx={{ mt: 1 }}
         />
@@ -781,7 +812,8 @@ const LayoutTab = function LayoutTab({ layout, setLayout }: LayoutTabProps) {
       <Stack sx={{ gap: 0.5 }}>
         <SectionLabel>{tF.density || 'DENSITY'}</SectionLabel>
         <Typography variant="caption" sx={{ opacity: 0.7 }}>
-          {tF.densityDesc || 'Controls cell height, padding and font size of the grid.'}
+          {tF.densityDesc ||
+            'Controls cell height, padding and font size of the grid.'}
         </Typography>
         <ToggleButtonGroup
           size="small"
@@ -811,14 +843,14 @@ const LayoutTab = function LayoutTab({ layout, setLayout }: LayoutTabProps) {
         }}
       />
       <Stack sx={{ gap: 0.5 }}>
-        <SectionLabel>
-          {tF.readability || 'READABILITY'}
-        </SectionLabel>
+        <SectionLabel>{tF.readability || 'READABILITY'}</SectionLabel>
         <FormControlLabel
           control={
             <Switch
               checked={!!layout.alternateRows}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => patch({ alternateRows: e.target.checked })}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                patch({ alternateRows: e.target.checked })
+              }
             />
           }
           label={
@@ -834,14 +866,14 @@ const LayoutTab = function LayoutTab({ layout, setLayout }: LayoutTabProps) {
         }}
       />
       <Stack sx={{ gap: 0.5 }}>
-        <SectionLabel>
-          {tF.enableDrillThrough || 'DRILLTHROUGH'}
-        </SectionLabel>
+        <SectionLabel>{tF.enableDrillThrough || 'DRILLTHROUGH'}</SectionLabel>
         <FormControlLabel
           control={
             <Switch
               checked={layout.enableDrillThrough !== false}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => patch({ enableDrillThrough: e.target.checked })}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                patch({ enableDrillThrough: e.target.checked })
+              }
             />
           }
           label={
@@ -864,7 +896,9 @@ const LayoutTab = function LayoutTab({ layout, setLayout }: LayoutTabProps) {
         <TextField
           size="small"
           value={layout.note ?? ''}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => patch({ note: e.target.value })}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            patch({ note: e.target.value })
+          }
           placeholder={tF.notePlaceholder || 'Add a note…'}
           multiline
           minRows={2}
@@ -900,13 +934,20 @@ const ClauseEditor = function ClauseEditor({
 }: ClauseEditorProps) {
   // dynamic boundary: localization is Record<string, unknown> from context
   const { localization: t } = usePivot();
-  const tF = (t as Record<string, Record<string, string> & { operators?: Record<string, string> }>)?.formatDialog ?? {};
+  const tF =
+    (
+      t as Record<
+        string,
+        Record<string, string> & { operators?: Record<string, string> }
+      >
+    )?.formatDialog ?? {};
   const tFl = (t as Record<string, Record<string, string>>)?.fieldsList ?? {};
   const visibleMeasures = useMemo(
     () => measures.filter((m) => !m.hidden),
     [measures],
   );
-  const patch = (upd: Partial<ExpressionClause>) => onChange({ ...clause, ...upd });
+  const patch = (upd: Partial<ExpressionClause>) =>
+    onChange({ ...clause, ...upd });
   const targetValue =
     clause.kind === 'dim'
       ? `dim:${clause.target || ''}`
@@ -942,7 +983,8 @@ const ClauseEditor = function ClauseEditor({
     contains: tF.exprContains || 'Contains',
   };
   // dynamic boundary: operators is a nested object in localization
-  const tOps = (tF as unknown as { operators?: Record<string, string> }).operators ?? {};
+  const tOps =
+    (tF as unknown as { operators?: Record<string, string> }).operators ?? {};
   const numOpsLabels: Record<string, string> = {
     gt: tOps.gt || '> Greater than',
     gte: tOps.gte || '≥ Greater or equal',
@@ -996,7 +1038,9 @@ const ClauseEditor = function ClauseEditor({
           <Checkbox
             size="small"
             checked={!!clause.not}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => patch({ not: e.target.checked })}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              patch({ not: e.target.checked })
+            }
           />
         }
         label={tF.exprNot || 'NOT'}
@@ -1019,7 +1063,9 @@ const ClauseEditor = function ClauseEditor({
         <TextField
           size="small"
           value={clause.value ?? ''}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => patch({ value: e.target.value })}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            patch({ value: e.target.value })
+          }
           sx={{ width: 200 }}
           label={tF.exprValue || 'Value'}
         />
@@ -1029,7 +1075,9 @@ const ClauseEditor = function ClauseEditor({
             size="small"
             type="number"
             value={clause.value ?? ''}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => patch({ value: Number(e.target.value) })}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              patch({ value: Number(e.target.value) })
+            }
             sx={{ width: 140 }}
             label={tF.ruleValue || 'Value'}
           />
@@ -1038,7 +1086,9 @@ const ClauseEditor = function ClauseEditor({
               size="small"
               type="number"
               value={clause.value2 ?? ''}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => patch({ value2: Number(e.target.value) })}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                patch({ value2: Number(e.target.value) })
+              }
               sx={{ width: 140 }}
               label={tF.ruleValueUpperBound || 'Upper bound'}
             />
@@ -1161,7 +1211,9 @@ const ExpressionDialog = function ExpressionDialog({
               size="small"
               exclusive
               value={draft.join || 'and'}
-              onChange={(_, v: string | null) => v && setDraft({ ...draft, join: v as 'and' | 'or' })}
+              onChange={(_, v: string | null) =>
+                v && setDraft({ ...draft, join: v as 'and' | 'or' })
+              }
             >
               <ToggleButton value="and" sx={{ textTransform: 'none' }}>
                 {tF.exprAnd || 'AND'}
@@ -1254,10 +1306,18 @@ const RuleEditor = function RuleEditor({
 }: RuleEditorProps) {
   // dynamic boundary: localization is Record<string, unknown> from context
   const { localization: t } = usePivot();
-  const tF = (t as Record<string, Record<string, string> & { operators?: Record<string, string> }>)?.formatDialog ?? {};
+  const tF =
+    (
+      t as Record<
+        string,
+        Record<string, string> & { operators?: Record<string, string> }
+      >
+    )?.formatDialog ?? {};
   // dynamic boundary: operators is a nested object in localization
-  const tOps = (tF as unknown as { operators?: Record<string, string> }).operators ?? {};
-  const patch = (upd: Partial<ConditionalRule>) => onChange({ ...rule, ...upd });
+  const tOps =
+    (tF as unknown as { operators?: Record<string, string> }).operators ?? {};
+  const patch = (upd: Partial<ConditionalRule>) =>
+    onChange({ ...rule, ...upd });
   const [exprOpen, setExprOpen] = useState(false);
   const isExpression = rule.operator === 'expression';
   const visibleMeasures = useMemo(
@@ -1275,7 +1335,6 @@ const RuleEditor = function RuleEditor({
   };
   const otherMeasures = useMemo(
     () => measures.filter((m) => !measureEntryMatches(m, rule.measure)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [measures, rule.measure],
   );
   const measureCompareAvailable = !!rule.measure && otherMeasures.length > 0;
@@ -1327,7 +1386,11 @@ const RuleEditor = function RuleEditor({
       rule.measure
     : tF.allMeasures || 'All measures';
   const opSym = OP_SYMBOLS[rule.operator || 'gt'];
-  const formatOperand = (kind: string | undefined, val: unknown, ref: string | undefined) => {
+  const formatOperand = (
+    kind: string | undefined,
+    val: unknown,
+    ref: string | undefined,
+  ) => {
     if (kind === 'measure') {
       if (!ref) return '?';
       const c =
@@ -1341,9 +1404,7 @@ const RuleEditor = function RuleEditor({
     const join = (rule.expression?.join || 'and').toUpperCase();
     if (n === 0) return tF.noClauses || 'no clauses';
     return `${n} ${
-      n === 1
-        ? tF.clauseOne || 'clause'
-        : tF.clauseMany || 'clauses'
+      n === 1 ? tF.clauseOne || 'clause' : tF.clauseMany || 'clauses'
     } (${join})`;
   })();
   const exprRight = isExpression
@@ -1356,7 +1417,9 @@ const RuleEditor = function RuleEditor({
   return (
     <Accordion
       disableGutters
-      onDragOver={(e: React.DragEvent<HTMLDivElement>) => onDragOver?.(e, index)}
+      onDragOver={(e: React.DragEvent<HTMLDivElement>) =>
+        onDragOver?.(e, index)
+      }
       onDragLeave={onDragLeave}
       onDrop={(e: React.DragEvent<HTMLDivElement>) => onDrop?.(e, index)}
       sx={(theme) => ({
@@ -1378,7 +1441,9 @@ const RuleEditor = function RuleEditor({
           <Box
             component="span"
             draggable
-            onDragStart={(e: React.DragEvent<HTMLSpanElement>) => onDragStart?.(e, index)}
+            onDragStart={(e: React.DragEvent<HTMLSpanElement>) =>
+              onDragStart?.(e, index)
+            }
             onDragEnd={onDragEnd}
             onClick={(e: React.MouseEvent) => e.stopPropagation()}
             style={{ alignItems: 'center' }}
@@ -1497,7 +1562,9 @@ const RuleEditor = function RuleEditor({
                 <Select
                   size="small"
                   value={rule.valueKind || 'constant'}
-                  onChange={(e) => patch({ valueKind: e.target.value as string })}
+                  onChange={(e) =>
+                    patch({ valueKind: e.target.value as string })
+                  }
                   sx={{ width: 120, flexShrink: 0 }}
                 >
                   <MenuItem value="constant">
@@ -1520,14 +1587,14 @@ const RuleEditor = function RuleEditor({
                           )?.measureKey || ''
                         : ''
                     }
-                    onChange={(e) => patch({ valueRef: e.target.value as string })}
+                    onChange={(e) =>
+                      patch({ valueRef: e.target.value as string })
+                    }
                     displayEmpty
                     sx={{ width: 220, flexShrink: 0 }}
                   >
                     <MenuItem value="" disabled>
-                      <em>
-                        {tF.selectMeasure || 'Select measure'}
-                      </em>
+                      <em>{tF.selectMeasure || 'Select measure'}</em>
                     </MenuItem>
                     {otherMeasures.map((m) => (
                       <MenuItem key={m.measureKey} value={m.measureKey}>
@@ -1540,7 +1607,9 @@ const RuleEditor = function RuleEditor({
                     size="small"
                     type="number"
                     value={rule.value ?? ''}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => patch({ value: Number(e.target.value) })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      patch({ value: Number(e.target.value) })
+                    }
                     sx={{ width: 160, flexShrink: 0 }}
                     label={tF.ruleValue || 'Value'}
                   />
@@ -1581,7 +1650,9 @@ const RuleEditor = function RuleEditor({
               <Select
                 size="small"
                 value={rule.value2Kind || 'constant'}
-                onChange={(e) => patch({ value2Kind: e.target.value as string })}
+                onChange={(e) =>
+                  patch({ value2Kind: e.target.value as string })
+                }
                 sx={{ width: 120, flexShrink: 0 }}
               >
                 <MenuItem value="constant">
@@ -1604,14 +1675,14 @@ const RuleEditor = function RuleEditor({
                         )?.measureKey || ''
                       : ''
                   }
-                  onChange={(e) => patch({ value2Ref: e.target.value as string })}
+                  onChange={(e) =>
+                    patch({ value2Ref: e.target.value as string })
+                  }
                   displayEmpty
                   sx={{ width: 220, flexShrink: 0 }}
                 >
                   <MenuItem value="" disabled>
-                    <em>
-                      {tF.selectMeasure || 'Select measure'}
-                    </em>
+                    <em>{tF.selectMeasure || 'Select measure'}</em>
                   </MenuItem>
                   {otherMeasures.map((m) => (
                     <MenuItem key={m.measureKey} value={m.measureKey}>
@@ -1624,7 +1695,9 @@ const RuleEditor = function RuleEditor({
                   size="small"
                   type="number"
                   value={rule.value2 ?? ''}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => patch({ value2: Number(e.target.value) })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    patch({ value2: Number(e.target.value) })
+                  }
                   sx={{ width: 160, flexShrink: 0 }}
                   label={tF.ruleValueUpperBound || 'Upper bound'}
                 />
@@ -1652,8 +1725,7 @@ const RuleEditor = function RuleEditor({
               {tF.conditionalModeInherit || 'Inherit'}
             </MenuItem>
             <MenuItem value="first">
-              {tF.conditionalModeFirst ||
-                'Stop at the first rule matched'}
+              {tF.conditionalModeFirst || 'Stop at the first rule matched'}
             </MenuItem>
             <MenuItem value="all">
               {tF.conditionalModeAll || 'Evaluate all the rules'}
@@ -1670,7 +1742,9 @@ const RuleEditor = function RuleEditor({
 
         <SectionEditor
           section={(rule.style || {}) as SectionValues}
-          setSection={(next: SectionValues) => onChange({ ...rule, style: next as RuleStyle })}
+          setSection={(next: SectionValues) =>
+            onChange({ ...rule, style: next as RuleStyle })
+          }
         />
 
         <Stack direction="row" sx={{ mt: 2 }}>
@@ -1734,7 +1808,10 @@ const ConditionalTab = function ConditionalTab({
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
 
-  const handleDragStart = (e: React.DragEvent<HTMLSpanElement>, idx: number) => {
+  const handleDragStart = (
+    e: React.DragEvent<HTMLSpanElement>,
+    idx: number,
+  ) => {
     setDragIndex(idx);
     e.dataTransfer.effectAllowed = 'move';
     try {
@@ -1787,7 +1864,8 @@ const ConditionalTab = function ConditionalTab({
   const updateRule = (idx: number, next: ConditionalRule) =>
     setRules(rules.map((r, i) => (i === idx ? next : r)));
 
-  const removeRule = (idx: number) => setRules(rules.filter((_, i) => i !== idx));
+  const removeRule = (idx: number) =>
+    setRules(rules.filter((_, i) => i !== idx));
 
   const effectiveMode = mode === 'all' ? 'all' : 'first';
   const modeDescription =
@@ -1809,8 +1887,7 @@ const ConditionalTab = function ConditionalTab({
           onChange={(e) => setMode?.(e.target.value as string)}
         >
           <MenuItem value="first">
-            {tF.conditionalModeFirst ||
-              'Stop at the first rule matched'}
+            {tF.conditionalModeFirst || 'Stop at the first rule matched'}
           </MenuItem>
           <MenuItem value="all">
             {tF.conditionalModeAll || 'Evaluate all the rules'}
@@ -1955,7 +2032,10 @@ export interface FormatDialogProps {
   onClose: () => void;
 }
 
-const FormatDialogBody = function FormatDialogBody({ open, onClose }: FormatDialogProps): React.ReactElement {
+const FormatDialogBody = function FormatDialogBody({
+  open,
+  onClose,
+}: FormatDialogProps): React.ReactElement {
   // dynamic boundary: engine and localization come from context with broad types
   const { engine, localization: t } = usePivot();
   const tF = (t as Record<string, Record<string, string>>)?.formatDialog ?? {};
@@ -1975,10 +2055,12 @@ const FormatDialogBody = function FormatDialogBody({ open, onClose }: FormatDial
     () => (getFormat().headers as SectionValues) ?? { ...DEFAULTS.headers },
   );
   const [grandTotals, setGrandTotals] = useState<SectionValues>(
-    () => (getFormat().grandTotals as SectionValues) ?? { ...DEFAULTS.grandTotals },
+    () =>
+      (getFormat().grandTotals as SectionValues) ?? { ...DEFAULTS.grandTotals },
   );
   const [dimensions, setDimensions] = useState<SectionValues>(
-    () => (getFormat().dimensions as SectionValues) ?? { ...DEFAULTS.dimensions },
+    () =>
+      (getFormat().dimensions as SectionValues) ?? { ...DEFAULTS.dimensions },
   );
   const [layout, setLayout] = useState<LayoutValues>(
     () => (getFormat().layout as LayoutValues) ?? { ...DEFAULTS.layout },
@@ -1989,34 +2071,44 @@ const FormatDialogBody = function FormatDialogBody({ open, onClose }: FormatDial
   const [conditionalMode, setConditionalMode] = useState<string>(
     () => getFormat().conditionalMode || 'first',
   );
-  const [valuesByMeasure, setValuesByMeasure] = useState<Record<string, SectionValues>>(
-    () => (getFormat().valuesByMeasure as Record<string, SectionValues>) ?? {},
-  );
+  const [valuesByMeasure, setValuesByMeasure] = useState<
+    Record<string, SectionValues>
+  >(() => (getFormat().valuesByMeasure as Record<string, SectionValues>) ?? {});
   const [valuesTarget, setValuesTarget] = useState('__default__');
 
   const calcByName = new Map<string, InternalCalculatedField>(
     engine.getCalculatedFields().map((f) => [f.uniqueName, f]),
   );
   const aggLabel = (a: string) => {
-    const localeKey = ({ distinctCount: 'distinctCount', avg: 'average' } as Record<string, string>)[a] || a;
-    const tAgg = (t as Record<string, Record<string, unknown>>)?.aggregations ?? {};
+    const localeKey =
+      (
+        { distinctCount: 'distinctCount', avg: 'average' } as Record<
+          string,
+          string
+        >
+      )[a] || a;
+    const tAgg =
+      (t as Record<string, Record<string, unknown>>)?.aggregations ?? {};
     const raw = tAgg[a] ?? tAgg[localeKey];
-    if (raw && typeof raw === 'object') return (raw as Record<string, string>).caption || a;
+    if (raw && typeof raw === 'object')
+      return (raw as Record<string, string>).caption || a;
     return (raw as string) || a;
   };
-  const measures: MeasureEntry[] = (engine.getSlice().measures || []).map((m) => ({
-    uniqueName: m.uniqueName,
-    aggregation: m.aggregation,
-    measureKey: `${m.uniqueName}:${m.aggregation}`,
-    caption: (() => {
-      const base =
-        engine.getMetadata()[m.uniqueName]?.caption ||
-        calcByName.get(m.uniqueName)?.caption ||
-        m.uniqueName;
-      return `${base} (${aggLabel(m.aggregation)})`;
-    })(),
-    hidden: !!m.hidden,
-  }));
+  const measures: MeasureEntry[] = (engine.getSlice().measures || []).map(
+    (m) => ({
+      uniqueName: m.uniqueName,
+      aggregation: m.aggregation,
+      measureKey: `${m.uniqueName}:${m.aggregation}`,
+      caption: (() => {
+        const base =
+          engine.getMetadata()[m.uniqueName]?.caption ||
+          calcByName.get(m.uniqueName)?.caption ||
+          m.uniqueName;
+        return `${base} (${aggLabel(m.aggregation)})`;
+      })(),
+      hidden: !!m.hidden,
+    }),
+  );
 
   const dimensionFields: DimensionEntry[] = (() => {
     const slice = engine.getSlice();
@@ -2124,10 +2216,16 @@ const FormatDialogBody = function FormatDialogBody({ open, onClose }: FormatDial
       >
         <Tab label={tF['tabs.layout'] || tF.tabsLayout || 'Layout'} />
         <Tab label={tF['tabs.headers'] || tF.tabsHeaders || 'Headers'} />
-        <Tab label={tF['tabs.dimensions'] || tF.tabsDimensions || 'Dimensions'} />
+        <Tab
+          label={tF['tabs.dimensions'] || tF.tabsDimensions || 'Dimensions'}
+        />
         <Tab label={tF['tabs.values'] || tF.tabsValues || 'Values'} />
-        <Tab label={tF['tabs.conditional'] || tF.tabsConditional || 'Conditional'} />
-        <Tab label={tF['tabs.grandTotals'] || tF.tabsGrandTotals || 'Grand totals'} />
+        <Tab
+          label={tF['tabs.conditional'] || tF.tabsConditional || 'Conditional'}
+        />
+        <Tab
+          label={tF['tabs.grandTotals'] || tF.tabsGrandTotals || 'Grand totals'}
+        />
       </Tabs>
       <DialogContent sx={{ px: 3, py: 3 }}>
         {tab === 0 && <LayoutTab layout={layout} setLayout={setLayout} />}
@@ -2150,9 +2248,7 @@ const FormatDialogBody = function FormatDialogBody({ open, onClose }: FormatDial
                 sx={{ minWidth: 220 }}
               >
                 <MenuItem value="__default__">
-                  <em>
-                    {tF.valuesDefault || 'Default (all measures)'}
-                  </em>
+                  <em>{tF.valuesDefault || 'Default (all measures)'}</em>
                 </MenuItem>
                 {measures.map((m) => (
                   <MenuItem key={m.measureKey} value={m.measureKey}>
@@ -2230,7 +2326,9 @@ const FormatDialogBody = function FormatDialogBody({ open, onClose }: FormatDial
  * Thin wrapper: a new key on every open re-seeds all nine drafts from the
  * engine, so the body needs no reset effect.
  */
-const FormatDialog = function FormatDialog(props: FormatDialogProps): React.ReactElement {
+const FormatDialog = function FormatDialog(
+  props: FormatDialogProps,
+): React.ReactElement {
   const [session, setSession] = useState(0);
   const [wasOpen, setWasOpen] = useState(props.open);
   if (props.open !== wasOpen) {

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState } from 'react';
 
 import {
   Box,
@@ -9,7 +9,6 @@ import {
   IconButton,
   Chip,
   Typography,
-  Divider,
   Button,
   Select,
   MenuItem,
@@ -25,27 +24,27 @@ import {
   InputAdornment,
   InputLabel,
   OutlinedInput,
-} from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
-import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
-import EditIcon from "@mui/icons-material/Edit";
-import CalculateIcon from "@mui/icons-material/Calculate";
-import FunctionsIcon from "@mui/icons-material/Functions";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import TuneIcon from "@mui/icons-material/Tune";
-import AddIcon from "@mui/icons-material/Add";
-import RemoveIcon from "@mui/icons-material/Remove";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import { usePivot } from "../../context/PivotContext";
-import { usePortalContainer } from "../../hooks/usePortalContainer";
-import useEngineVersion from "../../hooks/useEngineVersion";
-import CalculatedFieldDialog from "../CalculatedFieldDialog/CalculatedFieldDialog";
-import type { InternalSlice } from "../../pivot-core/PivotEngine";
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
+import EditIcon from '@mui/icons-material/Edit';
+import CalculateIcon from '@mui/icons-material/Calculate';
+import FunctionsIcon from '@mui/icons-material/Functions';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import TuneIcon from '@mui/icons-material/Tune';
+import AddIcon from '@mui/icons-material/Add';
+import RemoveIcon from '@mui/icons-material/Remove';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import { usePivot } from '../../context/PivotContext';
+import { usePortalContainer } from '../../hooks/usePortalContainer';
+import useEngineVersion from '../../hooks/useEngineVersion';
+import CalculatedFieldDialog from '../CalculatedFieldDialog/CalculatedFieldDialog';
+import type { InternalSlice } from '../../pivot-core/PivotEngine';
 
 /**
  * Drag-and-drop configuration panel for rows, columns, measures and filters.
@@ -126,7 +125,7 @@ interface DateFormatEntry {
 export interface FieldListProps {
   open: boolean;
   onClose: () => void;
-  measuresAxis?: "rows" | "columns";
+  measuresAxis?: 'rows' | 'columns';
 }
 
 // ---------------------------------------------------------------------------
@@ -134,14 +133,14 @@ export interface FieldListProps {
 // ---------------------------------------------------------------------------
 
 const AGGREGATION_LABELS_FALLBACK: Record<string, string> = {
-  sum: "Sum",
-  count: "Count",
-  distinctCount: "Distinct count",
-  avg: "Average",
-  min: "Min",
-  max: "Max",
-  ratioTotal: "Ratio to total",
-  currentRatio: "Current ratio",
+  sum: 'Sum',
+  count: 'Count',
+  distinctCount: 'Distinct count',
+  avg: 'Average',
+  min: 'Min',
+  max: 'Max',
+  ratioTotal: 'Ratio to total',
+  currentRatio: 'Current ratio',
 };
 
 /**
@@ -154,14 +153,14 @@ const AGGREGATION_LABELS_FALLBACK: Record<string, string> = {
  * lower-case form.
  */
 const AGG_DICT_KEY: Record<string, string> = {
-  sum: "sum",
-  count: "count",
-  distinctCount: "distinctCount",
-  avg: "average",
-  min: "min",
-  max: "max",
-  ratioTotal: "ratioTotal",
-  currentRatio: "currentRatio",
+  sum: 'sum',
+  count: 'count',
+  distinctCount: 'distinctCount',
+  avg: 'average',
+  min: 'min',
+  max: 'max',
+  ratioTotal: 'ratioTotal',
+  currentRatio: 'currentRatio',
 };
 
 const resolveAggregationLabel = (
@@ -172,7 +171,7 @@ const resolveAggregationLabel = (
   const tagg =
     (t as Record<string, Record<string, unknown>>)?.aggregations ?? {};
   const entry = tagg[aggregation] ?? tagg[localeKey];
-  if (entry && typeof entry === "object") {
+  if (entry && typeof entry === 'object') {
     return (
       (entry as Record<string, string>).caption ||
       AGGREGATION_LABELS_FALLBACK[aggregation] ||
@@ -185,10 +184,10 @@ const resolveAggregationLabel = (
 };
 
 const ZONES: { id: string; labelKey: string }[] = [
-  { id: "filters", labelKey: "filters" },
-  { id: "rows", labelKey: "rows" },
-  { id: "columns", labelKey: "columns" },
-  { id: "measures", labelKey: "values" },
+  { id: 'filters', labelKey: 'filters' },
+  { id: 'rows', labelKey: 'rows' },
+  { id: 'columns', labelKey: 'columns' },
+  { id: 'measures', labelKey: 'values' },
 ];
 
 /**
@@ -212,14 +211,14 @@ const parseDragPayload = (raw: string): DragPayload | null => {
     const parsed = JSON.parse(raw) as unknown;
     if (
       parsed &&
-      typeof parsed === "object" &&
+      typeof parsed === 'object' &&
       (parsed as Record<string, unknown>).uniqueName
     )
       return parsed as DragPayload;
   } catch {
     // fall through: plain-uniqueName payload from the "all fields" list.
   }
-  return { source: "all", uniqueName: raw };
+  return { source: 'all', uniqueName: raw };
 };
 
 // ---------------------------------------------------------------------------
@@ -228,54 +227,54 @@ const parseDragPayload = (raw: string): DragPayload | null => {
 
 const DATE_FORMAT_PRESETS: DateFormatEntry[] = [
   {
-    value: "locale-date",
-    labelKey: "localeDate",
-    fallback: "Browser locale (date)",
+    value: 'locale-date',
+    labelKey: 'localeDate',
+    fallback: 'Browser locale (date)',
   },
   {
-    value: "locale-datetime",
-    labelKey: "localeDateTime",
-    fallback: "Browser locale (date & time)",
+    value: 'locale-datetime',
+    labelKey: 'localeDateTime',
+    fallback: 'Browser locale (date & time)',
   },
-  { value: "iso", labelKey: "iso", fallback: "ISO (yyyy-MM-dd HH:mm:ss)" },
-  { value: "iso-date", labelKey: "isoDate", fallback: "ISO date (yyyy-MM-dd)" },
-  { value: "custom", labelKey: "custom", fallback: "Custom pattern…" },
+  { value: 'iso', labelKey: 'iso', fallback: 'ISO (yyyy-MM-dd HH:mm:ss)' },
+  { value: 'iso-date', labelKey: 'isoDate', fallback: 'ISO date (yyyy-MM-dd)' },
+  { value: 'custom', labelKey: 'custom', fallback: 'Custom pattern…' },
 ];
 
 // Per-subpart preset lists + defaults. Keyed by the metadata.subpart value.
 const SUBPART_PRESETS: Record<string, { value: string; fallback: string }[]> = {
   month: [
-    { value: "name-full", fallback: "Full name (January)" },
-    { value: "name-short", fallback: "Short name (Jan)" },
-    { value: "number", fallback: "Number (1)" },
-    { value: "number-padded", fallback: "Padded number (01)" },
+    { value: 'name-full', fallback: 'Full name (January)' },
+    { value: 'name-short', fallback: 'Short name (Jan)' },
+    { value: 'number', fallback: 'Number (1)' },
+    { value: 'number-padded', fallback: 'Padded number (01)' },
   ],
   quarter: [
-    { value: "long", fallback: "Long (Quarter 1)" },
-    { value: "short", fallback: "Short (Q1)" },
-    { value: "number", fallback: "Number (1)" },
+    { value: 'long', fallback: 'Long (Quarter 1)' },
+    { value: 'short', fallback: 'Short (Q1)' },
+    { value: 'number', fallback: 'Number (1)' },
   ],
   weekday: [
-    { value: "name-full", fallback: "Full name (Monday)" },
-    { value: "name-short", fallback: "Short name (Mon)" },
+    { value: 'name-full', fallback: 'Full name (Monday)' },
+    { value: 'name-short', fallback: 'Short name (Mon)' },
   ],
   week: [
-    { value: "number", fallback: "Number (1)" },
-    { value: "long", fallback: "Long (Week 1)" },
+    { value: 'number', fallback: 'Number (1)' },
+    { value: 'long', fallback: 'Long (Week 1)' },
   ],
 };
 
 const SUBPART_DEFAULTS: Record<string, string> = {
-  month: "name-full",
-  quarter: "long",
-  weekday: "name-full",
-  week: "number",
+  month: 'name-full',
+  quarter: 'long',
+  weekday: 'name-full',
+  week: 'number',
 };
 
 const SUBPART_CONFIGURABLE = new Set(Object.keys(SUBPART_PRESETS));
 
 const defaultFormatFor = (subpart: string | null): string | null =>
-  subpart ? SUBPART_DEFAULTS[subpart] || null : "locale-date";
+  subpart ? SUBPART_DEFAULTS[subpart] || null : 'locale-date';
 
 // ---------------------------------------------------------------------------
 // DateFormatPopover
@@ -312,29 +311,29 @@ const DateFormatPopover = function DateFormatPopover({
 
   const dateLabel = (p: DateFormatEntry): string =>
     (tFL.dateFormats as Record<string, string> | undefined)?.[
-      p.labelKey || ""
+      p.labelKey || ''
     ] || p.fallback;
 
   // For the free date formatter: any non-preset value = custom pattern.
   const datePresetValues = new Set(
-    DATE_FORMAT_PRESETS.filter((p) => p.value !== "custom").map((p) => p.value),
+    DATE_FORMAT_PRESETS.filter((p) => p.value !== 'custom').map((p) => p.value),
   );
-  const dateIsPreset = datePresetValues.has(value || "");
-  const dateMode = dateIsPreset ? value || "" : "custom";
-  const datePattern = dateIsPreset ? "" : value || "";
+  const dateIsPreset = datePresetValues.has(value || '');
+  const dateMode = dateIsPreset ? value || '' : 'custom';
+  const datePattern = dateIsPreset ? '' : value || '';
 
   return (
     <Popover
       open={!!anchor && !!uniqueName}
       anchorEl={anchor}
       onClose={onClose}
-      anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-      transformOrigin={{ vertical: "top", horizontal: "right" }}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       container={portalContainer}
     >
       <Box sx={{ p: 2, width: 280 }}>
         <Typography variant="caption" sx={{ fontWeight: 600, opacity: 0.75 }}>
-          {(tFL.dateFormat as string | undefined) || "Date format"}
+          {(tFL.dateFormat as string | undefined) || 'Date format'}
         </Typography>
         {isSubpart ? (
           <Select
@@ -356,8 +355,8 @@ const DateFormatPopover = function DateFormatPopover({
               value={dateMode}
               onChange={(e) => {
                 const next = String(e.target.value);
-                if (next === "custom") {
-                  onChange(datePattern || "dd/MM/yyyy");
+                if (next === 'custom') {
+                  onChange(datePattern || 'dd/MM/yyyy');
                 } else {
                   onChange(next);
                 }
@@ -372,7 +371,7 @@ const DateFormatPopover = function DateFormatPopover({
                 </MenuItem>
               ))}
             </Select>
-            {dateMode === "custom" && (
+            {dateMode === 'custom' && (
               <TextField
                 value={datePattern}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -384,7 +383,7 @@ const DateFormatPopover = function DateFormatPopover({
                 placeholder="dd/MM/yyyy HH:mm"
                 helperText={
                   (tFL.dateFormatHelp as string | undefined) ||
-                  "Tokens: yyyy yy MMMM MMM MM M dd d EEEE EEE HH H mm m ss s"
+                  'Tokens: yyyy yy MMMM MMM MM M dd d EEEE EEE HH H mm m ss s'
                 }
               />
             )}
@@ -407,7 +406,7 @@ interface NumericFieldProps {
   step?: number;
   label?: string;
   helperText?: string;
-  size?: "small" | "medium";
+  size?: 'small' | 'medium';
   fullWidth?: boolean;
 }
 
@@ -427,7 +426,7 @@ const NumericField = function NumericField({
   step = 1,
   label,
   helperText,
-  size = "small",
+  size = 'small',
   fullWidth = false,
 }: NumericFieldProps): React.ReactElement {
   const clamp = (raw: number): number => {
@@ -461,7 +460,7 @@ const NumericField = function NumericField({
               sx={(theme) => ({
                 borderRadius: 1.5,
                 color: theme.palette.text.secondary,
-                "&:hover": {
+                '&:hover': {
                   color: theme.palette.primary.main,
                   backgroundColor: theme.palette.action.hover,
                 },
@@ -481,7 +480,7 @@ const NumericField = function NumericField({
               sx={(theme) => ({
                 borderRadius: 1.5,
                 color: theme.palette.text.secondary,
-                "&:hover": {
+                '&:hover': {
                   color: theme.palette.primary.main,
                   backgroundColor: theme.palette.action.hover,
                 },
@@ -492,18 +491,18 @@ const NumericField = function NumericField({
           </InputAdornment>
         }
         inputProps={{
-          inputMode: "numeric",
+          inputMode: 'numeric',
           style: {
-            textAlign: "center",
-            fontVariantNumeric: "tabular-nums",
+            textAlign: 'center',
+            fontVariantNumeric: 'tabular-nums',
             fontWeight: 600,
-            MozAppearance: "textfield",
+            MozAppearance: 'textfield',
           },
         }}
         sx={{
-          "& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button":
+          '& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button':
             {
-              WebkitAppearance: "none",
+              WebkitAppearance: 'none',
               margin: 0,
             },
         }}
@@ -544,14 +543,14 @@ const DropZone = function DropZone({
     <Box
       onDragOver={(e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
+        e.dataTransfer.dropEffect = 'move';
         setOver(true);
       }}
       onDragLeave={() => setOver(false)}
       onDrop={(e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         setOver(false);
-        const payload = parseDragPayload(e.dataTransfer.getData("text/plain"));
+        const payload = parseDragPayload(e.dataTransfer.getData('text/plain'));
         if (payload) onDrop(zone, payload, null);
       }}
       sx={(theme) => ({
@@ -564,7 +563,7 @@ const DropZone = function DropZone({
           : theme.palette.background.default,
         p: 1.5,
         minHeight: 96,
-        transition: "all 150ms ease",
+        transition: 'all 150ms ease',
       })}
     >
       <Typography
@@ -573,11 +572,11 @@ const DropZone = function DropZone({
       >
         {label}
       </Typography>
-      <Stack direction="row" sx={{ gap: 0, flexWrap: "wrap", mt: 0.75 }}>
+      <Stack direction="row" sx={{ gap: 0, flexWrap: 'wrap', mt: 0.75 }}>
         {items.length === 0 && (
           <Typography
             variant="body2"
-            sx={{ opacity: 0.5, fontStyle: "italic" }}
+            sx={{ opacity: 0.5, fontStyle: 'italic' }}
           >
             {dropHint}
           </Typography>
@@ -590,26 +589,26 @@ const DropZone = function DropZone({
             onDragStart: (e: React.DragEvent<HTMLDivElement>) => {
               e.stopPropagation();
               e.dataTransfer.setData(
-                "text/plain",
+                'text/plain',
                 JSON.stringify({
                   source: zone,
                   uniqueName: item.uniqueName,
                   idx,
                 }),
               );
-              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.effectAllowed = 'move';
             },
             onDragOver: (e: React.DragEvent<HTMLDivElement>) => {
               e.preventDefault();
               e.stopPropagation();
-              e.dataTransfer.dropEffect = "move";
+              e.dataTransfer.dropEffect = 'move';
             },
             onDrop: (e: React.DragEvent<HTMLDivElement>) => {
               e.preventDefault();
               e.stopPropagation();
               setOver(false);
               const payload = parseDragPayload(
-                e.dataTransfer.getData("text/plain"),
+                e.dataTransfer.getData('text/plain'),
               );
               if (payload) onDrop(zone, payload, idx);
             },
@@ -618,10 +617,10 @@ const DropZone = function DropZone({
             <Box
               key={chipKey(item)}
               sx={{
-                cursor: "grab",
-                mr: "4px",
-                mt: "4px",
-                "&:active": { cursor: "grabbing" },
+                cursor: 'grab',
+                mr: '4px',
+                mt: '4px',
+                '&:active': { cursor: 'grabbing' },
               }}
               {...dragProps}
             >
@@ -641,16 +640,16 @@ const DropZone = function DropZone({
 /** The measure axis needs an anchor field on one of the two zones. */
 const ensureMeasuresAnchor = (
   s: LocalSlice,
-  measuresAxis: FieldListProps["measuresAxis"],
+  measuresAxis: FieldListProps['measuresAxis'],
 ): LocalSlice => {
-  const inRows = (s.rows || []).some((f) => f.uniqueName === "Measures");
-  const inCols = (s.columns || []).some((f) => f.uniqueName === "Measures");
+  const inRows = (s.rows || []).some((f) => f.uniqueName === 'Measures');
+  const inCols = (s.columns || []).some((f) => f.uniqueName === 'Measures');
   if (inRows || inCols) return s;
   // Default placement honors the `measuresAxis` prop; columns otherwise.
-  if (measuresAxis === "rows") {
-    return { ...s, rows: [...(s.rows || []), { uniqueName: "Measures" }] };
+  if (measuresAxis === 'rows') {
+    return { ...s, rows: [...(s.rows || []), { uniqueName: 'Measures' }] };
   }
-  return { ...s, columns: [...(s.columns || []), { uniqueName: "Measures" }] };
+  return { ...s, columns: [...(s.columns || []), { uniqueName: 'Measures' }] };
 };
 
 /** Drop a field from every zone of the local draft slice. */
@@ -692,17 +691,18 @@ const FieldListBody = function FieldListBody({
   const engineVersion = useEngineVersion(engine);
   const calcFields = useMemo<CalculatedField[]>(
     () => engine.getCalculatedFields(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [engine, engineVersion],
   );
 
   // Local draft of per-date-field formats. Committed to the engine on Apply.
-  const [dateFormats, setDateFormats] = useState<Record<string, string>>(
-    () => engine.getDateFormats(),
+  const [dateFormats, setDateFormats] = useState<Record<string, string>>(() =>
+    engine.getDateFormats(),
   );
   // Local drafts for the "All fields" reorder and the drill-through config.
   // Persisted on Apply via engine.setFieldOrder / setDrillThroughConfig.
-  const [fieldOrder, setFieldOrder] = useState<string[]>(
-    () => engine.getFieldOrder(),
+  const [fieldOrder, setFieldOrder] = useState<string[]>(() =>
+    engine.getFieldOrder(),
   );
   const [drillThroughFields, setDrillThroughFields] = useState<
     Record<string, boolean | undefined>
@@ -728,7 +728,7 @@ const FieldListBody = function FieldListBody({
   }>({
     anchor: null,
     uniqueName: null,
-    value: "",
+    value: '',
   });
 
   // dynamic boundary: localization is Record<string,unknown>
@@ -736,9 +736,7 @@ const FieldListBody = function FieldListBody({
   const tButtons = (t as Record<string, Record<string, string>>)?.buttons ?? {};
 
   const openCaptionEditor = (target: HTMLElement, uniqueName: string) => {
-    const meta = engine.getMetadata()[
-      uniqueName
-    ];
+    const meta = engine.getMetadata()[uniqueName];
     const calc = calcFields.find((c) => c.uniqueName === uniqueName);
     const current = meta?.caption || calc?.caption || uniqueName;
     setCaptionEditor({ anchor: target, uniqueName, value: current });
@@ -746,11 +744,8 @@ const FieldListBody = function FieldListBody({
 
   const saveCaption = () => {
     if (!captionEditor.uniqueName) return;
-    engine.setFieldCaption(
-      captionEditor.uniqueName,
-      captionEditor.value,
-    );
-    setCaptionEditor({ anchor: null, uniqueName: null, value: "" });
+    engine.setFieldCaption(captionEditor.uniqueName, captionEditor.value);
+    setCaptionEditor({ anchor: null, uniqueName: null, value: '' });
   };
 
   // Filter-slot fields are intentionally NOT removed from the available list:
@@ -766,17 +761,17 @@ const FieldListBody = function FieldListBody({
   // the same field multiple times to get a Sum, an Avg, a Count … side by
   // side. Rows / columns still consume the field exclusively.
   const DEFAULT_NUMERIC_AGGS = [
-    "sum",
-    "count",
-    "distinctCount",
-    "avg",
-    "min",
-    "max",
-    "ratioTotal",
-    "currentRatio",
+    'sum',
+    'count',
+    'distinctCount',
+    'avg',
+    'min',
+    'max',
+    'ratioTotal',
+    'currentRatio',
   ];
   const allowedAggsFor = (uniqueName: string): string[] => {
-    if (calcFields.some((c) => c.uniqueName === uniqueName)) return ["formula"];
+    if (calcFields.some((c) => c.uniqueName === uniqueName)) return ['formula'];
     const meta = (
       engine.getMetadata() as Record<
         string,
@@ -804,10 +799,10 @@ const FieldListBody = function FieldListBody({
     (slice.measures || []).forEach((m) => {
       if (!measureAggs.has(m.uniqueName))
         measureAggs.set(m.uniqueName, new Set());
-      measureAggs.get(m.uniqueName)!.add(m.aggregation || "");
+      measureAggs.get(m.uniqueName)!.add(m.aggregation || '');
     });
     return all.filter((f) => {
-      if (f.uniqueName === "Measures") return false;
+      if (f.uniqueName === 'Measures') return false;
       // Used-as-dimension fields are kept visible (dimmed in the UI).
       if (usedAsDimensionSet.has(f.uniqueName)) return true;
       const used = measureAggs.get(f.uniqueName);
@@ -838,7 +833,7 @@ const FieldListBody = function FieldListBody({
       const m = f.uniqueName.match(
         /^(.+)\.(Year|Quarter|Month|Week|Day|Weekday|Hour|Minute)$/,
       );
-      if (m && meta[m[1]]?.type === "date") {
+      if (m && meta[m[1]]?.type === 'date') {
         if (!childrenByParent.has(m[1])) childrenByParent.set(m[1], []);
         const subpart = meta[f.uniqueName]?.subpart || m[2].toLowerCase();
         childrenByParent.get(m[1])!.push({
@@ -855,7 +850,7 @@ const FieldListBody = function FieldListBody({
 
     const nodes: FieldTreeNode[] = [];
     leftover.forEach((f) => {
-      if (meta[f.uniqueName]?.type === "date") {
+      if (meta[f.uniqueName]?.type === 'date') {
         nodes.push({
           ...f,
           isDateParent: true,
@@ -905,10 +900,10 @@ const FieldListBody = function FieldListBody({
 
   // Derive the current "Mostra i totali" axis from the slice. The Measures
   // anchor lives on either rows or columns; default to columns when missing.
-  const currentMeasuresAxis = useMemo<"rows" | "columns">(() => {
-    if ((slice.rows || []).some((f) => f.uniqueName === "Measures"))
-      return "rows";
-    return "columns";
+  const currentMeasuresAxis = useMemo<'rows' | 'columns'>(() => {
+    if ((slice.rows || []).some((f) => f.uniqueName === 'Measures'))
+      return 'rows';
+    return 'columns';
   }, [slice]);
 
   const handleMeasuresAxisChange = (
@@ -917,12 +912,12 @@ const FieldListBody = function FieldListBody({
   ) => {
     if (!value || value === currentMeasuresAxis) return;
     const next = { ...slice };
-    next.rows = (next.rows || []).filter((f) => f.uniqueName !== "Measures");
+    next.rows = (next.rows || []).filter((f) => f.uniqueName !== 'Measures');
     next.columns = (next.columns || []).filter(
-      (f) => f.uniqueName !== "Measures",
+      (f) => f.uniqueName !== 'Measures',
     );
-    const anchor: InternalSliceField = { uniqueName: "Measures" };
-    if (value === "rows") {
+    const anchor: InternalSliceField = { uniqueName: 'Measures' };
+    if (value === 'rows') {
       next.rows = [...next.rows, anchor];
     } else {
       next.columns = [...next.columns, anchor];
@@ -935,10 +930,10 @@ const FieldListBody = function FieldListBody({
     uniqueName: string,
   ) => {
     e.dataTransfer.setData(
-      "text/plain",
-      JSON.stringify({ source: "all", uniqueName }),
+      'text/plain',
+      JSON.stringify({ source: 'all', uniqueName }),
     );
-    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.effectAllowed = 'move';
   };
 
   /**
@@ -959,7 +954,7 @@ const FieldListBody = function FieldListBody({
     const { source, uniqueName, idx: sourceIdx } = payload;
     // The "Valori" anchor is no longer drag-and-droppable from the field list:
     // its axis is governed exclusively by the "Mostra i totali" toggle.
-    if (uniqueName === "Measures") return;
+    if (uniqueName === 'Measures') return;
 
     // --- Pre-validate measure capacity --------------------------------
     // When dropping into measures from a non-measures source, pick the
@@ -967,7 +962,7 @@ const FieldListBody = function FieldListBody({
     // same field. If all supported aggregations are in use, abort before
     // mutating any slice zone.
     let chosenAgg: string | null = null;
-    if (zone === "measures" && source !== "measures") {
+    if (zone === 'measures' && source !== 'measures') {
       const allowed = allowedAggsFor(uniqueName);
       const usedAgg = new Set(
         (slice.measures || [])
@@ -993,7 +988,7 @@ const FieldListBody = function FieldListBody({
     // Pull the source entry out of its current zone (if any) so we can
     // re-use its aggregation / metadata when re-inserting.
     let moving: InternalSliceField = { uniqueName };
-    if (source && source !== "all" && next[source]) {
+    if (source && source !== 'all' && next[source]) {
       const arr: InternalSliceField[] =
         (next[source] as InternalSliceField[]) || [];
       const entry = arr[sourceIdx ?? -1];
@@ -1003,25 +998,25 @@ const FieldListBody = function FieldListBody({
 
     // Build the entry to insert based on the target zone.
     let entry: InternalSliceField = moving;
-    if (zone === "measures") {
+    if (zone === 'measures') {
       // On measures → measures reorder preserve the source aggregation.
       // Otherwise use the pre-picked chosenAgg (guaranteed unique per field).
       entry = {
         uniqueName,
         aggregation:
-          source === "measures"
+          source === 'measures'
             ? moving.aggregation ||
               (calcFields.some((c) => c.uniqueName === uniqueName)
-                ? "formula"
-                : "sum")
+                ? 'formula'
+                : 'sum')
             : chosenAgg!,
       };
-    } else if (zone === "filters") {
+    } else if (zone === 'filters') {
       // Preserve any existing predicate: if the chip came from filters itself,
       // `moving` already carries it (popAt removed it). Otherwise look it up
       // in the current filters list (cross-zone drag of a field that also
       // happened to be a page-level filter).
-      if (source === "filters") {
+      if (source === 'filters') {
         entry = moving;
       } else {
         const existing = (next.filters || []).find(
@@ -1033,14 +1028,14 @@ const FieldListBody = function FieldListBody({
       entry = { uniqueName };
     }
 
-    if (zone === "filters") {
+    if (zone === 'filters') {
       // Filters never strip from rows/cols/measures and never duplicate.
       const current = (next.filters || []).filter(
         (f) => f.uniqueName !== uniqueName,
       );
       let insertAt = targetIdx == null ? current.length : targetIdx;
       if (
-        source === "filters" &&
+        source === 'filters' &&
         sourceIdx != null &&
         targetIdx != null &&
         sourceIdx < targetIdx
@@ -1050,15 +1045,15 @@ const FieldListBody = function FieldListBody({
       }
       current.splice(insertAt, 0, entry);
       next.filters = current;
-    } else if (zone === "measures") {
+    } else if (zone === 'measures') {
       // Measures accept multiple entries of the same field (one per
       // aggregation). Strip only from rows/cols when the field arrives
       // from the palette or a cross-zone move. Keep siblings in measures.
       if (
-        source === "all" ||
-        source === "filters" ||
-        source === "rows" ||
-        source === "columns"
+        source === 'all' ||
+        source === 'filters' ||
+        source === 'rows' ||
+        source === 'columns'
       ) {
         next.rows = pop(next.rows, uniqueName);
         next.columns = pop(next.columns, uniqueName);
@@ -1066,7 +1061,7 @@ const FieldListBody = function FieldListBody({
       const current = [...(next.measures || [])];
       let insertAt = targetIdx == null ? current.length : targetIdx;
       if (
-        source === "measures" &&
+        source === 'measures' &&
         sourceIdx != null &&
         targetIdx != null &&
         sourceIdx < targetIdx
@@ -1079,7 +1074,7 @@ const FieldListBody = function FieldListBody({
       // Rows / columns: the field is a dimension here, so strip every
       // measure entry of the same field (the user is moving it out of the
       // measures zone entirely).
-      if (source === "all" || source === "filters") {
+      if (source === 'all' || source === 'filters') {
         next.rows = pop(next.rows, uniqueName);
         next.columns = pop(next.columns, uniqueName);
         next.measures = pop(next.measures, uniqueName);
@@ -1137,9 +1132,7 @@ const FieldListBody = function FieldListBody({
     (slice.measures || []).length === 0 || visibleMeasureCount > 0;
 
   const handleApply = () => {
-    engine.setDateFormats(
-      dateFormats,
-    );
+    engine.setDateFormats(dateFormats);
     engine.setFieldOrder(fieldOrder);
     engine.setDrillThroughConfig({
       fields: drillThroughFields as Record<string, boolean>,
@@ -1200,8 +1193,8 @@ const FieldListBody = function FieldListBody({
   };
 
   const captionFor = (uniqueName: string): string => {
-    if (uniqueName === "Measures") {
-      return tFL.values || "Values";
+    if (uniqueName === 'Measures') {
+      return tFL.values || 'Values';
     }
     const meta = (engine.getMetadata() as Record<string, { caption?: string }>)[
       uniqueName
@@ -1221,7 +1214,7 @@ const FieldListBody = function FieldListBody({
         <Chip
           key={chipKey(item)}
           icon={
-            item.uniqueName === "Measures" ? (
+            item.uniqueName === 'Measures' ? (
               <FunctionsIcon fontSize="small" />
             ) : undefined
           }
@@ -1231,8 +1224,8 @@ const FieldListBody = function FieldListBody({
           deleteIcon={<DeleteOutlineIcon />}
           sx={{
             borderRadius: 2,
-            ...(item.uniqueName === "Measures" && {
-              backgroundColor: (theme) => theme.palette.primary.main + "22",
+            ...(item.uniqueName === 'Measures' && {
+              backgroundColor: (theme) => theme.palette.primary.main + '22',
               border: (theme) => `1px solid ${theme.palette.primary.main}66`,
             }),
           }}
@@ -1251,16 +1244,16 @@ const FieldListBody = function FieldListBody({
       );
       const isCalculated = !!calcField;
       const allowed = isCalculated
-        ? ["formula"]
+        ? ['formula']
         : item.availableAggregations || [
-            "sum",
-            "count",
-            "distinctCount",
-            "avg",
-            "min",
-            "max",
-            "ratioTotal",
-            "currentRatio",
+            'sum',
+            'count',
+            'distinctCount',
+            'avg',
+            'min',
+            'max',
+            'ratioTotal',
+            'currentRatio',
           ];
       // A field can appear multiple times in measures — one entry per
       // aggregation — so hide from this chip's dropdown the aggregations
@@ -1280,18 +1273,18 @@ const FieldListBody = function FieldListBody({
           deleteIcon={<DeleteOutlineIcon />}
           sx={{
             borderRadius: 2,
-            height: "auto",
+            height: 'auto',
             py: 0.5,
             opacity: isHidden ? 0.55 : 1,
-            textDecoration: isHidden ? "line-through" : "none",
+            textDecoration: isHidden ? 'line-through' : 'none',
           }}
           label={
-            <Stack direction="row" sx={{ alignItems: "center" }} spacing={0.5}>
+            <Stack direction="row" sx={{ alignItems: 'center' }} spacing={0.5}>
               <Tooltip
                 title={
                   isHidden
-                    ? tFL.showMeasure || "Show measure"
-                    : tFL.hideMeasure || "Hide measure"
+                    ? tFL.showMeasure || 'Show measure'
+                    : tFL.hideMeasure || 'Hide measure'
                 }
               >
                 <IconButton
@@ -1301,8 +1294,8 @@ const FieldListBody = function FieldListBody({
                     toggleMeasureHidden(idx);
                   }}
                   sx={(theme) => ({
-                    p: "2px",
-                    "& svg": { fontSize: theme.typography.fontSize },
+                    p: '2px',
+                    '& svg': { fontSize: theme.typography.fontSize },
                   })}
                 >
                   {isHidden ? (
@@ -1314,11 +1307,11 @@ const FieldListBody = function FieldListBody({
               </Tooltip>
               {isCalculated && (
                 <Tooltip
-                  title={tFL.calculatedFieldTooltip || "Calculated field"}
+                  title={tFL.calculatedFieldTooltip || 'Calculated field'}
                 >
                   <CalculateIcon
                     fontSize="small"
-                    sx={{ color: "primary.main" }}
+                    sx={{ color: 'primary.main' }}
                   />
                 </Tooltip>
               )}
@@ -1331,13 +1324,13 @@ const FieldListBody = function FieldListBody({
                 {captionFor(item.uniqueName)}
               </Typography>
               <Select
-                value={item.aggregation || ""}
+                value={item.aggregation || ''}
                 onChange={(e) => changeAggregation(idx, String(e.target.value))}
                 variant="standard"
                 disableUnderline
                 sx={(theme) => ({
                   fontSize: theme.typography.fontSize,
-                  "& .MuiSelect-select": { py: 0 },
+                  '& .MuiSelect-select': { py: 0 },
                 })}
               >
                 {selectable.map((a) => (
@@ -1348,7 +1341,7 @@ const FieldListBody = function FieldListBody({
               </Select>
               {isCalculated && (
                 <>
-                  <Tooltip title={tButtons.edit || "Edit"}>
+                  <Tooltip title={tButtons.edit || 'Edit'}>
                     <IconButton
                       size="small"
                       onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
@@ -1359,14 +1352,14 @@ const FieldListBody = function FieldListBody({
                         });
                       }}
                       sx={(theme) => ({
-                        p: "2px",
-                        "& svg": { fontSize: theme.typography.fontSize },
+                        p: '2px',
+                        '& svg': { fontSize: theme.typography.fontSize },
                       })}
                     >
                       <EditIcon fontSize="inherit" />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title={tButtons.delete || "Delete"}>
+                  <Tooltip title={tButtons.delete || 'Delete'}>
                     <IconButton
                       size="small"
                       onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
@@ -1380,9 +1373,9 @@ const FieldListBody = function FieldListBody({
                         );
                       }}
                       sx={(theme) => ({
-                        p: "2px",
-                        "& svg": { fontSize: theme.typography.fontSize },
-                        color: "error.main",
+                        p: '2px',
+                        '& svg': { fontSize: theme.typography.fontSize },
+                        color: 'error.main',
                       })}
                     >
                       <DeleteOutlineIcon fontSize="inherit" />
@@ -1406,47 +1399,47 @@ const FieldListBody = function FieldListBody({
         container={portalContainer}
       >
         <DialogTitle sx={{ pr: 6 }}>
-          {tFL.title || "Fields"}
+          {tFL.title || 'Fields'}
           <Typography variant="caption" component="div" sx={{ opacity: 0.7 }}>
-            {tFL.subtitle || "Drag and drop fields to arrange them"}
+            {tFL.subtitle || 'Drag and drop fields to arrange them'}
           </Typography>
           <IconButton
             onClick={onClose}
-            sx={{ position: "absolute", top: 8, right: 8 }}
+            sx={{ position: 'absolute', top: 8, right: 8 }}
           >
             <CloseIcon />
           </IconButton>
         </DialogTitle>
         <DialogContent dividers>
-          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 2 }}>
-            <Box style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 2 }}>
+            <Box style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <Box
                 sx={{
-                  display: "flex",
-                  alignItems: "center",
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: 0.5,
-                  flexWrap: "wrap",
+                  flexWrap: 'wrap',
                 }}
               >
                 <Typography
                   variant="caption"
                   sx={{ fontWeight: 600, opacity: 0.75 }}
                 >
-                  {tFL.allFields || "All fields"}
+                  {tFL.allFields || 'All fields'}
                 </Typography>
                 <Tooltip
                   arrow
                   placement="top"
                   title={
                     tFL.drillThroughOrder ||
-                    "Tick a field to include it in the drill-through table. Drag rows to reorder — the order here is the column order in the drill-through."
+                    'Tick a field to include it in the drill-through table. Drag rows to reorder — the order here is the column order in the drill-through.'
                   }
                 >
                   <InfoOutlinedIcon
                     sx={(theme) => ({
                       fontSize: theme.typography.caption.fontSize,
                       opacity: 0.65,
-                      cursor: "help",
+                      cursor: 'help',
                     })}
                   />
                 </Tooltip>
@@ -1454,16 +1447,16 @@ const FieldListBody = function FieldListBody({
               <Box
                 onDragOver={(e: React.DragEvent<HTMLDivElement>) => {
                   e.preventDefault();
-                  e.dataTransfer.dropEffect = "move";
+                  e.dataTransfer.dropEffect = 'move';
                 }}
                 onDrop={(e: React.DragEvent<HTMLDivElement>) => {
                   e.preventDefault();
                   const payload = parseDragPayload(
-                    e.dataTransfer.getData("text/plain"),
+                    e.dataTransfer.getData('text/plain'),
                   );
                   if (
                     payload &&
-                    payload.source === "all" &&
+                    payload.source === 'all' &&
                     payload.uniqueName
                   ) {
                     reorderFieldList(payload.uniqueName, null);
@@ -1474,13 +1467,13 @@ const FieldListBody = function FieldListBody({
                   border: `1px solid ${theme.palette.divider}`,
                   borderRadius: 2,
                   p: 1,
-                  overflowY: "auto",
+                  overflowY: 'auto',
                 })}
               >
                 {availableFields.length === 0 && (
                   <Typography
                     variant="body2"
-                    sx={{ opacity: 0.5, fontStyle: "italic" }}
+                    sx={{ opacity: 0.5, fontStyle: 'italic' }}
                   >
                     —
                   </Typography>
@@ -1493,13 +1486,13 @@ const FieldListBody = function FieldListBody({
                       const draggable = !f.parentUsed && !isUsedAsDim;
                       const dimmed = f.parentUsed || isUsedAsDim;
                       return (
-                        <Box key={f.uniqueName} sx={{ mt: "4px" }}>
+                        <Box key={f.uniqueName} sx={{ mt: '4px' }}>
                           <Tooltip
                             title={
                               isUsedAsDim
                                 ? tFL.fieldUsedTooltip ||
-                                  "Field already used — remove it from rows/columns/filters to drag it elsewhere"
-                                : ""
+                                  'Field already used — remove it from rows/columns/filters to drag it elsewhere'
+                                : ''
                             }
                             disableHoverListener={!isUsedAsDim}
                             disableFocusListener={!isUsedAsDim}
@@ -1516,17 +1509,17 @@ const FieldListBody = function FieldListBody({
                                 e: React.DragEvent<HTMLDivElement>,
                               ) => {
                                 e.preventDefault();
-                                e.dataTransfer.dropEffect = "move";
+                                e.dataTransfer.dropEffect = 'move';
                               }}
                               onDrop={(e: React.DragEvent<HTMLDivElement>) => {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 const payload = parseDragPayload(
-                                  e.dataTransfer.getData("text/plain"),
+                                  e.dataTransfer.getData('text/plain'),
                                 );
                                 if (
                                   payload &&
-                                  payload.source === "all" &&
+                                  payload.source === 'all' &&
                                   payload.uniqueName
                                 ) {
                                   reorderFieldList(
@@ -1535,19 +1528,19 @@ const FieldListBody = function FieldListBody({
                                   );
                                 }
                               }}
-                              style={{ alignItems: "center" }}
+                              style={{ alignItems: 'center' }}
                               sx={(theme) => ({
-                                display: "flex",
+                                display: 'flex',
                                 gap: 0.5,
-                                cursor: draggable ? "grab" : "default",
+                                cursor: draggable ? 'grab' : 'default',
                                 px: 1,
                                 py: 0.5,
                                 borderRadius: 1.5,
                                 backgroundColor: dimmed
-                                  ? "transparent"
+                                  ? 'transparent'
                                   : theme.palette.action.hover,
-                                border: "1px solid transparent",
-                                "&:hover": {
+                                border: '1px solid transparent',
+                                '&:hover': {
                                   backgroundColor: dimmed
                                     ? theme.palette.action.hover
                                     : theme.palette.action.selected,
@@ -1565,8 +1558,8 @@ const FieldListBody = function FieldListBody({
                                   toggleDateExpanded(f.uniqueName);
                                 }}
                                 sx={(theme) => ({
-                                  p: "2px",
-                                  "& svg": {
+                                  p: '2px',
+                                  '& svg': {
                                     fontSize: theme.typography.fontSize,
                                   },
                                 })}
@@ -1587,13 +1580,13 @@ const FieldListBody = function FieldListBody({
                               )}
                               <CalendarMonthIcon
                                 fontSize="small"
-                                sx={{ color: "primary.main", opacity: 0.7 }}
+                                sx={{ color: 'primary.main', opacity: 0.7 }}
                               />
                               <Typography variant="body2" sx={{ flex: 1 }}>
                                 {f.caption}
                               </Typography>
                               <Tooltip
-                                title={tFL.renameField || "Rename field"}
+                                title={tFL.renameField || 'Rename field'}
                               >
                                 <IconButton
                                   size="small"
@@ -1607,8 +1600,8 @@ const FieldListBody = function FieldListBody({
                                     );
                                   }}
                                   sx={(theme) => ({
-                                    p: "2px",
-                                    "& svg": {
+                                    p: '2px',
+                                    '& svg': {
                                       fontSize: theme.typography.fontSize,
                                     },
                                   })}
@@ -1616,7 +1609,7 @@ const FieldListBody = function FieldListBody({
                                   <EditIcon fontSize="inherit" />
                                 </IconButton>
                               </Tooltip>
-                              <Tooltip title={tFL.dateFormat || "Date format"}>
+                              <Tooltip title={tFL.dateFormat || 'Date format'}>
                                 <IconButton
                                   size="small"
                                   onClick={(
@@ -1630,8 +1623,8 @@ const FieldListBody = function FieldListBody({
                                     });
                                   }}
                                   sx={(theme) => ({
-                                    p: "2px",
-                                    "& svg": {
+                                    p: '2px',
+                                    '& svg': {
                                       fontSize: theme.typography.fontSize,
                                     },
                                   })}
@@ -1642,7 +1635,7 @@ const FieldListBody = function FieldListBody({
                               <Tooltip
                                 title={
                                   tFL.showInDrillThrough ||
-                                  "Show in drill-through"
+                                  'Show in drill-through'
                                 }
                               >
                                 <Checkbox
@@ -1657,7 +1650,7 @@ const FieldListBody = function FieldListBody({
                                   onClick={(e: React.MouseEvent) =>
                                     e.stopPropagation()
                                   }
-                                  sx={{ p: "2px" }}
+                                  sx={{ p: '2px' }}
                                 />
                               </Tooltip>
                             </Box>
@@ -1674,8 +1667,8 @@ const FieldListBody = function FieldListBody({
                                   title={
                                     childUsed
                                       ? tFL.fieldUsedTooltip ||
-                                        "Field already used — remove it from rows/columns/filters to drag it elsewhere"
-                                      : ""
+                                        'Field already used — remove it from rows/columns/filters to drag it elsewhere'
+                                      : ''
                                   }
                                   disableHoverListener={!childUsed}
                                   disableFocusListener={!childUsed}
@@ -1689,23 +1682,23 @@ const FieldListBody = function FieldListBody({
                                           ) => handleDragStart(e, c.uniqueName)
                                         : undefined
                                     }
-                                    style={{ alignItems: "center" }}
+                                    style={{ alignItems: 'center' }}
                                     sx={(theme) => ({
-                                      display: "flex",
+                                      display: 'flex',
                                       gap: 0.5,
                                       cursor: childDraggable
-                                        ? "grab"
-                                        : "default",
+                                        ? 'grab'
+                                        : 'default',
                                       pl: 4,
                                       pr: 1,
                                       py: 0.5,
-                                      mt: "4px",
+                                      mt: '4px',
                                       borderRadius: 1.5,
                                       backgroundColor:
                                         theme.palette.action.hover,
-                                      border: "1px solid transparent",
+                                      border: '1px solid transparent',
                                       opacity: childUsed ? 0.55 : 1,
-                                      "&:hover": {
+                                      '&:hover': {
                                         backgroundColor:
                                           theme.palette.action.selected,
                                       },
@@ -1726,7 +1719,7 @@ const FieldListBody = function FieldListBody({
                                       {c.partCaption}
                                     </Typography>
                                     <Tooltip
-                                      title={tFL.renameField || "Rename field"}
+                                      title={tFL.renameField || 'Rename field'}
                                     >
                                       <IconButton
                                         size="small"
@@ -1740,8 +1733,8 @@ const FieldListBody = function FieldListBody({
                                           );
                                         }}
                                         sx={(theme) => ({
-                                          p: "2px",
-                                          "& svg": {
+                                          p: '2px',
+                                          '& svg': {
                                             fontSize: theme.typography.fontSize,
                                           },
                                         })}
@@ -1750,10 +1743,10 @@ const FieldListBody = function FieldListBody({
                                       </IconButton>
                                     </Tooltip>
                                     {SUBPART_CONFIGURABLE.has(
-                                      c.subpart || "",
+                                      c.subpart || '',
                                     ) && (
                                       <Tooltip
-                                        title={tFL.dateFormat || "Date format"}
+                                        title={tFL.dateFormat || 'Date format'}
                                       >
                                         <IconButton
                                           size="small"
@@ -1768,8 +1761,8 @@ const FieldListBody = function FieldListBody({
                                             });
                                           }}
                                           sx={(theme) => ({
-                                            p: "2px",
-                                            "& svg": {
+                                            p: '2px',
+                                            '& svg': {
                                               fontSize:
                                                 theme.typography.fontSize,
                                             },
@@ -1794,8 +1787,8 @@ const FieldListBody = function FieldListBody({
                         title={
                           isUsedAsDim
                             ? tFL.fieldUsedTooltip ||
-                              "Field already used — remove it from rows/columns/filters to drag it elsewhere"
-                            : ""
+                              'Field already used — remove it from rows/columns/filters to drag it elsewhere'
+                            : ''
                         }
                         disableHoverListener={!isUsedAsDim}
                         disableFocusListener={!isUsedAsDim}
@@ -1810,17 +1803,17 @@ const FieldListBody = function FieldListBody({
                           }
                           onDragOver={(e: React.DragEvent<HTMLDivElement>) => {
                             e.preventDefault();
-                            e.dataTransfer.dropEffect = "move";
+                            e.dataTransfer.dropEffect = 'move';
                           }}
                           onDrop={(e: React.DragEvent<HTMLDivElement>) => {
                             e.preventDefault();
                             e.stopPropagation();
                             const payload = parseDragPayload(
-                              e.dataTransfer.getData("text/plain"),
+                              e.dataTransfer.getData('text/plain'),
                             );
                             if (
                               payload &&
-                              payload.source === "all" &&
+                              payload.source === 'all' &&
                               payload.uniqueName
                             ) {
                               reorderFieldList(
@@ -1829,27 +1822,27 @@ const FieldListBody = function FieldListBody({
                               );
                             }
                           }}
-                          style={{ alignItems: "center" }}
+                          style={{ alignItems: 'center' }}
                           sx={(theme) => ({
-                            display: "flex",
+                            display: 'flex',
                             gap: 0.5,
-                            cursor: draggable ? "grab" : "default",
+                            cursor: draggable ? 'grab' : 'default',
                             px: 1,
                             py: 0.5,
-                            mt: "4px",
+                            mt: '4px',
                             borderRadius: 1.5,
                             backgroundColor: f.isCalculated
                               ? (theme.palette.tertiary?.main ||
-                                  theme.palette.primary.main) + "18"
+                                  theme.palette.primary.main) + '18'
                               : theme.palette.action.hover,
                             border: f.isCalculated
                               ? `1px solid ${
                                   theme.palette.tertiary?.main ||
                                   theme.palette.primary.main
                                 }40`
-                              : "1px solid transparent",
+                              : '1px solid transparent',
                             opacity: isUsedAsDim ? 0.55 : 1,
-                            "&:hover": {
+                            '&:hover': {
                               backgroundColor: theme.palette.action.selected,
                             },
                           })}
@@ -1862,36 +1855,36 @@ const FieldListBody = function FieldListBody({
                           ) : (
                             <Box sx={{ width: 20 }} />
                           )}
-                          {f.uniqueName === "Measures" && (
+                          {f.uniqueName === 'Measures' && (
                             <Tooltip
                               title={
                                 tFL.measuresAxisTooltip ||
-                                "Special aggregation field — drag to Rows or Columns to choose the values axis"
+                                'Special aggregation field — drag to Rows or Columns to choose the values axis'
                               }
                             >
                               <FunctionsIcon
                                 fontSize="small"
-                                sx={{ color: "primary.main" }}
+                                sx={{ color: 'primary.main' }}
                               />
                             </Tooltip>
                           )}
                           {f.isCalculated && (
                             <Tooltip
                               title={
-                                tFL.calculatedFieldTooltip || "Calculated field"
+                                tFL.calculatedFieldTooltip || 'Calculated field'
                               }
                             >
                               <CalculateIcon
                                 fontSize="small"
-                                sx={{ color: "primary.main" }}
+                                sx={{ color: 'primary.main' }}
                               />
                             </Tooltip>
                           )}
                           <Typography variant="body2" sx={{ flex: 1 }}>
                             {f.caption}
                           </Typography>
-                          {!f.isCalculated && f.uniqueName !== "Measures" && (
-                            <Tooltip title={tFL.renameField || "Rename field"}>
+                          {!f.isCalculated && f.uniqueName !== 'Measures' && (
+                            <Tooltip title={tFL.renameField || 'Rename field'}>
                               <IconButton
                                 size="small"
                                 onClick={(
@@ -1904,8 +1897,8 @@ const FieldListBody = function FieldListBody({
                                   );
                                 }}
                                 sx={(theme) => ({
-                                  p: "2px",
-                                  "& svg": {
+                                  p: '2px',
+                                  '& svg': {
                                     fontSize: theme.typography.fontSize,
                                   },
                                 })}
@@ -1914,33 +1907,32 @@ const FieldListBody = function FieldListBody({
                               </IconButton>
                             </Tooltip>
                           )}
-                          {!f.isCalculated &&
-                            f.uniqueName !== "Measures" && (
-                              <Tooltip
-                                title={
-                                  tFL.showInDrillThrough ||
-                                  "Show in drill-through"
+                          {!f.isCalculated && f.uniqueName !== 'Measures' && (
+                            <Tooltip
+                              title={
+                                tFL.showInDrillThrough ||
+                                'Show in drill-through'
+                              }
+                            >
+                              <Checkbox
+                                size="small"
+                                checked={isDrillThroughOn(f.uniqueName)}
+                                onChange={(
+                                  e: React.ChangeEvent<HTMLInputElement>,
+                                ) => {
+                                  e.stopPropagation();
+                                  toggleDrillThroughField(f.uniqueName);
+                                }}
+                                onClick={(e: React.MouseEvent) =>
+                                  e.stopPropagation()
                                 }
-                              >
-                                <Checkbox
-                                  size="small"
-                                  checked={isDrillThroughOn(f.uniqueName)}
-                                  onChange={(
-                                    e: React.ChangeEvent<HTMLInputElement>,
-                                  ) => {
-                                    e.stopPropagation();
-                                    toggleDrillThroughField(f.uniqueName);
-                                  }}
-                                  onClick={(e: React.MouseEvent) =>
-                                    e.stopPropagation()
-                                  }
-                                  sx={{ p: "2px" }}
-                                />
-                              </Tooltip>
-                            )}
+                                sx={{ p: '2px' }}
+                              />
+                            </Tooltip>
+                          )}
                           {f.isCalculated && (
                             <>
-                              <Tooltip title={tButtons.edit || "Edit"}>
+                              <Tooltip title={tButtons.edit || 'Edit'}>
                                 <IconButton
                                   size="small"
                                   onClick={(
@@ -1956,8 +1948,8 @@ const FieldListBody = function FieldListBody({
                                     });
                                   }}
                                   sx={(theme) => ({
-                                    p: "2px",
-                                    "& svg": {
+                                    p: '2px',
+                                    '& svg': {
                                       fontSize: theme.typography.fontSize,
                                     },
                                   })}
@@ -1965,7 +1957,7 @@ const FieldListBody = function FieldListBody({
                                   <EditIcon fontSize="inherit" />
                                 </IconButton>
                               </Tooltip>
-                              <Tooltip title={tButtons.delete || "Delete"}>
+                              <Tooltip title={tButtons.delete || 'Delete'}>
                                 <IconButton
                                   size="small"
                                   onClick={(
@@ -1979,11 +1971,11 @@ const FieldListBody = function FieldListBody({
                                     )(f.uniqueName);
                                   }}
                                   sx={(theme) => ({
-                                    p: "2px",
-                                    "& svg": {
+                                    p: '2px',
+                                    '& svg': {
                                       fontSize: theme.typography.fontSize,
                                     },
-                                    color: "error.main",
+                                    color: 'error.main',
                                   })}
                                 >
                                   <DeleteOutlineIcon fontSize="inherit" />
@@ -2002,9 +1994,9 @@ const FieldListBody = function FieldListBody({
                 size="large"
                 startIcon={<CalculateIcon />}
                 onClick={() => setCalcDialog({ open: true, editField: null })}
-                sx={{ mt: 1, width: "100%", justifyContent: "flex-start" }}
+                sx={{ mt: 1, width: '100%', justifyContent: 'flex-start' }}
               >
-                {tFL.addCalculated || "Add calculated value"}
+                {tFL.addCalculated || 'Add calculated value'}
               </Button>
 
               <Box sx={{ mt: 1.5 }}>
@@ -2017,11 +2009,11 @@ const FieldListBody = function FieldListBody({
                   onChange={(v) => setFrozenCount(v)}
                   label={
                     tFL.drillThroughStickyColumns ||
-                    "Frozen drill-through columns"
+                    'Frozen drill-through columns'
                   }
                   helperText={
                     tFL.drillThroughStickyColumnsHelp ||
-                    "Number of left-pinned columns"
+                    'Number of left-pinned columns'
                   }
                 />
               </Box>
@@ -2029,17 +2021,17 @@ const FieldListBody = function FieldListBody({
 
             <Box>
               <Box
-                style={{ alignItems: "center" }}
+                style={{ alignItems: 'center' }}
                 sx={{
-                  display: "flex",
+                  display: 'flex',
                   gap: 1,
                   mb: 1.25,
-                  flexWrap: "wrap",
+                  flexWrap: 'wrap',
                 }}
               >
                 <FunctionsIcon
                   fontSize="small"
-                  sx={{ color: "primary.main" }}
+                  sx={{ color: 'primary.main' }}
                 />
                 <Typography
                   variant="caption"
@@ -2047,26 +2039,26 @@ const FieldListBody = function FieldListBody({
                     fontWeight: theme.typography.h6.fontWeight,
                   })}
                 >
-                  {tFL.showTotals || "Show totals"}
+                  {tFL.showTotals || 'Show totals'}
                 </Typography>
                 <ToggleButtonGroup
                   size="small"
                   exclusive
                   value={currentMeasuresAxis}
                   onChange={handleMeasuresAxisChange}
-                  sx={{ ml: "auto" }}
+                  sx={{ ml: 'auto' }}
                 >
                   <ToggleButton
                     value="rows"
-                    sx={{ textTransform: "none", py: 0.25 }}
+                    sx={{ textTransform: 'none', py: 0.25 }}
                   >
-                    {tFL.perRow || "Per row"}
+                    {tFL.perRow || 'Per row'}
                   </ToggleButton>
                   <ToggleButton
                     value="columns"
-                    sx={{ textTransform: "none", py: 0.25 }}
+                    sx={{ textTransform: 'none', py: 0.25 }}
                   >
-                    {tFL.perColumn || "Per column"}
+                    {tFL.perColumn || 'Per column'}
                   </ToggleButton>
                 </ToggleButtonGroup>
               </Box>
@@ -2074,19 +2066,19 @@ const FieldListBody = function FieldListBody({
                 {ZONES.map((zone) => {
                   const items = (
                     (slice[zone.id] as InternalSliceField[]) || []
-                  ).filter((f) => f.uniqueName !== "Measures");
+                  ).filter((f) => f.uniqueName !== 'Measures');
                   const label =
-                    tFL[zone.id === "measures" ? "values" : zone.id] || zone.id;
+                    tFL[zone.id === 'measures' ? 'values' : zone.id] || zone.id;
                   return (
                     <DropZone
                       key={zone.id}
                       zone={zone.id}
                       items={items}
                       label={label}
-                      dropHint={tFL.dropField || "Drop field here"}
+                      dropHint={tFL.dropField || 'Drop field here'}
                       onDrop={addFieldToZone}
                       renderItem={
-                        zone.id === "measures"
+                        zone.id === 'measures'
                           ? renderMeasureChip(zone.id)
                           : renderFieldChip(zone.id)
                       }
@@ -2101,19 +2093,19 @@ const FieldListBody = function FieldListBody({
           {!canApply && (
             <Typography
               variant="caption"
-              sx={{ color: "error.main", mr: "auto" }}
+              sx={{ color: 'error.main', mr: 'auto' }}
             >
               {tFL.atLeastOneVisibleMeasure ||
-                "At least one measure must be visible."}
+                'At least one measure must be visible.'}
             </Typography>
           )}
-          <Button onClick={onClose}>{tButtons.cancel || "Cancel"}</Button>
+          <Button onClick={onClose}>{tButtons.cancel || 'Cancel'}</Button>
           <Button
             onClick={handleApply}
             variant="contained"
             disabled={!canApply}
           >
-            {tButtons.apply || "Apply"}
+            {tButtons.apply || 'Apply'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -2145,18 +2137,18 @@ const FieldListBody = function FieldListBody({
         open={!!captionEditor.anchor && !!captionEditor.uniqueName}
         anchorEl={captionEditor.anchor}
         onClose={() =>
-          setCaptionEditor({ anchor: null, uniqueName: null, value: "" })
+          setCaptionEditor({ anchor: null, uniqueName: null, value: '' })
         }
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         container={portalContainer}
       >
         <Box sx={{ p: 2, width: 280 }}>
           <Typography
             variant="caption"
-            sx={{ fontWeight: 600, opacity: 0.75, display: "block", mb: 1 }}
+            sx={{ fontWeight: 600, opacity: 0.75, display: 'block', mb: 1 }}
           >
-            {tFL.renameField || "Rename field"}
+            {tFL.renameField || 'Rename field'}
           </Typography>
           <TextField
             size="small"
@@ -2167,18 +2159,18 @@ const FieldListBody = function FieldListBody({
               setCaptionEditor((s) => ({ ...s, value: e.target.value }))
             }
             onKeyDown={(e: React.KeyboardEvent) => {
-              if (e.key === "Enter") saveCaption();
-              if (e.key === "Escape")
+              if (e.key === 'Enter') saveCaption();
+              if (e.key === 'Escape')
                 setCaptionEditor({
                   anchor: null,
                   uniqueName: null,
-                  value: "",
+                  value: '',
                 });
             }}
           />
           <Stack
             direction="row"
-            sx={{ justifyContent: "flex-end", gap: 1, mt: 1 }}
+            sx={{ justifyContent: 'flex-end', gap: 1, mt: 1 }}
           >
             <Button
               size="small"
@@ -2186,14 +2178,14 @@ const FieldListBody = function FieldListBody({
                 setCaptionEditor({
                   anchor: null,
                   uniqueName: null,
-                  value: "",
+                  value: '',
                 })
               }
             >
-              {tButtons.cancel || "Cancel"}
+              {tButtons.cancel || 'Cancel'}
             </Button>
             <Button size="small" variant="contained" onClick={saveCaption}>
-              {tButtons.save || "Save"}
+              {tButtons.save || 'Save'}
             </Button>
           </Stack>
         </Box>
@@ -2206,7 +2198,9 @@ const FieldListBody = function FieldListBody({
  * Thin wrapper that gives the body a new key on every open, so all of its
  * drafts re-seed from the engine without a reset effect.
  */
-const FieldList = function FieldList(props: FieldListProps): React.ReactElement {
+const FieldList = function FieldList(
+  props: FieldListProps,
+): React.ReactElement {
   const [session, setSession] = useState(0);
   const [wasOpen, setWasOpen] = useState(props.open);
   if (props.open !== wasOpen) {

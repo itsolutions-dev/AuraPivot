@@ -13,9 +13,27 @@ import type { AuraPivotOptions } from '../pivot-core/types';
  */
 
 const rows = [
-  { callDate: '2024-03-15', agent: 'Alice', region: 'North', revenue: 1200, cost: 700 },
-  { callDate: '2024-06-02', agent: 'Bob', region: 'South', revenue: 980, cost: 500 },
-  { callDate: '2024-06-20', agent: 'Alice', region: 'South', revenue: 300, cost: 100 },
+  {
+    callDate: '2024-03-15',
+    agent: 'Alice',
+    region: 'North',
+    revenue: 1200,
+    cost: 700,
+  },
+  {
+    callDate: '2024-06-02',
+    agent: 'Bob',
+    region: 'South',
+    revenue: 980,
+    cost: 500,
+  },
+  {
+    callDate: '2024-06-20',
+    agent: 'Alice',
+    region: 'South',
+    revenue: 300,
+    cost: 100,
+  },
 ];
 
 const richOptions = {
@@ -58,7 +76,11 @@ const richOptions = {
       { uniqueName: 'cost', dataType: 'number', caption: 'Cost' },
     ],
     calculatedFields: [
-      { uniqueName: 'margin', caption: 'Margin', formula: 'sum("revenue") - sum("cost")' },
+      {
+        uniqueName: 'margin',
+        caption: 'Margin',
+        formula: 'sum("revenue") - sum("cost")',
+      },
     ],
     dimensions: [
       { axis: 'row', uniqueName: 'agent' },
@@ -92,7 +114,6 @@ const apply = (options: AuraPivotOptions | undefined) => {
 // Assertions probe deep into the emitted schema; the runtime shape is the
 // thing under test, so the static optionality of AuraPivotOptions only adds
 // noise here.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Emitted = any;
 
 describe('options round-trip: semantic preservation', () => {
@@ -103,7 +124,7 @@ describe('options round-trip: semantic preservation', () => {
       expect.arrayContaining([
         expect.objectContaining({ axis: 'row', uniqueName: 'agent' }),
         expect.objectContaining({ axis: 'column', uniqueName: 'region' }),
-      ])
+      ]),
     );
     expect(emitted.data.dimensions).toHaveLength(2);
   });
@@ -132,7 +153,7 @@ describe('options round-trip: semantic preservation', () => {
 
   test('field captions, types, dateFormat and drill-through config survive', () => {
     const byName = Object.fromEntries(
-      emitted.data.fields.map((f: { uniqueName: string }) => [f.uniqueName, f])
+      emitted.data.fields.map((f: { uniqueName: string }) => [f.uniqueName, f]),
     );
     expect(byName.callDate).toMatchObject({
       dataType: 'date',
@@ -214,9 +235,16 @@ describe('options round-trip: stability (host echo contract)', () => {
 
   test('grid-owned state (sort, expands) survives a prop re-apply', () => {
     const engine = apply(richOptions);
-    engine.setSort('someColKey', 'asc', { uniqueName: 'revenue', aggregation: 'sum' });
+    engine.setSort('someColKey', 'asc', {
+      uniqueName: 'revenue',
+      aggregation: 'sum',
+    });
     const sliceBefore = engine.getSlice();
-    optionsToEngine(engine, JSON.parse(JSON.stringify(engineToOptions(engine))), rows);
+    optionsToEngine(
+      engine,
+      JSON.parse(JSON.stringify(engineToOptions(engine))),
+      rows,
+    );
     const sliceAfter = engine.getSlice();
     expect(sliceAfter.sort).toEqual(sliceBefore.sort);
     expect(sliceAfter.expands).toEqual(sliceBefore.expands);
@@ -229,9 +257,17 @@ describe('options round-trip: degenerate inputs', () => {
     optionsToEngine(engine, undefined, rows);
     const out = engineToOptions(engine) as Emitted;
     // Fields inferred from the first data row.
-    const names = out.data.fields.map((f: { uniqueName: string }) => f.uniqueName);
+    const names = out.data.fields.map(
+      (f: { uniqueName: string }) => f.uniqueName,
+    );
     expect(names).toEqual(
-      expect.arrayContaining(['callDate', 'agent', 'region', 'revenue', 'cost'])
+      expect.arrayContaining([
+        'callDate',
+        'agent',
+        'region',
+        'revenue',
+        'cost',
+      ]),
     );
     expect(out.data.measures).toEqual([]);
     // And the emission itself is stable.
