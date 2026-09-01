@@ -97,24 +97,24 @@ const buildDefaultTabs = ({
   const tb = (t as Record<string, Record<string, string>>)?.toolbar ?? {};
   return [
     {
-      id: 'wdr-tab-fields',
+      id: 'aura-tab-fields',
       title: tb.fields || 'Fields',
       handler: onOpenFields,
       icon: 'fields',
     },
     {
-      id: 'wdr-tab-format',
+      id: 'aura-tab-format',
       title: tb.format || 'Format',
       handler: onOpenFormat,
       icon: 'format',
     },
     {
-      id: 'wdr-tab-export',
+      id: 'aura-tab-export',
       title: tb.export || 'Export',
       icon: 'export',
       menu: [
         {
-          id: 'wdr-tab-export-excel',
+          id: 'aura-tab-export-excel',
           title: tb.exportExcel || 'Export to Excel',
           icon: 'excel',
           handler: onExportExcel,
@@ -122,7 +122,7 @@ const buildDefaultTabs = ({
       ],
     },
     {
-      id: 'wdr-tab-fullscreen',
+      id: 'aura-tab-fullscreen',
       title: isFullscreen
         ? tb.exitFullscreen || 'Exit Fullscreen'
         : tb.fullscreen || 'Fullscreen',
@@ -301,13 +301,13 @@ const PivotToolbar = function PivotToolbar({
     // injected by consumers via beforeToolbarCreated under id `reset-*`.
     const isVisible = (tab: TabDef): boolean => {
       if (!tab?.id) return true;
-      if (tab.id === 'wdr-tab-fields')
+      if (tab.id === 'aura-tab-fields')
         return options?.toolbar?.showFields !== false;
-      if (tab.id === 'wdr-tab-format')
+      if (tab.id === 'aura-tab-format')
         return options?.toolbar?.showFormat !== false;
-      if (tab.id === 'wdr-tab-export')
+      if (tab.id === 'aura-tab-export')
         return options?.toolbar?.showExport !== false;
-      if (tab.id === 'wdr-tab-fullscreen')
+      if (tab.id === 'aura-tab-fullscreen')
         return options?.toolbar?.showFullscreen !== false;
       /*       if (tab.id.startsWith('reset-'))
         return options?.toolbar?.showReset !== false; */

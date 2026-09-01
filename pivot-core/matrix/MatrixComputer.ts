@@ -3,10 +3,9 @@
  * every visible column node and then evaluating every measure.
  *
  * The special 'Measures' field may live either on the column axis or on the
- * row axis (analogous to WebDataRocks). When it appears on an axis, every
- * visible leaf on that axis is expanded into N leaves — one per measure —
- * each carrying its `measureKey` so the matrix knows which measure value to
- * compute for the intersecting cell.
+ * row axis. When it appears on an axis, every visible leaf on that axis is
+ * expanded into N leaves — one per measure — each carrying its `measureKey`
+ * so the matrix knows which measure value to compute for the intersecting cell.
  */
 
 import {

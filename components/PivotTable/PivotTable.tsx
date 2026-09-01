@@ -698,12 +698,12 @@ const PivotTable = function PivotTable() {
   const aggLabel = useCallback(
     (a: string) => {
       if (!a) return "";
-      const wdrKey =
+      const localeKey =
         ({ distinctcount: "distinctCount", avg: "average" } as Record<
           string,
           string
         >)[a] || a;
-      const raw = t?.aggregations?.[a] ?? t?.aggregations?.[wdrKey];
+      const raw = t?.aggregations?.[a] ?? t?.aggregations?.[localeKey];
       if (raw && typeof raw === "object") return raw.caption || a;
       return raw || a;
     },

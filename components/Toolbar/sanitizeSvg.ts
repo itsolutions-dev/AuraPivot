@@ -1,11 +1,9 @@
 /**
  * Minimal SVG sanitizer for consumer-provided toolbar icon markup.
  *
- * Toolbar tabs accept raw `<svg>…</svg>` strings (legacy WebDataRocks
- * convention) which are injected via `dangerouslySetInnerHTML`. Icon configs
- * frequently round-trip through persisted/shared report configurations, so
- * the markup cannot be trusted: this strips every script-execution vector
- * while leaving presentational SVG intact.
+ * Toolbar tabs accept raw `<svg>…</svg>` strings, so a host can supply an
+ * icon without importing a component. The markup is caller-supplied and
+ * therefore untrusted — everything below exists to make it safe to inject.
  *
  * Removed:
  *   - elements that can execute or embed active content

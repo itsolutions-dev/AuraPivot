@@ -1998,9 +1998,9 @@ const FormatDialogBody = function FormatDialogBody({ open, onClose }: FormatDial
     engine.getCalculatedFields().map((f) => [f.uniqueName, f]),
   );
   const aggLabel = (a: string) => {
-    const wdrKey = ({ distinctCount: 'distinctCount', avg: 'average' } as Record<string, string>)[a] || a;
+    const localeKey = ({ distinctCount: 'distinctCount', avg: 'average' } as Record<string, string>)[a] || a;
     const tAgg = (t as Record<string, Record<string, unknown>>)?.aggregations ?? {};
-    const raw = tAgg[a] ?? tAgg[wdrKey];
+    const raw = tAgg[a] ?? tAgg[localeKey];
     if (raw && typeof raw === 'object') return (raw as Record<string, string>).caption || a;
     return (raw as string) || a;
   };

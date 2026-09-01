@@ -123,9 +123,9 @@ const DimensionFilterDialog = function DimensionFilterDialog({
   // rather than "Sum Total of Revenue"). Calculated fields carry their
   // own caption; regular measures fall back to the dataset metadata.
   const aggLabel = (a: string): string => {
-    const wdrKey = ({ distinctcount: 'distinctCount', avg: 'average' } as Record<string, string>)[a] || a;
+    const localeKey = ({ distinctcount: 'distinctCount', avg: 'average' } as Record<string, string>)[a] || a;
     const tagg = (t as Record<string, Record<string, unknown>>)?.aggregations ?? {};
-    const raw = tagg[a] ?? tagg[wdrKey];
+    const raw = tagg[a] ?? tagg[localeKey];
     if (raw && typeof raw === 'object') return (raw as Record<string, string>).caption || a;
     return (raw as string) || a;
   };

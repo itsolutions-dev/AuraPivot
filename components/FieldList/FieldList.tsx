@@ -145,12 +145,15 @@ const AGGREGATION_LABELS_FALLBACK: Record<string, string> = {
 };
 
 /**
- * The auraPivot localization schema stores aggregation entries as objects
+ * The localization schema stores aggregation entries as objects
  * (`{ caption, totalCaption, grandTotalCaption }`) and uses camelCase keys
  * (`distinctCount`, `average`). Map our internal keys onto that schema and
  * unwrap the caption so React never receives an object as a child.
+ * Distinct from PivotEngine's AGG_LOCALE_KEY, which maps the same concept
+ * for engine-side captions and spells distinctcount in the engine's own
+ * lower-case form.
  */
-const WDR_AGGREGATION_KEY: Record<string, string> = {
+const AGG_DICT_KEY: Record<string, string> = {
   sum: "sum",
   count: "count",
   distinctCount: "distinctCount",
@@ -165,10 +168,10 @@ const resolveAggregationLabel = (
   t: Record<string, unknown>,
   aggregation: string,
 ): string => {
-  const wdrKey = WDR_AGGREGATION_KEY[aggregation] || aggregation;
+  const localeKey = AGG_DICT_KEY[aggregation] || aggregation;
   const tagg =
     (t as Record<string, Record<string, unknown>>)?.aggregations ?? {};
-  const entry = tagg[aggregation] ?? tagg[wdrKey];
+  const entry = tagg[aggregation] ?? tagg[localeKey];
   if (entry && typeof entry === "object") {
     return (
       (entry as Record<string, string>).caption ||

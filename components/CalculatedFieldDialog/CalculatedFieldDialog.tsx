@@ -23,7 +23,7 @@ import { parseFormulaExpression } from '../../pivot-core/matrix/FormulaEvaluator
 /**
  * Dialog to create or edit a calculated field.
  *
- * Formula syntax (mirrors WebDataRocks):
+ * Formula syntax:
  *   sum("fieldName")     count("fieldName")     avg("fieldName")
  *   min("fieldName")     max("fieldName")       distinctcount("fieldName")
  *   runningSum("fieldName")     // progressive cumulative total
@@ -364,8 +364,8 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
   // the aggregation in parentheses so two entries of the same field remain
   // disambiguated.
   const aggLabelLocal = (a: string): string => {
-    const wdrKey = ({ distinctcount: 'distinctCount', avg: 'average' } as Record<string, string>)[a] || a;
-    const raw = tAgg[a] ?? tAgg[wdrKey];
+    const localeKey = ({ distinctcount: 'distinctCount', avg: 'average' } as Record<string, string>)[a] || a;
+    const raw = tAgg[a] ?? tAgg[localeKey];
     if (raw && typeof raw === 'object') return (raw as Record<string, string>).caption || a;
     return (raw as string) || a;
   };
