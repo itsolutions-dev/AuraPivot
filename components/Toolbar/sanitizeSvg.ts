@@ -43,7 +43,10 @@ const hasUnsafeScheme = (value: string): boolean => {
 };
 
 export const sanitizeSvgMarkup = (markup: string): string | null => {
-  if (typeof DOMParser === 'undefined' || typeof XMLSerializer === 'undefined') {
+  if (
+    typeof DOMParser === 'undefined' ||
+    typeof XMLSerializer === 'undefined'
+  ) {
     // Non-browser host (SSR): no safe way to parse — render nothing.
     return null;
   }

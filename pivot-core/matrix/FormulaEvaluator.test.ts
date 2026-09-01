@@ -153,7 +153,7 @@ describe('identifiers', () => {
   test('resolved through the provided resolver', () => {
     const resolve = (name: string) => (name === 'revenue' ? 10 : null);
     expect(
-      evaluateFormulaExpression('revenue * 2', { resolveIdentifier: resolve })
+      evaluateFormulaExpression('revenue * 2', { resolveIdentifier: resolve }),
     ).toBe(20);
   });
 
@@ -161,13 +161,13 @@ describe('identifiers', () => {
     expect(
       evaluateFormulaExpression('missing + 1', {
         resolveIdentifier: () => null,
-      })
+      }),
     ).toBe(1);
   });
 
   test('identifier without resolver throws', () => {
     expect(() => evaluateFormulaExpression('revenue * 2')).toThrow(
-      /unknown identifier/i
+      /unknown identifier/i,
     );
   });
 });
@@ -186,7 +186,7 @@ describe('injection attempts are rejected', () => {
     '1 = 2',
   ])('%s throws', (src) => {
     expect(() =>
-      evaluateFormulaExpression(src, { resolveIdentifier: () => 1 })
+      evaluateFormulaExpression(src, { resolveIdentifier: () => 1 }),
     ).toThrow();
     expect((globalThis as Record<string, unknown>).pwned).toBeUndefined();
   });
@@ -197,7 +197,7 @@ describe('malformed input', () => {
     '%j throws',
     (src) => {
       expect(() => evaluateFormulaExpression(src)).toThrow();
-    }
+    },
   );
 });
 
@@ -208,7 +208,7 @@ describe('parseFormulaExpression (validation mode)', () => {
 
   test('accepts the full grammar', () => {
     expect(() =>
-      parseFormulaExpression('IF(a > 1 AND b <= 2, ABS(-1) ^ 2, MIN(0, 1))')
+      parseFormulaExpression('IF(a > 1 AND b <= 2, ABS(-1) ^ 2, MIN(0, 1))'),
     ).not.toThrow();
   });
 

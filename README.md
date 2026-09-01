@@ -69,17 +69,17 @@ See [docs/options-guide.en.md](docs/options-guide.en.md) for the full `options` 
 
 ## Props
 
-| Prop                   | Type                | Default         | Description                                                                                                                                                                                                   |
-| ---------------------- | ------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Prop                   | Type                | Default         | Description                                                                                                                                                                                                      |
+| ---------------------- | ------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `options`              | `PivotOptions`      | —               | Full configuration (`toolbar` / `layout` / `data` / `format` sections). Applied **seed-on-change**: re-applied only when the object reference changes. See [docs/options-guide.en.md](docs/options-guide.en.md). |
-| `dataSource`           | `array`             | —               | Plain array of row objects. The schema for those rows lives in `options.data.fields`.                                                                                                                         |
-| `onOptionsChange`      | `function`          | —               | Called with the complete updated `options` object after every in-component edit. Feeding it straight back into `options` is safe (loop guard).                                                                |
-| `localization`         | `object`            | English         | Localization dictionary. English fallbacks are built in — omit the prop and the pivot renders fully in English. For other languages pass a dict from `aura-pivot/locales/<lang>.json` or your i18next setup. |
-| `width`                | `string \| number`  | `'100%'`        | Container width.                                                                                                                                                                                              |
-| `height`               | `string \| number`  | `'100%'`        | Container height.                                                                                                                                                                                             |
-| `locale`               | `string`            | browser default | BCP-47 locale tag (`'en'`, `'it-IT'`, …). Controls number formatting, date formatting, and string sorting. Pass `undefined` to follow the browser.                                                            |
-| `beforeToolbarCreated` | `function`          | —               | Receives `{ getTabs }` — use it to inject custom toolbar tabs. String icons may be raw `<svg>` markup (sanitized before rendering).                                                                           |
-| `theme`                | `Theme \| function` | —               | Optional MUI theme object (or callback `(outerTheme) => theme`). When set the pivot subtree is wrapped in a `ThemeProvider`. When omitted the component inherits the host app theme. See [Theming](#theming). |
+| `dataSource`           | `array`             | —               | Plain array of row objects. The schema for those rows lives in `options.data.fields`.                                                                                                                            |
+| `onOptionsChange`      | `function`          | —               | Called with the complete updated `options` object after every in-component edit. Feeding it straight back into `options` is safe (loop guard).                                                                   |
+| `localization`         | `object`            | English         | Localization dictionary. English fallbacks are built in — omit the prop and the pivot renders fully in English. For other languages pass a dict from `aura-pivot/locales/<lang>.json` or your i18next setup.     |
+| `width`                | `string \| number`  | `'100%'`        | Container width.                                                                                                                                                                                                 |
+| `height`               | `string \| number`  | `'100%'`        | Container height.                                                                                                                                                                                                |
+| `locale`               | `string`            | browser default | BCP-47 locale tag (`'en'`, `'it-IT'`, …). Controls number formatting, date formatting, and string sorting. Pass `undefined` to follow the browser.                                                               |
+| `beforeToolbarCreated` | `function`          | —               | Receives `{ getTabs }` — use it to inject custom toolbar tabs. String icons may be raw `<svg>` markup (sanitized before rendering).                                                                              |
+| `theme`                | `Theme \| function` | —               | Optional MUI theme object (or callback `(outerTheme) => theme`). When set the pivot subtree is wrapped in a `ThemeProvider`. When omitted the component inherits the host app theme. See [Theming](#theming).    |
 
 Toolbar visibility is part of `options`, not a prop: `options.toolbar.visible`
 (master switch) plus `showFields` / `showFormat` / `showExport` /
@@ -224,22 +224,22 @@ Pass the `theme` prop to override that behavior and scope a custom theme to the 
 Pass any object produced by `createTheme`. It fully replaces the ambient theme inside the pivot.
 
 ```jsx
-import { createTheme } from '@mui/material/styles';
-import AuraPivot from 'aura-pivot';
+import { createTheme } from "@mui/material/styles";
+import AuraPivot from "aura-pivot";
 
 const pivotTheme = createTheme({
   palette: {
-    mode: 'light',
-    primary: { main: '#1a73e8' },
-    background: { paper: '#ffffff', default: '#f7f9fc' },
-    divider: '#e0e4eb',
+    mode: "light",
+    primary: { main: "#1a73e8" },
+    background: { paper: "#ffffff", default: "#f7f9fc" },
+    divider: "#e0e4eb",
   },
-  typography: { fontFamily: 'Roboto, sans-serif' },
+  typography: { fontFamily: "Roboto, sans-serif" },
   // Custom token consumed by the pivot Box wrapper:
-  font: { primary: 'Roboto, sans-serif' },
+  font: { primary: "Roboto, sans-serif" },
 });
 
-<AuraPivot theme={pivotTheme} options={options} dataSource={rows} />
+<AuraPivot theme={pivotTheme} options={options} dataSource={rows} />;
 ```
 
 ### Partial override (merge with host theme)
@@ -247,20 +247,20 @@ const pivotTheme = createTheme({
 Pass a callback `(outerTheme) => theme` to keep the host palette/typography and only patch what you need. MUI's `ThemeProvider` invokes the callback with the outer theme.
 
 ```jsx
-import { createTheme } from '@mui/material/styles';
-import AuraPivot from 'aura-pivot';
+import { createTheme } from "@mui/material/styles";
+import AuraPivot from "aura-pivot";
 
 const pivotTheme = (outer) =>
   createTheme({
     ...outer,
     palette: {
       ...outer.palette,
-      primary: { main: '#0b8043' },
+      primary: { main: "#0b8043" },
     },
-    font: { ...(outer.font || {}), primary: 'Inter, sans-serif' },
+    font: { ...(outer.font || {}), primary: "Inter, sans-serif" },
   });
 
-<AuraPivot theme={pivotTheme} options={options} dataSource={rows} />
+<AuraPivot theme={pivotTheme} options={options} dataSource={rows} />;
 ```
 
 ### Tokens read by the pivot
@@ -294,24 +294,29 @@ under `aura-pivot/locales/`. A malformed dictionary is rejected with a
 ### Static import (small apps, single language)
 
 ```jsx
-import AuraPivot from 'aura-pivot';
-import en from 'aura-pivot/locales/en.json';
+import AuraPivot from "aura-pivot";
+import en from "aura-pivot/locales/en.json";
 
-<AuraPivot localization={en} locale="en" options={options} dataSource={rows} />
+<AuraPivot localization={en} locale="en" options={options} dataSource={rows} />;
 ```
 
 ### Per-instance overrides
 
 ```jsx
-import AuraPivot, { mergeLocalization } from 'aura-pivot';
-import en from 'aura-pivot/locales/en.json';
+import AuraPivot, { mergeLocalization } from "aura-pivot";
+import en from "aura-pivot/locales/en.json";
 
 const localization = mergeLocalization(en, {
-  grid: { grandTotal: 'Overall Total' },
-  aggregations: { sum: 'Total' },
+  grid: { grandTotal: "Overall Total" },
+  aggregations: { sum: "Total" },
 });
 
-<AuraPivot localization={localization} locale="en" options={options} dataSource={rows} />
+<AuraPivot
+  localization={localization}
+  locale="en"
+  options={options}
+  dataSource={rows}
+/>;
 ```
 
 `mergeLocalization(base, override)` does a shallow merge per top-level section.
@@ -385,7 +390,11 @@ function App() {
 
   return (
     <>
-      <AuraPivot ref={(r) => setEngine(r?.engine ?? null)} options={options} dataSource={rows} />
+      <AuraPivot
+        ref={(r) => setEngine(r?.engine ?? null)}
+        options={options}
+        dataSource={rows}
+      />
       {engine && <MatrixStats engine={engine} />}
     </>
   );
@@ -408,13 +417,13 @@ npm run build           # full build (terser-minified) → dist/
 
 Outputs:
 
-| File                  | Format       | Use                            |
-| --------------------- | ------------ | ------------------------------ |
-| `dist/index.js`       | CommonJS     | Legacy bundlers, Node          |
-| `dist/index.esm.js`   | ESM          | Webpack, Vite, modern bundlers |
-| `dist/index.js.map` / `index.esm.js.map` | Sourcemap | Debugging (omitted from obfuscated builds) |
-| `dist/index.d.ts`     | TypeScript   | Public type declarations       |
-| `dist/locales/*.json` | JSON         | Opt-in localization dictionaries |
+| File                                     | Format     | Use                                        |
+| ---------------------------------------- | ---------- | ------------------------------------------ |
+| `dist/index.js`                          | CommonJS   | Legacy bundlers, Node                      |
+| `dist/index.esm.js`                      | ESM        | Webpack, Vite, modern bundlers             |
+| `dist/index.js.map` / `index.esm.js.map` | Sourcemap  | Debugging (omitted from obfuscated builds) |
+| `dist/index.d.ts`                        | TypeScript | Public type declarations                   |
+| `dist/locales/*.json`                    | JSON       | Opt-in localization dictionaries           |
 
 Every build is asserted by `scripts/verify-dist.mjs` (build stamp, artifact
 completeness, sourcemap integrity, size ceiling). The build is also

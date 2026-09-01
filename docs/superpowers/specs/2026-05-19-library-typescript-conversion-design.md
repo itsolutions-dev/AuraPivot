@@ -14,11 +14,11 @@ Convert the `Library/` codebase from plain JS/JSX to TypeScript. Two equal objec
 
 ## Decisions
 
-| Decision | Choice |
-|----------|--------|
+| Decision            | Choice                                                                                  |
+| ------------------- | --------------------------------------------------------------------------------------- |
 | Conversion strategy | Big-bang — all 30 files at once, no `allowJs`. Phased internally; not one giant commit. |
-| Build tooling | Babel strips types (`@babel/preset-typescript`); `tsc` typechecks + emits `.d.ts`. |
-| Strictness | `strict: true` from day one. Pragmatic `any` only at dynamic boundaries. |
+| Build tooling       | Babel strips types (`@babel/preset-typescript`); `tsc` typechecks + emits `.d.ts`.      |
+| Strictness          | `strict: true` from day one. Pragmatic `any` only at dynamic boundaries.                |
 
 ## Scope
 
@@ -90,6 +90,7 @@ passes `--emitDeclarationOnly`.
 **Event bus** (`PivotEngine` `on`/`off`/`_emit`) — a string-union event type with generic
 `on<K extends EngineEvent>`. No loose `string` event names. Event names are camelCase in the
 existing code:
+
 ```ts
 type EngineEvent = "dataChange" | "reportChange" | "formatChange";
 ```

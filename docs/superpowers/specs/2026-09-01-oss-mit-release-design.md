@@ -10,16 +10,16 @@
 
 These were settled during brainstorming and are not open for re-litigation during implementation.
 
-| # | Decision | Rationale |
-|---|---|---|
-| D1 | **Pure MIT.** No open-core split, no dual license, no obfuscated build. | Business model moves to support/consulting/sponsorship. The PresentationApp pricing section becomes donate/sponsor. |
-| D2 | **npm name `aura-pivot`** (unscoped). Verified available 2026-09-01. | Shorter, no scope registration, reads as a community project rather than a vendor package. |
-| D3 | **Reuse `itsolutions-dev/AuraPivot`**, flipped to public. History preserved. | A secret scan over all 51 commits came back clean, so there is nothing to purge. |
-| D4 | **Copyright holder: IT Solutions S.r.l.** | |
-| D5 | **Refactor-then-cover** (option B). Extract pure logic from the five monolith components, then drive coverage. Playwright component testing is a later phase, not a launch blocker. | 100% on a 2 809-line file measures lines, not behaviour, and produces tests that break on every external PR. |
-| D6 | **Zero WebDataRocks references** in the working tree and every published artifact. | Owner's call. See §7 for the history caveat. |
-| D7 | **Go public after phase 3**, not earlier. | Launching at ~30% coverage means external PRs land on untested code. |
-| D8 | The package rename is **in scope across all three sibling apps**. | `@its/aura-pivot` appears in 14 files outside the Library build output. |
+| #   | Decision                                                                                                                                                                            | Rationale                                                                                                           |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| D1  | **Pure MIT.** No open-core split, no dual license, no obfuscated build.                                                                                                             | Business model moves to support/consulting/sponsorship. The PresentationApp pricing section becomes donate/sponsor. |
+| D2  | **npm name `aura-pivot`** (unscoped). Verified available 2026-09-01.                                                                                                                | Shorter, no scope registration, reads as a community project rather than a vendor package.                          |
+| D3  | **Reuse `itsolutions-dev/AuraPivot`**, flipped to public. History preserved.                                                                                                        | A secret scan over all 51 commits came back clean, so there is nothing to purge.                                    |
+| D4  | **Copyright holder: IT Solutions S.r.l.**                                                                                                                                           |                                                                                                                     |
+| D5  | **Refactor-then-cover** (option B). Extract pure logic from the five monolith components, then drive coverage. Playwright component testing is a later phase, not a launch blocker. | 100% on a 2 809-line file measures lines, not behaviour, and produces tests that break on every external PR.        |
+| D6  | **Zero WebDataRocks references** in the working tree and every published artifact.                                                                                                  | Owner's call. See §7 for the history caveat.                                                                        |
+| D7  | **Go public after phase 3**, not earlier.                                                                                                                                           | Launching at ~30% coverage means external PRs land on untested code.                                                |
+| D8  | The package rename is **in scope across all three sibling apps**.                                                                                                                   | `@its/aura-pivot` appears in 14 files outside the Library build output.                                             |
 
 ---
 
@@ -38,21 +38,21 @@ These were settled during brainstorming and are not open for re-litigation durin
 
 **Release blockers:**
 
-| # | Finding | Consequence |
-|---|---|---|
-| B1 | Repo is private; `licenseInfo: null`; description empty. | — |
-| B2 | No `LICENSE` file. `package.json` has no `license`, `repository`, `author`, `keywords`, `homepage`, `bugs`. | npm would publish it as `UNLICENSED`. |
-| B3 | README closes with *"Private package — distributed under the terms of the host organization's internal license."* | Directly contradicts MIT. |
-| B4 | Obfuscator in the build pipeline (`javascript-obfuscator`, `rollup-plugin-obfuscator`, `HOT_PATHS`, `reservedStrings`, ~90 lines of rollup config). | IP protection is meaningless under MIT and actively hostile to contributors. |
-| B5 | `react-virtuoso` sits in `devDependencies` but `components/PivotTable/PivotTable.tsx` imports it at runtime. | Wrong metadata. It currently survives only because rollup bundles it. |
-| B6 | `dist/` bundles `react-virtuoso`, `@mui/icons-material` and `file-saver` with no attribution file. | MIT requires retaining the copyright notice of bundled code. Currently non-compliant. |
-| B7 | `tsconfig.json` has no `allowJs`, so `index.js` and `AuraPivot.jsx` are never type-checked. | The public entry point is the one unchecked file. |
-| B8 | `index.d.ts` (285 lines) is hand-maintained and must be kept in sync manually. | A silent trap for external contributors. |
-| B9 | The README comparison table compares the product against itself — a global find/replace overwrote the competitor name in both columns. | Reader-visible nonsense. |
+| #   | Finding                                                                                                                                                                                                                                                                                                                                                                                               | Consequence                                                                                                           |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| B1  | Repo is private; `licenseInfo: null`; description empty.                                                                                                                                                                                                                                                                                                                                              | —                                                                                                                     |
+| B2  | No `LICENSE` file. `package.json` has no `license`, `repository`, `author`, `keywords`, `homepage`, `bugs`.                                                                                                                                                                                                                                                                                           | npm would publish it as `UNLICENSED`.                                                                                 |
+| B3  | README closes with _"Private package — distributed under the terms of the host organization's internal license."_                                                                                                                                                                                                                                                                                     | Directly contradicts MIT.                                                                                             |
+| B4  | Obfuscator in the build pipeline (`javascript-obfuscator`, `rollup-plugin-obfuscator`, `HOT_PATHS`, `reservedStrings`, ~90 lines of rollup config).                                                                                                                                                                                                                                                   | IP protection is meaningless under MIT and actively hostile to contributors.                                          |
+| B5  | `react-virtuoso` sits in `devDependencies` but `components/PivotTable/PivotTable.tsx` imports it at runtime.                                                                                                                                                                                                                                                                                          | Wrong metadata. It currently survives only because rollup bundles it.                                                 |
+| B6  | `dist/` bundles `react-virtuoso`, `@mui/icons-material` and `file-saver` with no attribution file.                                                                                                                                                                                                                                                                                                    | MIT requires retaining the copyright notice of bundled code. Currently non-compliant.                                 |
+| B7  | `tsconfig.json` has no `allowJs`, so `index.js` and `AuraPivot.jsx` are never type-checked.                                                                                                                                                                                                                                                                                                           | The public entry point is the one unchecked file.                                                                     |
+| B8  | `index.d.ts` (285 lines) is hand-maintained and must be kept in sync manually.                                                                                                                                                                                                                                                                                                                        | A silent trap for external contributors.                                                                              |
+| B9  | The README comparison table compares the product against itself — a global find/replace overwrote the competitor name in both columns.                                                                                                                                                                                                                                                                | Reader-visible nonsense.                                                                                              |
 | B11 | `PresentationApp/src/preview.jsx:9` imports `{ variantSwatches } from "@its/aura-pivot/theme"`, but the package `exports` map has no `./theme` subpath and the theme re-export in `index.js` is commented out. The import resolves only because a Vite alias rewrites it to `Library/theme/swatches.js` — a path that does not exist (the file is `swatches.ts`; Vite's extension probing covers it). | The playground demonstrates an import that fails with `ERR_PACKAGE_PATH_NOT_EXPORTED` for anyone installing from npm. |
-| B12 | `PresentationApp/vite.config.js` carries a `FREEPLAN` branch that swaps the alias to an obfuscated capped build and points at `npm --prefix ../Library run build:freeplan` — a script that no longer exists in `Library/package.json`. | Dead configuration for the commercial gate removed by D1. |
-| B13 | `prop-types` is imported by `AuraPivot.jsx:9`, `components/PivotTable/PivotTable.tsx:9` and `options/optionsPropType.ts:5`, but appears in neither `dependencies` nor `devDependencies`. It resolves today only as a transitive hoist into the local `node_modules`. | An install of the published package can fail depending on the consumer's tree layout. Same class of defect as B5. |
-| B10 | `CLAUDE.md` has drifted from the code. It states that `components/PivotTable/PivotTable.tsx` carries `@ts-nocheck` (it does not — the repo has no `@ts-nocheck`, `@ts-ignore` or `@ts-expect-error` anywhere), and it refers to `PivotEngine.js`, `optionsAdapter.js`, `types.js` and `merge.js` for modules that are now `.ts`. | The first document a contributor reads describes a repository that no longer exists. |
+| B12 | `PresentationApp/vite.config.js` carries a `FREEPLAN` branch that swaps the alias to an obfuscated capped build and points at `npm --prefix ../Library run build:freeplan` — a script that no longer exists in `Library/package.json`.                                                                                                                                                                | Dead configuration for the commercial gate removed by D1.                                                             |
+| B13 | `prop-types` is imported by `AuraPivot.jsx:9`, `components/PivotTable/PivotTable.tsx:9` and `options/optionsPropType.ts:5`, but appears in neither `dependencies` nor `devDependencies`. It resolves today only as a transitive hoist into the local `node_modules`.                                                                                                                                  | An install of the published package can fail depending on the consumer's tree layout. Same class of defect as B5.     |
+| B10 | `CLAUDE.md` has drifted from the code. It states that `components/PivotTable/PivotTable.tsx` carries `@ts-nocheck` (it does not — the repo has no `@ts-nocheck`, `@ts-ignore` or `@ts-expect-error` anywhere), and it refers to `PivotEngine.js`, `optionsAdapter.js`, `types.js` and `merge.js` for modules that are now `.ts`.                                                                      | The first document a contributor reads describes a repository that no longer exists.                                  |
 
 **Missing OSS infrastructure:** no `.github/` at all (no CI, no issue or PR templates, no CODEOWNERS, no Dependabot), no ESLint, no Prettier, no `.editorconfig`, no coverage tooling or `vitest.config.ts`, no `CONTRIBUTING.md` / `CODE_OF_CONDUCT.md` / `SECURITY.md` / `CHANGELOG.md`, no release automation.
 
@@ -80,7 +80,7 @@ GitHub repository metadata: description, topics (`react`, `pivot-table`, `data-g
 
 - **`LICENSE`** — MIT, `Copyright (c) 2026 IT Solutions S.r.l.`
 - **`package.json` metadata** — `license: "MIT"`, `description`, `keywords`, `repository` (with `directory`), `bugs`, `homepage`, `author`, `sideEffects: false`, `publishConfig: { access: "public", provenance: true }`.
-  `engines` declares `node: ">=18"`, not `>=20`. The `>=20` requirement belongs to the *build* — `rollup.config.js` uses the `with { type: "json" }` import attribute, which Node 18 does not parse — and consumers never run it. Declaring `>=20` here would emit an install-time warning for every Node 18 user for no reason. Node 20 is stated as the development requirement in `CONTRIBUTING.md` and enforced by the CI matrix instead.
+  `engines` declares `node: ">=18"`, not `>=20`. The `>=20` requirement belongs to the _build_ — `rollup.config.js` uses the `with { type: "json" }` import attribute, which Node 18 does not parse — and consumers never run it. Declaring `>=20` here would emit an install-time warning for every Node 18 user for no reason. Node 20 is stated as the development requirement in `CONTRIBUTING.md` and enforced by the CI matrix instead.
 - **`THIRD-PARTY-NOTICES.md`** — generated at build time from the resolved dependency tree, listed in `files` so it ships inside the tarball. Required for whatever remains bundled after §5.
 - **README licence section** — replaces the "Private package" line.
 
@@ -108,29 +108,29 @@ The `reservedStrings: ['exceljs']` guard disappears along with the obfuscator, a
 
 **Step 1 — measure, then cover the untested core.** Establish the real baseline first. Then write pure unit tests for `MatrixComputer`, `CellFormatter`, `DateHierarchyExpander`, `DateFormatter`, `FilterEngine`, `Aggregator`, `DataNormalizer` and the untested remainder of `PivotEngine`. No refactoring, fast tests, roughly 1 900 lines of high-value logic. Target: `pivot-core/**` at 95%.
 
-**Step 2 — build the safety net.** Characterisation tests over the five monoliths *before* touching them. Their purpose is not coverage; it is catching regressions during step 3. Written with `@testing-library/react` plus `VirtuosoMockContext`.
+**Step 2 — build the safety net.** Characterisation tests over the five monoliths _before_ touching them. Their purpose is not coverage; it is catching regressions during step 3. Written with `@testing-library/react` plus `VirtuosoMockContext`.
 
 **Step 3 — extract, then cover.** Each monolith yields its pure logic to a testable module; the `.tsx` file is left as a thin rendering shell.
 
-| File | Extract | Shell |
-|---|---|---|
-| `PivotTable.tsx` (2 809) | `usePivotTableModel` (row/column flattening, sticky offsets, column sizing), expand and selection reducers, `cellRenderers` | ~600 |
-| `FormatDialog.tsx` (2 245) | `formatModel.ts` (state reducer, validation), `conditionalRules.ts` | ~500 |
-| `FieldList.tsx` (2 218) | `fieldListModel.ts` (drag reorder, axis assignment, search/filter) | ~600 |
-| `CalculatedFieldDialog.tsx` (1 076) | `calcFieldForm.ts` (form state; formula parsing already lives in `FormulaEvaluator`) | ~500 |
-| `DrillThroughDialog.tsx` (941) | `drillThroughQuery.ts` (row selection from the matrix) | ~400 |
+| File                                | Extract                                                                                                                     | Shell |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `PivotTable.tsx` (2 809)            | `usePivotTableModel` (row/column flattening, sticky offsets, column sizing), expand and selection reducers, `cellRenderers` | ~600  |
+| `FormatDialog.tsx` (2 245)          | `formatModel.ts` (state reducer, validation), `conditionalRules.ts`                                                         | ~500  |
+| `FieldList.tsx` (2 218)             | `fieldListModel.ts` (drag reorder, axis assignment, search/filter)                                                          | ~600  |
+| `CalculatedFieldDialog.tsx` (1 076) | `calcFieldForm.ts` (form state; formula parsing already lives in `FormulaEvaluator`)                                        | ~500  |
+| `DrillThroughDialog.tsx` (941)      | `drillThroughQuery.ts` (row selection from the matrix)                                                                      | ~400  |
 
 Each extraction follows the test-driven cycle: characterisation test, extract, prove the shell still passes, then cover the extracted module directly.
 
 **Thresholds**, enforced per glob in `vitest.config.ts` and in CI:
 
-| Path | Line coverage |
-|---|---|
-| `pivot-core/**` | 95% |
-| `options/**`, `hooks/**`, `localization/**`, `utils/**` | 95% |
-| extracted `*Model.ts` / `*Query.ts` modules | 90% |
-| `components/**/*.tsx` | 70% |
-| global | 90% |
+| Path                                                    | Line coverage |
+| ------------------------------------------------------- | ------------- |
+| `pivot-core/**`                                         | 95%           |
+| `options/**`, `hooks/**`, `localization/**`, `utils/**` | 95%           |
+| extracted `*Model.ts` / `*Query.ts` modules             | 90%           |
+| `components/**/*.tsx`                                   | 70%           |
+| global                                                  | 90%           |
 
 The UI figure is deliberately lower than the rest. Above roughly 70%, coverage of a `.tsx` rendering shell is bought with assertions on markup structure, and those assertions are what make a test suite hostile to contributors.
 
@@ -142,9 +142,9 @@ The UI figure is deliberately lower than the rest. Above roughly 70%, coverage o
 
 The library began as a drop-in replacement for WebDataRocks, and a global find/replace later overwrote the name with "AuraPivot" in the prose files — producing the self-comparing table in B9. Three source comments escaped that replacement:
 
-- `components/CalculatedFieldDialog/CalculatedFieldDialog.tsx:26` — *"Formula syntax (mirrors WebDataRocks):"*
-- `components/Toolbar/sanitizeSvg.ts:4` — *"…legacy WebDataRocks…"*
-- `pivot-core/matrix/MatrixComputer.ts:6` — *"…(analogous to WebDataRocks)"*
+- `components/CalculatedFieldDialog/CalculatedFieldDialog.tsx:26` — _"Formula syntax (mirrors WebDataRocks):"_
+- `components/Toolbar/sanitizeSvg.ts:4` — _"…legacy WebDataRocks…"_
+- `pivot-core/matrix/MatrixComputer.ts:6` — _"…(analogous to WebDataRocks)"_
 
 Each is reworded to state the behaviour directly rather than by analogy. A comment that explains a design by pointing at another product stops being useful the moment the reader has not used that product.
 
@@ -199,14 +199,14 @@ The playground and the documentation site are the strongest assets in this list.
 
 ## 11. Phasing
 
-| Phase | Content | Estimate | Gate |
-|---|---|---|---|
-| 0 | Licence, package metadata, de-obfuscation, dependency fixes, TS conversion of the entry points, generated declarations, rename across all three apps, lint and format setup, `CLAUDE.md` refresh (B10) | 3–4 days | All three apps build |
-| 1 | CI, release automation, community files, README rewrite, third-party notices | 3–4 days | CI green on a pull request |
-| 2 | Coverage step 1 — measured baseline, then the untested core | ~1 week | `pivot-core` at 95% |
-| 3 | Coverage steps 2 and 3 — safety net, extraction, per-module coverage | 4–5 weeks | Global 90%, thresholds enforced |
-| 4 | **Repository public, first npm publish** | 1 day | — |
-| 5 | Playwright component testing | ~2 weeks | Post-launch |
+| Phase | Content                                                                                                                                                                                                | Estimate  | Gate                            |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------- | ------------------------------- |
+| 0     | Licence, package metadata, de-obfuscation, dependency fixes, TS conversion of the entry points, generated declarations, rename across all three apps, lint and format setup, `CLAUDE.md` refresh (B10) | 3–4 days  | All three apps build            |
+| 1     | CI, release automation, community files, README rewrite, third-party notices                                                                                                                           | 3–4 days  | CI green on a pull request      |
+| 2     | Coverage step 1 — measured baseline, then the untested core                                                                                                                                            | ~1 week   | `pivot-core` at 95%             |
+| 3     | Coverage steps 2 and 3 — safety net, extraction, per-module coverage                                                                                                                                   | 4–5 weeks | Global 90%, thresholds enforced |
+| 4     | **Repository public, first npm publish**                                                                                                                                                               | 1 day     | —                               |
+| 5     | Playwright component testing                                                                                                                                                                           | ~2 weeks  | Post-launch                     |
 
 ---
 

@@ -29,47 +29,47 @@
 
 **Created:**
 
-| Path | Responsibility |
-|---|---|
-| `LICENSE` | MIT text, IT Solutions S.r.l. |
-| `scripts/third-party-notices.mjs` | Walks the production dependency tree, emits attribution for anything bundled |
-| `vitest.config.ts` | Test environment, coverage provider, per-glob thresholds |
-| `eslint.config.js` | Flat config |
-| `.prettierrc.json`, `.prettierignore`, `.editorconfig` | Formatting |
-| `.github/workflows/ci.yml` | Lint, typecheck, test, build on every push and PR |
-| `.github/workflows/release.yml` | Changesets version PR and npm publish |
-| `.github/workflows/codeql.yml` | Static analysis |
-| `.github/dependabot.yml` | npm + github-actions updates |
-| `.github/ISSUE_TEMPLATE/{bug_report.yml,feature_request.yml,config.yml}` | Issue intake |
-| `.github/PULL_REQUEST_TEMPLATE.md`, `.github/CODEOWNERS` | PR intake |
-| `.changeset/config.json` | Release configuration |
-| `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md` | Community |
-| `.size-limit.json` | Bundle budget |
+| Path                                                                     | Responsibility                                                               |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `LICENSE`                                                                | MIT text, IT Solutions S.r.l.                                                |
+| `scripts/third-party-notices.mjs`                                        | Walks the production dependency tree, emits attribution for anything bundled |
+| `vitest.config.ts`                                                       | Test environment, coverage provider, per-glob thresholds                     |
+| `eslint.config.js`                                                       | Flat config                                                                  |
+| `.prettierrc.json`, `.prettierignore`, `.editorconfig`                   | Formatting                                                                   |
+| `.github/workflows/ci.yml`                                               | Lint, typecheck, test, build on every push and PR                            |
+| `.github/workflows/release.yml`                                          | Changesets version PR and npm publish                                        |
+| `.github/workflows/codeql.yml`                                           | Static analysis                                                              |
+| `.github/dependabot.yml`                                                 | npm + github-actions updates                                                 |
+| `.github/ISSUE_TEMPLATE/{bug_report.yml,feature_request.yml,config.yml}` | Issue intake                                                                 |
+| `.github/PULL_REQUEST_TEMPLATE.md`, `.github/CODEOWNERS`                 | PR intake                                                                    |
+| `.changeset/config.json`                                                 | Release configuration                                                        |
+| `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`                   | Community                                                                    |
+| `.size-limit.json`                                                       | Bundle budget                                                                |
 
 **Modified:**
 
-| Path | Change |
-|---|---|
-| `package.json` | Licence and OSS metadata, name, dependency corrections, scripts |
-| `rollup.config.js` | Obfuscator removal, externals, generated declarations |
-| `scripts/verify-dist.mjs` | Drop the obfuscated branch, assert the public type surface |
-| `tsconfig.json` | `allowJs`, include the converted entry points |
-| `index.js` → `index.ts` | Typed entry, `./theme` re-export restored |
-| `AuraPivot.jsx` → `AuraPivot.tsx` | Typed, PropTypes removed |
-| `components/PivotTable/PivotTable.tsx` | PropTypes removed |
-| `README.md` | Full rewrite |
-| `CLAUDE.md` | Refreshed to match the code |
-| `components/CalculatedFieldDialog/CalculatedFieldDialog.tsx`, `components/Toolbar/sanitizeSvg.ts`, `pivot-core/matrix/MatrixComputer.ts` | WebDataRocks comments reworded |
-| `../PresentationApp/vite.config.js` | FREEPLAN branch removed, alias renamed |
-| `../PresentationApp/src/preview.jsx` | Import specifiers renamed |
-| `../GuideApp/src/pages/index.js`, `../GuideApp/README.md` | Package name in prose |
+| Path                                                                                                                                     | Change                                                          |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `package.json`                                                                                                                           | Licence and OSS metadata, name, dependency corrections, scripts |
+| `rollup.config.js`                                                                                                                       | Obfuscator removal, externals, generated declarations           |
+| `scripts/verify-dist.mjs`                                                                                                                | Drop the obfuscated branch, assert the public type surface      |
+| `tsconfig.json`                                                                                                                          | `allowJs`, include the converted entry points                   |
+| `index.js` → `index.ts`                                                                                                                  | Typed entry, `./theme` re-export restored                       |
+| `AuraPivot.jsx` → `AuraPivot.tsx`                                                                                                        | Typed, PropTypes removed                                        |
+| `components/PivotTable/PivotTable.tsx`                                                                                                   | PropTypes removed                                               |
+| `README.md`                                                                                                                              | Full rewrite                                                    |
+| `CLAUDE.md`                                                                                                                              | Refreshed to match the code                                     |
+| `components/CalculatedFieldDialog/CalculatedFieldDialog.tsx`, `components/Toolbar/sanitizeSvg.ts`, `pivot-core/matrix/MatrixComputer.ts` | WebDataRocks comments reworded                                  |
+| `../PresentationApp/vite.config.js`                                                                                                      | FREEPLAN branch removed, alias renamed                          |
+| `../PresentationApp/src/preview.jsx`                                                                                                     | Import specifiers renamed                                       |
+| `../GuideApp/src/pages/index.js`, `../GuideApp/README.md`                                                                                | Package name in prose                                           |
 
 **Deleted:**
 
-| Path | Reason |
-|---|---|
-| `options/optionsPropType.ts` | PropTypes dropped in favour of TypeScript |
-| `index.d.ts` | Replaced by a generated declaration bundle |
+| Path                         | Reason                                     |
+| ---------------------------- | ------------------------------------------ |
+| `options/optionsPropType.ts` | PropTypes dropped in favour of TypeScript  |
+| `index.d.ts`                 | Replaced by a generated declaration bundle |
 
 ---
 
@@ -78,10 +78,12 @@
 ## Task 1: Licence and package metadata
 
 **Files:**
+
 - Create: `LICENSE`
 - Modify: `package.json`
 
 **Interfaces:**
+
 - Produces: a `package.json` carrying `license: "MIT"` and the repository/homepage/bugs triple that Task 18's README badges and Task 16's release workflow both read.
 
 - [ ] **Step 1: Write the licence file**
@@ -181,9 +183,11 @@ git commit -m "chore: license under MIT and add package metadata"
 ## Task 2: Remove the obfuscator
 
 **Files:**
+
 - Modify: `rollup.config.js`, `scripts/verify-dist.mjs`, `package.json`
 
 **Interfaces:**
+
 - Produces: a build that always emits sourcemaps and a `__AURA_PIVOT_BUILD__` stamp of shape `{version}` (the `obfuscated` key is gone). Task 3 re-baselines the size ceiling this task leaves in place.
 
 - [ ] **Step 1: Strip the obfuscator from `rollup.config.js`**
@@ -285,9 +289,11 @@ unconditional and the build stamp drops its obfuscated flag."
 ## Task 3: Correct the runtime dependencies and externalise them
 
 **Files:**
+
 - Modify: `package.json`, `rollup.config.js`, `scripts/verify-dist.mjs`
 
 **Interfaces:**
+
 - Consumes: the single `MAX_BYTES` constant introduced in Task 2.
 - Produces: a `dist/` that no longer inlines `react-virtuoso`, `@mui/icons-material` or `file-saver`, and a re-baselined size ceiling that Task 17's `size-limit` budget will mirror.
 
@@ -342,7 +348,7 @@ const MAX_BYTES = 250 * 1024;
 - [ ] **Step 5: Prove the externals really left the bundle**
 
 Run: `grep -c "VirtuosoMockContext\|react-virtuoso" dist/index.esm.js || true`
-Expected: the bundle contains the *import specifier* `react-virtuoso` but not the library's implementation. Confirm with `grep -o "from'react-virtuoso'\|from \"react-virtuoso\"" dist/index.esm.js` returning at least one match, and the total file size drop from step 3.
+Expected: the bundle contains the _import specifier_ `react-virtuoso` but not the library's implementation. Confirm with `grep -o "from'react-virtuoso'\|from \"react-virtuoso\"" dist/index.esm.js` returning at least one match, and the total file size drop from step 3.
 
 - [ ] **Step 6: Run the full check and test suite**
 
@@ -366,10 +372,12 @@ already use react-virtuoso from shipping a second copy."
 ## Task 4: Drop PropTypes
 
 **Files:**
+
 - Delete: `options/optionsPropType.ts`
 - Modify: `AuraPivot.jsx`, `components/PivotTable/PivotTable.tsx`
 
 **Interfaces:**
+
 - Produces: a tree with no `prop-types` import, which Task 5 needs before it can convert the entry point cleanly.
 
 `prop-types` is imported by three runtime files but declared in neither `dependencies` nor `devDependencies` — it resolves only as a transitive hoist. Rather than declare it, remove it: React 19 ignores `propTypes` on function components entirely, so on the primary development target this validation is already dead code. The generated declarations from Task 6 replace it with compile-time checking.
@@ -419,10 +427,12 @@ consumers a stronger guarantee at compile time."
 ## Task 5: Convert the entry points to TypeScript
 
 **Files:**
+
 - Rename: `AuraPivot.jsx` → `AuraPivot.tsx`, `index.js` → `index.ts`
 - Modify: `tsconfig.json`, `rollup.config.js`
 
 **Interfaces:**
+
 - Consumes: the PropTypes-free tree from Task 4.
 - Produces: `AuraPivotProps` and `AuraPivotRef` exported as named types from `AuraPivot.tsx`, and an `index.ts` whose export list Task 6 turns into the generated declaration bundle. Both names are taken from the existing hand-written `index.d.ts` so the generated declarations keep the surface consumers already compile against.
 
@@ -451,9 +461,9 @@ Record the error count. It is the progress metric for the next step.
 Declare the props interface at the top of `AuraPivot.tsx`, importing the existing option types rather than redefining them:
 
 ```ts
-import type { Theme } from '@mui/material/styles';
-import type { InternalOptions } from './options/optionsSchema';
-import type PivotEngineType from './pivot-core';
+import type { Theme } from "@mui/material/styles";
+import type { InternalOptions } from "./options/optionsSchema";
+import type PivotEngineType from "./pivot-core";
 
 export interface AuraPivotProps {
   options?: InternalOptions;
@@ -533,10 +543,12 @@ entry point among them — were the only files never type checked."
 ## Task 6: Generate the type declarations instead of hand-maintaining them
 
 **Files:**
+
 - Delete: `index.d.ts`, `AuraPivot.d.ts`
 - Modify: `rollup.config.js`, `package.json`, `scripts/verify-dist.mjs`
 
 **Interfaces:**
+
 - Consumes: the exported types from Task 5 (`AuraPivotProps`, `AuraPivotHandle`).
 - Produces: `dist/index.d.ts` generated by `rollup-plugin-dts`, asserted by `verify-dist`.
 
@@ -642,9 +654,11 @@ fails the build if a consumer-facing type stops being exported."
 ## Task 7: Expose the theme subpath the playground already imports
 
 **Files:**
+
 - Modify: `package.json`, `index.ts`, `rollup.config.js`
 
 **Interfaces:**
+
 - Produces: a working `aura-pivot/theme` entry point exporting `TONE_STOPS`, `buildSwatches` and `variantSwatches`. Task 9 renames the specifier the playground uses to reach it.
 
 `../PresentationApp/src/preview.jsx:9` imports `{ variantSwatches } from "@its/aura-pivot/theme"`. The `exports` map has no `./theme` key and the re-export in `index.js` is commented out — the import resolves only through a Vite alias pointing at `Library/theme/swatches.js`, a path that does not even exist (the file is `swatches.ts`). Anyone installing from npm and following the playground gets `ERR_PACKAGE_PATH_NOT_EXPORTED`.
@@ -663,7 +677,12 @@ In `rollup.config.js`, add a third config and include it in the default export a
 const themeConfig = {
   input: "theme/swatches.ts",
   output: [
-    { file: `${OUT_DIR}/theme.js`, format: "cjs", exports: "named", sourcemap: true },
+    {
+      file: `${OUT_DIR}/theme.js`,
+      format: "cjs",
+      exports: "named",
+      sourcemap: true,
+    },
     { file: `${OUT_DIR}/theme.esm.js`, format: "esm", sourcemap: true },
   ],
   plugins: [
@@ -738,9 +757,11 @@ ERR_PACKAGE_PATH_NOT_EXPORTED."
 ## Task 8: Remove the dead FREEPLAN configuration
 
 **Files:**
+
 - Modify: `../PresentationApp/vite.config.js`
 
 **Interfaces:**
+
 - Produces: a Vite config whose alias always points at the Library source, which Task 9 then renames.
 
 The `FREEPLAN` branch swaps the alias to an obfuscated, drill-through-disabled, 1 MB-capped bundle and instructs the reader to run `npm --prefix ../Library run build:freeplan` — a script that no longer exists. It is the last trace of the commercial gate that decision D1 removes.
@@ -765,10 +786,10 @@ Note the `.tsx` extension — Task 5 renamed the file.
 The `nodePolyfills` comment block opens with "Library/dist (FREEPLAN build, OBFUSCATOR=0) leaves Node builtins…". Rewrite it so it describes the actual reason without referring to a build mode that no longer exists:
 
 ```js
-    // exceljs and jszip reference Node builtins (events, stream, crypto, …).
-    // Vite leaves them as external imports in the browser, which throws at
-    // runtime. This plugin injects polyfills for the builtins and the
-    // `process` global so the pivot's Excel export works in the playground.
+// exceljs and jszip reference Node builtins (events, stream, crypto, …).
+// Vite leaves them as external imports in the browser, which throws at
+// runtime. This plugin injects polyfills for the builtins and the
+// `process` global so the pivot's Excel export works in the playground.
 ```
 
 - [ ] **Step 4: Confirm the playground still builds and runs**
@@ -793,9 +814,11 @@ build:freeplan — a script that no longer exists in Library."
 ## Task 9: Rename the package to `aura-pivot`
 
 **Files:**
+
 - Modify: `package.json`, `package-lock.json`, `README.md`, `CLAUDE.md`, `docs/superpowers/plans/2026-05-19-library-typescript-conversion.md`, `docs/superpowers/specs/2026-05-19-library-typescript-conversion-design.md`, `../PresentationApp/vite.config.js`, `../PresentationApp/src/preview.jsx`, `../GuideApp/src/pages/index.js`, `../GuideApp/README.md`, and three specs under `../docs/superpowers/`
 
 **Interfaces:**
+
 - Produces: the specifier `aura-pivot` everywhere. Task 18's README and Task 15's release workflow both assume this name.
 
 This must land as one atomic change across both repositories. `PresentationApp` resolves the library through a Vite alias keyed on the old specifier; the moment the two sides disagree, its build fails.
@@ -847,11 +870,13 @@ Expected: no output.
 - [ ] **Step 6: Build all three apps**
 
 Run:
+
 ```
 npm --prefix Library run build
 npm --prefix PresentationApp run build
 npm --prefix GuideApp run build
 ```
+
 Expected: all three succeed. This is the gate for phase 0 — if the playground builds, the alias rename is consistent.
 
 - [ ] **Step 7: Commit in both repositories**
@@ -870,9 +895,11 @@ cd ../ && git add PresentationApp GuideApp docs && git commit -m "chore: follow 
 ## Task 10: Remove the WebDataRocks references
 
 **Files:**
+
 - Modify: `components/CalculatedFieldDialog/CalculatedFieldDialog.tsx:26`, `components/Toolbar/sanitizeSvg.ts:4`, `pivot-core/matrix/MatrixComputer.ts:6`
 
 **Interfaces:**
+
 - Produces: a working tree with no reference to the product this library was originally modelled on.
 
 - [ ] **Step 1: Locate all three**
@@ -923,6 +950,7 @@ stops helping the moment the reader has not used it."
 ## Task 11: Refresh `CLAUDE.md`
 
 **Files:**
+
 - Modify: `CLAUDE.md`
 
 `CLAUDE.md` is the first file a contributor reads, and it currently describes a repository that no longer exists.
@@ -930,6 +958,7 @@ stops helping the moment the reader has not used it."
 - [ ] **Step 1: List the claims to check**
 
 The known drift:
+
 - It states `components/PivotTable/PivotTable.tsx` carries `@ts-nocheck`. The repository has no `@ts-nocheck`, `@ts-ignore` or `@ts-expect-error` anywhere.
 - It refers to `PivotEngine.js`, `optionsAdapter.js`, `types.js` and `merge.js`; these are `.ts`.
 - It documents the obfuscator, `OBFUSCATOR=1`, `HOT_PATHS` and `reservedStrings` — all removed in Task 2.
@@ -941,11 +970,13 @@ The known drift:
 - [ ] **Step 2: Verify each claim against the code before rewriting**
 
 Run:
+
 ```
 grep -rn "@ts-nocheck" --include=*.tsx . | grep -v node_modules
 grep -n "react-intl" package.json
 ls pivot-core/PivotEngine.* options/optionsAdapter.* pivot-core/types.* localization/merge.*
 ```
+
 Expected: no `@ts-nocheck`, no `react-intl`, and `.ts` extensions throughout. Fix the document to match what you observe, not what this plan predicts.
 
 - [ ] **Step 3: Rewrite the affected sections**
@@ -967,10 +998,12 @@ now .ts, the removed obfuscator, and hand-maintained declarations."
 ## Task 12: Linting and formatting
 
 **Files:**
+
 - Create: `eslint.config.js`, `.prettierrc.json`, `.prettierignore`, `.editorconfig`
 - Modify: `package.json`
 
 **Interfaces:**
+
 - Produces: `npm run lint` and `npm run format:check`, both consumed by Task 14's CI workflow.
 
 The existing style is encoded rather than changed. A lint rollout that reformats the whole repository would bury every subsequent diff.
@@ -1121,10 +1154,12 @@ git commit -m "chore: ignore the formatting commit in git blame"
 ## Task 13: Third-party attribution
 
 **Files:**
+
 - Create: `scripts/third-party-notices.mjs`
 - Modify: `package.json`
 
 **Interfaces:**
+
 - Produces: `THIRD-PARTY-NOTICES.md`, generated at build time and shipped in the tarball.
 
 After Task 3 the bundle inlines far less, but rollup still inlines whatever is neither a peer dependency nor listed in `external`. MIT requires retaining the copyright notice of any code redistributed, and the current tarball carries none.
@@ -1250,10 +1285,12 @@ copyright notices, which their MIT and BSD licences require."
 ## Task 14: Coverage tooling and a measured baseline
 
 **Files:**
+
 - Create: `vitest.config.ts`
 - Modify: `package.json`, `.gitignore`
 
 **Interfaces:**
+
 - Produces: `npm run test:coverage`, consumed by Task 15's CI workflow. The thresholds set here are the floor phases 2 and 3 ratchet upward.
 
 - [ ] **Step 1: Install the coverage provider**
@@ -1263,17 +1300,28 @@ Run: `npm install -D @vitest/coverage-v8`
 - [ ] **Step 2: Write `vitest.config.ts`**
 
 ```ts
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    environment: 'happy-dom',
+    environment: "happy-dom",
     globals: true,
     coverage: {
-      provider: 'v8',
-      reporter: ['text', 'lcov', 'json-summary'],
-      include: ['pivot-core/**', 'components/**', 'options/**', 'hooks/**', 'localization/**', 'utils/**', 'context/**', 'theme/**', 'AuraPivot.tsx', 'index.ts'],
-      exclude: ['**/*.test.{ts,tsx}', '**/*.d.ts'],
+      provider: "v8",
+      reporter: ["text", "lcov", "json-summary"],
+      include: [
+        "pivot-core/**",
+        "components/**",
+        "options/**",
+        "hooks/**",
+        "localization/**",
+        "utils/**",
+        "context/**",
+        "theme/**",
+        "AuraPivot.tsx",
+        "index.ts",
+      ],
+      exclude: ["**/*.test.{ts,tsx}", "**/*.d.ts"],
       // Thresholds are a ratchet: they record what is covered today so a
       // change cannot quietly reduce it. Phases 2 and 3 raise them toward
       // the targets in the spec (pivot-core 95, global 90).
@@ -1329,9 +1377,11 @@ Phases 2 and 3 raise them toward 95% on pivot-core and 90% globally."
 ## Task 15: Continuous integration
 
 **Files:**
+
 - Create: `.github/workflows/ci.yml`
 
 **Interfaces:**
+
 - Consumes: `npm run lint`, `npm run format:check` (Task 12), `npm run check`, `npm run test:coverage` (Task 14), `npm run build`.
 
 - [ ] **Step 1: Write the workflow**
@@ -1440,10 +1490,12 @@ gh pr merge --squash
 ## Task 16: Release automation with Changesets
 
 **Files:**
+
 - Create: `.changeset/config.json`, `.github/workflows/release.yml`
 - Modify: `package.json`
 
 **Interfaces:**
+
 - Consumes: the `publishConfig` block from Task 1 and the package name from Task 9.
 
 - [ ] **Step 1: Install and initialise**
@@ -1457,7 +1509,10 @@ Replace `.changeset/config.json`:
 ```json
 {
   "$schema": "https://unpkg.com/@changesets/config@3.0.0/schema.json",
-  "changelog": ["@changesets/changelog-github", { "repo": "itsolutions-dev/AuraPivot" }],
+  "changelog": [
+    "@changesets/changelog-github",
+    { "repo": "itsolutions-dev/AuraPivot" }
+  ],
   "commit": false,
   "access": "public",
   "baseBranch": "master",
@@ -1558,6 +1613,7 @@ git commit -m "ci: automate releases with Changesets"
 ## Task 17: Supply-chain and bundle-size automation
 
 **Files:**
+
 - Create: `.github/workflows/codeql.yml`, `.github/dependabot.yml`, `.size-limit.json`
 - Modify: `package.json`, `.github/workflows/ci.yml`
 
@@ -1646,7 +1702,7 @@ Add the script:
 Append to the `build` job in `.github/workflows/ci.yml`, after the `npm run build` step:
 
 ```yaml
-      - run: npm run size
+- run: npm run size
 ```
 
 - [ ] **Step 5: Remove the now-duplicated ceiling**
@@ -1673,6 +1729,7 @@ the assertions size-limit cannot make."
 ## Task 18: Community files
 
 **Files:**
+
 - Create: `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `.github/ISSUE_TEMPLATE/bug_report.yml`, `.github/ISSUE_TEMPLATE/feature_request.yml`, `.github/ISSUE_TEMPLATE/config.yml`, `.github/PULL_REQUEST_TEMPLATE.md`, `.github/CODEOWNERS`
 
 - [ ] **Step 1: `CONTRIBUTING.md`**
@@ -1705,7 +1762,7 @@ npm install
 ```
 
 **Node 20 or later** is required for development. The `engines` field says
-`>=18` because that is what the *published package* needs at runtime; the
+`>=18` because that is what the _published package_ needs at runtime; the
 build itself uses the `with { type: "json" }` import attribute, which Node
 18 does not support. Installing on 18 works. Building on 18 does not.
 
@@ -1777,7 +1834,7 @@ has none, and that is worth keeping.
 
 ## Releasing (maintainers)
 
-Merging to `master` opens a version pull request. Merging *that* publishes to
+Merging to `master` opens a version pull request. Merging _that_ publishes to
 npm with provenance, using the `NPM_TOKEN` repository secret. Nothing
 publishes from a local machine.
 ````
@@ -1940,10 +1997,12 @@ git commit -m "docs: add the contributor and security documentation"
 ## Task 19: Rewrite the README
 
 **Files:**
+
 - Modify: `README.md`
 - Create: `docs/assets/` capture referenced by the README hero
 
 **Interfaces:**
+
 - Consumes: the package name from Task 9, the badges enabled by Tasks 1, 15 and 17, and the `aura-pivot/theme` subpath from Task 7.
 
 The current README is 18 KB that read as an internal API reference. It opens on a comparison table that compares the product against itself, has no screenshot, never says why anyone should choose it, and closes by declaring itself private.
@@ -2084,6 +2143,7 @@ The props table, the theming chapter, the localization chapter and the hooks sec
 - [ ] **Step 4: Check the register**
 
 Read the draft once for these specifically:
+
 - Every claim has a mechanism or a number behind it. Delete any sentence that would still be true if it described a different library.
 - No superlatives, no invented benchmarks.
 - Second person, active voice.

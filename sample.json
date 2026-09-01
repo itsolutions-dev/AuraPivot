@@ -9,10 +9,34 @@
         "duration": { "type": "number", "caption": "Duration (s)" },
         "revenue": { "type": "number", "caption": "Revenue" }
       },
-      { "callDate": "2024-03-15", "agentName": "Alice", "country": "IT", "duration": 320, "revenue": 1200 },
-      { "callDate": "2024-03-15", "agentName": "Bob",   "country": "FR", "duration": 145, "revenue": 980 },
-      { "callDate": "2024-03-16", "agentName": "Alice", "country": "IT", "duration": 410, "revenue": 1450 },
-      { "callDate": "2024-03-16", "agentName": "Carol", "country": "DE", "duration": 220, "revenue": 760 }
+      {
+        "callDate": "2024-03-15",
+        "agentName": "Alice",
+        "country": "IT",
+        "duration": 320,
+        "revenue": 1200
+      },
+      {
+        "callDate": "2024-03-15",
+        "agentName": "Bob",
+        "country": "FR",
+        "duration": 145,
+        "revenue": 980
+      },
+      {
+        "callDate": "2024-03-16",
+        "agentName": "Alice",
+        "country": "IT",
+        "duration": 410,
+        "revenue": 1450
+      },
+      {
+        "callDate": "2024-03-16",
+        "agentName": "Carol",
+        "country": "DE",
+        "duration": 220,
+        "revenue": 760
+      }
     ]
   },
   "options": {
@@ -132,13 +156,14 @@
         { "uniqueName": "callDate.Year" },
         { "uniqueName": "callDate.Month" }
       ],
-      "columns": [
-        { "uniqueName": "agentName" },
-        { "uniqueName": "Measures" }
-      ],
+      "columns": [{ "uniqueName": "agentName" }, { "uniqueName": "Measures" }],
       "measures": [
         { "uniqueName": "revenue", "aggregation": "sum" },
-        { "uniqueName": "duration", "aggregation": "avg", "caption": "Avg duration" },
+        {
+          "uniqueName": "duration",
+          "aggregation": "avg",
+          "caption": "Avg duration"
+        },
         { "uniqueName": "avgRevenuePerCall", "aggregation": "formula" }
       ],
       "filters": [

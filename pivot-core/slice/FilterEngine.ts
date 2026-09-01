@@ -12,7 +12,7 @@
  * filters on the same field produce an AND across the respective predicates.
  */
 
-import type { DataRow } from "../types";
+import type { DataRow } from '../types';
 
 /** Full runtime filter shape accepted by the engine (superset of SliceFilter). */
 export interface FilterEntry {
@@ -68,7 +68,11 @@ const evaluateFilter = (filter: FilterEntry, row: DataRow): boolean => {
     const denied = new Set(filter.exclude.map((m) => String(m)));
     if (denied.has(String(raw))) return false;
   }
-  if (filter.value !== undefined && filter.value !== null && filter.value !== '') {
+  if (
+    filter.value !== undefined &&
+    filter.value !== null &&
+    filter.value !== ''
+  ) {
     const wanted = String(filter.value);
     if (String(raw) !== wanted) {
       if (!(DATE_ONLY.test(wanted) && sameCalendarDay(raw, wanted))) {
@@ -86,12 +90,20 @@ const evaluateFilter = (filter: FilterEntry, row: DataRow): boolean => {
   }
   if (filter.search) {
     const needle = String(filter.search).toLowerCase();
-    if (!String(raw ?? '').toLowerCase().includes(needle)) return false;
+    if (
+      !String(raw ?? '')
+        .toLowerCase()
+        .includes(needle)
+    )
+      return false;
   }
   return true;
 };
 
-export const applyFilters = (rows: DataRow[], filters: FilterEntry[] | null | undefined): DataRow[] => {
+export const applyFilters = (
+  rows: DataRow[],
+  filters: FilterEntry[] | null | undefined,
+): DataRow[] => {
   if (!filters || filters.length === 0) return rows;
   const active = filters.filter(
     (f: FilterEntry) =>
@@ -101,7 +113,7 @@ export const applyFilters = (rows: DataRow[], filters: FilterEntry[] | null | un
         (Array.isArray(f.exclude) && f.exclude.length > 0) ||
         (f.value !== undefined && f.value !== null && f.value !== '') ||
         (f.range && (f.range.min != null || f.range.max != null)) ||
-        f.search)
+        f.search),
   );
   if (active.length === 0) return rows;
 

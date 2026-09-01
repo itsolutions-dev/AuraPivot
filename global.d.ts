@@ -6,9 +6,9 @@
 // Lives in global.d.ts (ambient) so every .tsx file sees it without needing
 // to side-effect-import pivot-core/types.
 // ---------------------------------------------------------------------------
-import "@mui/material/styles";
+import '@mui/material/styles';
 
-declare module "@mui/material/styles" {
+declare module '@mui/material/styles' {
   interface Theme {
     font?: { primary?: string; mono?: string; display?: string };
     /** Custom border-radius token (unitless number, like shape.borderRadius). */

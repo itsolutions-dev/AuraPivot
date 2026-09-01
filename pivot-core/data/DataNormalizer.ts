@@ -10,13 +10,16 @@
  *   ]
  */
 
-import type { MetadataRow, DataRow } from "../types";
+import type { MetadataRow, DataRow } from '../types';
 
-const DEFAULT_META: { type: 'string'; caption: string } = { type: 'string', caption: '' };
+const DEFAULT_META: { type: 'string'; caption: string } = {
+  type: 'string',
+  caption: '',
+};
 
 export const normalizeDataset = (
   // dynamic boundary: raw user-supplied dataset, shape validated at runtime
-  dataset: unknown[]
+  dataset: unknown[],
 ): { metadata: MetadataRow; rows: DataRow[] } => {
   if (!Array.isArray(dataset) || dataset.length === 0) {
     return { metadata: {}, rows: [] };
@@ -27,7 +30,7 @@ export const normalizeDataset = (
     first &&
     typeof first === 'object' &&
     Object.values(first as Record<string, unknown>).every(
-      (v) => v && typeof v === 'object' && 'type' in (v as object)
+      (v) => v && typeof v === 'object' && 'type' in (v as object),
     );
 
   if (!isMetadata) {
@@ -47,7 +50,10 @@ export const normalizeDataset = (
   return { metadata, rows };
 };
 
-export const getFieldCaption = (metadata: MetadataRow, uniqueName: string): string => {
+export const getFieldCaption = (
+  metadata: MetadataRow,
+  uniqueName: string,
+): string => {
   if (!metadata) return uniqueName;
   if (metadata[uniqueName]?.caption) return metadata[uniqueName].caption;
   // Derived hierarchy fields (e.g. callDate.Year)

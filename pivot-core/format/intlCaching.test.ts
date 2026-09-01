@@ -35,19 +35,19 @@ describe('formatMeasureValue caching', () => {
       new Intl.NumberFormat('it-IT', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
-      }).format(1234.5)
+      }).format(1234.5),
     );
     expect(formatMeasureValue(1234, 'sum', 'it-IT')).toBe(
-      new Intl.NumberFormat('it-IT').format(1234)
+      new Intl.NumberFormat('it-IT').format(1234),
     );
     expect(formatMeasureValue(7.9, 'count', 'en-US')).toBe(
-      new Intl.NumberFormat('en-US').format(8)
+      new Intl.NumberFormat('en-US').format(8),
     );
   });
 
   test('locales are cached independently', () => {
     expect(formatMeasureValue(1234.5, 'sum', 'it-IT')).not.toBe(
-      formatMeasureValue(1234.5, 'sum', 'en-US')
+      formatMeasureValue(1234.5, 'sum', 'en-US'),
     );
   });
 });
@@ -71,7 +71,7 @@ describe('formatNumberWithFormat caching', () => {
     const group = parts.find((p) => p.type === 'group')?.value || ',';
     const decimal = parts.find((p) => p.type === 'decimal')?.value || '.';
     expect(formatNumberWithFormat(1234.56, {})).toBe(
-      `1${group}234${decimal}56`
+      `1${group}234${decimal}56`,
     );
   });
 });
@@ -97,10 +97,10 @@ describe('formatDateValue caching', () => {
 
   test('locale-date / locale-datetime modes match toLocale* output', () => {
     expect(formatDateValue(d, 'locale-date', { locale: 'it-IT' })).toBe(
-      d.toLocaleDateString('it-IT')
+      d.toLocaleDateString('it-IT'),
     );
     expect(formatDateValue(d, 'locale-datetime', { locale: 'it-IT' })).toBe(
-      d.toLocaleString('it-IT')
+      d.toLocaleString('it-IT'),
     );
   });
 });

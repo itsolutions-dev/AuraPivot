@@ -138,7 +138,12 @@ const dtsConfig = {
 const themeConfig = {
   input: "theme/swatches.ts",
   output: [
-    { file: `${OUT_DIR}/theme.js`, format: "cjs", exports: "named", sourcemap: true },
+    {
+      file: `${OUT_DIR}/theme.js`,
+      format: "cjs",
+      exports: "named",
+      sourcemap: true,
+    },
     { file: `${OUT_DIR}/theme.esm.js`, format: "esm", sourcemap: true },
   ],
   plugins: [

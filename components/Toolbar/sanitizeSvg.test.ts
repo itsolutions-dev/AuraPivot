@@ -5,7 +5,7 @@ import { sanitizeSvgMarkup } from './sanitizeSvg';
 describe('sanitizeSvgMarkup', () => {
   test('passes a clean icon through with content intact', () => {
     const out = sanitizeSvgMarkup(
-      '<svg viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="currentColor"/></svg>'
+      '<svg viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="currentColor"/></svg>',
     );
     expect(out).toContain('<path');
     expect(out).toContain('d="M0 0h24v24H0z"');
@@ -20,7 +20,7 @@ describe('sanitizeSvgMarkup', () => {
 
   test('strips event handler attributes from nested elements', () => {
     const out = sanitizeSvgMarkup(
-      '<svg><circle r="4" onclick="steal()" onmouseover="x()"/></svg>'
+      '<svg><circle r="4" onclick="steal()" onmouseover="x()"/></svg>',
     );
     expect(out).not.toContain('onclick');
     expect(out).not.toContain('onmouseover');
@@ -28,7 +28,9 @@ describe('sanitizeSvgMarkup', () => {
   });
 
   test('removes script elements', () => {
-    const out = sanitizeSvgMarkup('<svg><script>alert(1)</script><rect/></svg>');
+    const out = sanitizeSvgMarkup(
+      '<svg><script>alert(1)</script><rect/></svg>',
+    );
     expect(out).not.toContain('script');
     expect(out).not.toContain('alert');
     expect(out).toContain('<rect');
@@ -36,7 +38,7 @@ describe('sanitizeSvgMarkup', () => {
 
   test('removes foreignObject elements', () => {
     const out = sanitizeSvgMarkup(
-      '<svg><foreignObject><body onload="x()"/></foreignObject><path/></svg>'
+      '<svg><foreignObject><body onload="x()"/></foreignObject><path/></svg>',
     );
     expect(out).not.toContain('foreignObject');
     expect(out).toContain('<path');
@@ -44,7 +46,7 @@ describe('sanitizeSvgMarkup', () => {
 
   test('strips javascript: hrefs', () => {
     const out = sanitizeSvgMarkup(
-      '<svg><a href="javascript:alert(1)"><text>hi</text></a></svg>'
+      '<svg><a href="javascript:alert(1)"><text>hi</text></a></svg>',
     );
     expect(out).not.toContain('javascript:');
     expect(out).toContain('hi');
@@ -52,7 +54,7 @@ describe('sanitizeSvgMarkup', () => {
 
   test('strips javascript: xlink:href', () => {
     const out = sanitizeSvgMarkup(
-      '<svg><a xlink:href="JAVASCRIPT:alert(1)" xmlns:xlink="http://www.w3.org/1999/xlink"><text>hi</text></a></svg>'
+      '<svg><a xlink:href="JAVASCRIPT:alert(1)" xmlns:xlink="http://www.w3.org/1999/xlink"><text>hi</text></a></svg>',
     );
     expect(out).not.toMatch(/javascript:/i);
   });
@@ -70,7 +72,7 @@ describe('sanitizeSvgMarkup', () => {
       '<svg xmlns:xlink="http://www.w3.org/1999/xlink"><a href="#safe">' +
         '<set attributeName="href" to="javascript:alert(1)"/>' +
         '<animate attributeName="xlink:href" values="javascript:alert(1)"/>' +
-        '<text>hi</text></a></svg>'
+        '<text>hi</text></a></svg>',
     );
     expect(out).not.toMatch(/<set/i);
     expect(out).not.toMatch(/<animate/i);
@@ -80,7 +82,7 @@ describe('sanitizeSvgMarkup', () => {
 
   test('removes style elements', () => {
     const out = sanitizeSvgMarkup(
-      '<svg><style>@import url(http://evil/x.css);</style><rect/></svg>'
+      '<svg><style>@import url(http://evil/x.css);</style><rect/></svg>',
     );
     expect(out).not.toMatch(/<style/i);
     expect(out).not.toContain('@import');

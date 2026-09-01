@@ -84,7 +84,7 @@ describe('setLocalization dev-mode validation', () => {
     makeEngine().setLocalization(42);
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining('localization'),
-      expect.anything()
+      expect.anything(),
     );
   });
 
@@ -93,7 +93,7 @@ describe('setLocalization dev-mode validation', () => {
     makeEngine().setLocalization({ grid: 'not-a-section' });
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining('grid'),
-      expect.anything()
+      expect.anything(),
     );
   });
 
@@ -119,7 +119,7 @@ describe('setLocalization dev-mode validation', () => {
     const engine = makeEngine();
     engine.setLocalization(42);
     expect(engine.processMatrix().measures[0].caption).toBe(
-      'Sum Total of Revenue'
+      'Sum Total of Revenue',
     );
   });
 });

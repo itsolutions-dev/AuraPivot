@@ -3,7 +3,9 @@
 // theme.palette.primary / .secondary / .tertiary so PivotTable (and any other
 // consumer) can read theme.palette.<role>[<tone>] from the ambient MUI theme.
 
-export const TONE_STOPS = [900, 800, 700, 600, 500, 400, 300, 200, 100, 50] as const;
+export const TONE_STOPS = [
+  900, 800, 700, 600, 500, 400, 300, 200, 100, 50,
+] as const;
 
 const TONE_LIGHTNESS: Record<number, number> = {
   50: 96,
@@ -19,8 +21,14 @@ const TONE_LIGHTNESS: Record<number, number> = {
 };
 
 function hexToRgb(hex: string): [number, number, number] {
-  const h = String(hex || "").replace("#", "");
-  const v = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const h = String(hex || '').replace('#', '');
+  const v =
+    h.length === 3
+      ? h
+          .split('')
+          .map((c) => c + c)
+          .join('')
+      : h;
   if (v.length !== 6) return [0, 0, 0];
   const n = parseInt(v, 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
@@ -63,7 +71,7 @@ function hslToHex(h: number, s: number, l: number): string {
   const to = (x: number) =>
     Math.round(x * 255)
       .toString(16)
-      .padStart(2, "0");
+      .padStart(2, '0');
   return `#${to(f(0))}${to(f(8))}${to(f(4))}`;
 }
 

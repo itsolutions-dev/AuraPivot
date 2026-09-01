@@ -11,7 +11,7 @@
  * supplied, English names are used.
  */
 
-import type { MetadataRow, DataRow, FieldType } from "../types";
+import type { MetadataRow, DataRow, FieldType } from '../types';
 
 /** Extended FieldMeta that includes an optional subpart marker for hierarchy fields. */
 export interface ExpandedFieldMeta {
@@ -90,7 +90,9 @@ const parseDate = (value: unknown): Date | null => {
   return Number.isNaN(d.getTime()) ? null : d;
 };
 
-const formatTime = (value: string | number | null | undefined): string | null => {
+const formatTime = (
+  value: string | number | null | undefined,
+): string | null => {
   if (value === null || value === undefined || value === '') return null;
   // Supports: number of seconds, "HH:mm", "HH:mm:ss" or Date.
   if (typeof value === 'number') {
@@ -110,7 +112,7 @@ const formatTime = (value: string | number | null | undefined): string | null =>
 export const expandHierarchies = (
   metadata: MetadataRow,
   rows: DataRow[],
-  localization?: HierarchyLocalization
+  localization?: HierarchyLocalization,
 ): { metadata: ExpandedMetadataRow; rows: DataRow[] } => {
   const monthNames =
     (Array.isArray(localization?.monthNames) &&

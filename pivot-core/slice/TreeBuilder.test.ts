@@ -53,14 +53,24 @@ describe('flattenTreeCompact — totalsPosition "before"/"after"', () => {
   test('"before" puts each total row ahead of its children', () => {
     const out = flattenTreeCompact(makeTree(), { totalsPosition: 'before' });
     expect(captions(out)).toEqual([
-      'Total', 'North', 'Bergen', 'Oslo', 'South', 'Rome',
+      'Total',
+      'North',
+      'Bergen',
+      'Oslo',
+      'South',
+      'Rome',
     ]);
   });
 
   test('"after" puts each total row after its children', () => {
     const out = flattenTreeCompact(makeTree(), { totalsPosition: 'after' });
     expect(captions(out)).toEqual([
-      'Bergen', 'Oslo', 'North', 'Rome', 'South', 'Total',
+      'Bergen',
+      'Oslo',
+      'North',
+      'Rome',
+      'South',
+      'Total',
     ]);
   });
 });
@@ -75,30 +85,36 @@ describe('flattenTreeCompact — totalsPosition "after" with group headers', () 
   test('an expanded group keeps a header row above its children', () => {
     const out = flatten();
     expect(captions(out)).toEqual([
-      'North', 'Bergen', 'Oslo', 'North', 'South', 'Rome', 'South', 'Total',
+      'North',
+      'Bergen',
+      'Oslo',
+      'North',
+      'South',
+      'Rome',
+      'South',
+      'Total',
     ]);
   });
 
   test('only the trailing copy is flagged as the subtotal', () => {
     const out = flatten();
-    expect(out.map((n) => [n.caption, !!n.isGroupHeader, !!n.isSubtotal]))
-      .toEqual([
-        ['North', true, false],
-        ['Bergen', false, false],
-        ['Oslo', false, false],
-        ['North', false, true],
-        ['South', true, false],
-        ['Rome', false, false],
-        ['South', false, true],
-        ['Total', false, false],
-      ]);
+    expect(
+      out.map((n) => [n.caption, !!n.isGroupHeader, !!n.isSubtotal]),
+    ).toEqual([
+      ['North', true, false],
+      ['Bergen', false, false],
+      ['Oslo', false, false],
+      ['North', false, true],
+      ['South', true, false],
+      ['Rome', false, false],
+      ['South', false, true],
+      ['Total', false, false],
+    ]);
   });
 
   test('a collapsed group stays a single row carrying its own total', () => {
     const out = flatten({ expandedMembers: ['__root__|region:North'] });
-    expect(captions(out)).toEqual([
-      'North', 'South', 'Rome', 'South', 'Total',
-    ]);
+    expect(captions(out)).toEqual(['North', 'South', 'Rome', 'South', 'Total']);
     expect(out[0].isGroupHeader).toBeUndefined();
     expect(out[0].isSubtotal).toBeUndefined();
   });
@@ -116,7 +132,12 @@ describe('computeMatrix — totalsRowsPosition "none"', () => {
 
   const matrixFor = (totalsRowsPosition: string) => {
     const rowRoot = buildTree({ rows, fields, metadata, rootCaption: 'Total' });
-    const colRoot = buildTree({ rows, fields: [], metadata, rootCaption: 'Total' });
+    const colRoot = buildTree({
+      rows,
+      fields: [],
+      metadata,
+      rootCaption: 'Total',
+    });
     return computeMatrix({
       rows,
       rowRoot,
@@ -145,7 +166,14 @@ describe('computeMatrix — totalsRowsPosition "none"', () => {
   test('"after" splits expanded groups into a blank header and a subtotal', () => {
     const { rowLeaves } = matrixFor('after');
     expect(rowLeaves.map((r) => r.caption)).toEqual([
-      'North', 'Bergen', 'Oslo', 'North', 'South', 'Rome', 'South', 'Total',
+      'North',
+      'Bergen',
+      'Oslo',
+      'North',
+      'South',
+      'Rome',
+      'South',
+      'Total',
     ]);
     // The header carries the control, the subtotal carries the aggregate.
     expect(rowLeaves[0].totalsHidden).toBe(true);
@@ -154,7 +182,12 @@ describe('computeMatrix — totalsRowsPosition "none"', () => {
   });
 
   test('"after" leaves the column axis unsplit', () => {
-    const rowRoot = buildTree({ rows, fields: [], metadata, rootCaption: 'Total' });
+    const rowRoot = buildTree({
+      rows,
+      fields: [],
+      metadata,
+      rootCaption: 'Total',
+    });
     const colRoot = buildTree({ rows, fields, metadata, rootCaption: 'Total' });
     const { colLeaves } = computeMatrix({
       rows,
@@ -167,7 +200,12 @@ describe('computeMatrix — totalsRowsPosition "none"', () => {
       metadata,
     });
     expect(colLeaves.map((c) => c.caption)).toEqual([
-      'Bergen', 'Oslo', 'North', 'Rome', 'South', 'Total',
+      'Bergen',
+      'Oslo',
+      'North',
+      'Rome',
+      'South',
+      'Total',
     ]);
   });
 });

@@ -218,9 +218,11 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
   const portalContainer = usePortalContainer();
 
   // dynamic boundary: localization is Record<string,unknown>
-  const tCalc = (t as Record<string, Record<string, string>>)?.calculatedField ?? {};
+  const tCalc =
+    (t as Record<string, Record<string, string>>)?.calculatedField ?? {};
   const tButtons = (t as Record<string, Record<string, string>>)?.buttons ?? {};
-  const tAgg = (t as Record<string, Record<string, unknown>>)?.aggregations ?? {};
+  const tAgg =
+    (t as Record<string, Record<string, unknown>>)?.aggregations ?? {};
 
   const buttonGroups = useMemo<ButtonGroupDef[]>(
     () => [
@@ -246,8 +248,7 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
             insert: 'IF(, , )',
             cursorOffset: -5,
             tooltip:
-              tCalc.tooltipIF ||
-              'IF(condition, value_if_true, value_if_false)',
+              tCalc.tooltipIF || 'IF(condition, value_if_true, value_if_false)',
           },
           {
             label: 'ABS',
@@ -259,23 +260,18 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
             label: 'MIN',
             insert: 'MIN(, )',
             cursorOffset: -3,
-            tooltip:
-              tCalc.tooltipMIN ||
-              'Minimum of two or more numbers',
+            tooltip: tCalc.tooltipMIN || 'Minimum of two or more numbers',
           },
           {
             label: 'MAX',
             insert: 'MAX(, )',
             cursorOffset: -3,
-            tooltip:
-              tCalc.tooltipMAX ||
-              'Maximum of two or more numbers',
+            tooltip: tCalc.tooltipMAX || 'Maximum of two or more numbers',
           },
         ],
       },
       {
-        title:
-          tCalc.groupAggregations || 'Aggregations & Running',
+        title: tCalc.groupAggregations || 'Aggregations & Running',
         buttons: [
           {
             label: 'sum( )',
@@ -299,15 +295,13 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
             label: 'min( )',
             insert: 'min("")',
             cursorOffset: -2,
-            tooltip:
-              tCalc.tooltipMINField || 'Minimum of the field',
+            tooltip: tCalc.tooltipMINField || 'Minimum of the field',
           },
           {
             label: 'max( )',
             insert: 'max("")',
             cursorOffset: -2,
-            tooltip:
-              tCalc.tooltipMAXField || 'Maximum of the field',
+            tooltip: tCalc.tooltipMAXField || 'Maximum of the field',
           },
           {
             label: 'Σ progressivo',
@@ -335,7 +329,7 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
         ],
       },
     ],
-    [t],  // eslint-disable-line react-hooks/exhaustive-deps
+    [t], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const engineVersion = useEngineVersion(engine);
@@ -345,10 +339,12 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
   const [error, setError] = useState<string>('');
   const formulaRef = useRef<HTMLDivElement | null>(null);
 
-  const availableFields = engine.getAvailableFields().filter(
-    (f) =>
-      f.uniqueName !== 'Measures' && !f.isCalculated && f.type === 'number',
-  );
+  const availableFields = engine
+    .getAvailableFields()
+    .filter(
+      (f) =>
+        f.uniqueName !== 'Measures' && !f.isCalculated && f.type === 'number',
+    );
 
   // Keyed on `availableFields.length` before, which went stale whenever the
   // engine swapped a field for another one without changing the count.
@@ -364,9 +360,16 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
   // the aggregation in parentheses so two entries of the same field remain
   // disambiguated.
   const aggLabelLocal = (a: string): string => {
-    const localeKey = ({ distinctcount: 'distinctCount', avg: 'average' } as Record<string, string>)[a] || a;
+    const localeKey =
+      (
+        { distinctcount: 'distinctCount', avg: 'average' } as Record<
+          string,
+          string
+        >
+      )[a] || a;
     const raw = tAgg[a] ?? tAgg[localeKey];
-    if (raw && typeof raw === 'object') return (raw as Record<string, string>).caption || a;
+    if (raw && typeof raw === 'object')
+      return (raw as Record<string, string>).caption || a;
     return (raw as string) || a;
   };
 
@@ -442,7 +445,10 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
     return out;
   };
 
-  const buildChip = (field: { uniqueName: string; caption?: string }): HTMLSpanElement => {
+  const buildChip = (field: {
+    uniqueName: string;
+    caption?: string;
+  }): HTMLSpanElement => {
     const span = document.createElement('span');
     span.className = 'pv-calc-chip';
     span.setAttribute('contenteditable', 'false');
@@ -740,15 +746,11 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
 
   const handleSave = () => {
     if (!caption.trim()) {
-      setError(
-        tCalc.errorNameRequired || 'Field name is required.',
-      );
+      setError(tCalc.errorNameRequired || 'Field name is required.');
       return;
     }
     if (!formula.trim()) {
-      setError(
-        tCalc.errorFormulaRequired || 'Formula is required.',
-      );
+      setError(tCalc.errorFormulaRequired || 'Formula is required.');
       return;
     }
     const formulaError = validateFormula(formula);
@@ -758,10 +760,10 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
     }
 
     if (editField) {
-      engine.updateCalculatedField(
-        editField.uniqueName,
-        { caption: caption.trim(), formula: formula.trim() },
-      );
+      engine.updateCalculatedField(editField.uniqueName, {
+        caption: caption.trim(),
+        formula: formula.trim(),
+      });
     } else {
       engine.addCalculatedField({
         caption: caption.trim(),
@@ -865,15 +867,13 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
                   lineHeight: '22px',
                   borderRadius: 11,
                   backgroundColor: theme.palette.tertiary?.main
-                    ? (theme.palette.tertiary.main + '22')
-                    : (theme.palette.primary.main + '22'),
+                    ? theme.palette.tertiary.main + '22'
+                    : theme.palette.primary.main + '22',
                   border: `1px solid ${
-                    theme.palette.tertiary?.main ||
-                    theme.palette.primary.main
+                    theme.palette.tertiary?.main || theme.palette.primary.main
                   }66`,
                   color:
-                    theme.palette.tertiary?.main ||
-                    theme.palette.primary.main,
+                    theme.palette.tertiary?.main || theme.palette.primary.main,
                   fontFamily: theme.typography.fontFamily || 'inherit',
                   fontSize: theme.typography.caption.fontSize,
                   fontWeight: theme.typography.caption.fontWeight,

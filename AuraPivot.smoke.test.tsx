@@ -54,7 +54,7 @@ describe('AuraPivot mount smoke', () => {
           width={800}
           height={600}
         />
-      </VirtuosoMockContext.Provider>
+      </VirtuosoMockContext.Provider>,
     );
     // Toolbar tabs from the en dictionary.
     expect(await screen.findByText(en.toolbar.fields)).toBeDefined();
@@ -67,7 +67,7 @@ describe('AuraPivot mount smoke', () => {
     render(
       <VirtuosoMockContext.Provider value={virtuosoMock}>
         <Pivot options={options} dataSource={rows} width={800} height={600} />
-      </VirtuosoMockContext.Provider>
+      </VirtuosoMockContext.Provider>,
     );
     // Component-level inline fallbacks.
     expect(await screen.findByText('Fields')).toBeDefined();
@@ -101,7 +101,7 @@ describe('totals turned off (layout.totalsRowsPosition: "none")', () => {
           width={800}
           height={600}
         />
-      </VirtuosoMockContext.Provider>
+      </VirtuosoMockContext.Provider>,
     );
 
   test('group rows keep their expand/collapse control', async () => {
@@ -111,7 +111,7 @@ describe('totals turned off (layout.totalsRowsPosition: "none")', () => {
     expect(await screen.findByText('South')).toBeDefined();
     // …and they own an active chevron.
     const chevrons = container.querySelectorAll(
-      'td.pvt-chevron:not(.pvt-chevron-empty)'
+      'td.pvt-chevron:not(.pvt-chevron-empty)',
     );
     expect(chevrons.length).toBeGreaterThan(0);
   });

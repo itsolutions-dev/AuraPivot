@@ -24,24 +24,25 @@ All paths are relative to `C:\My\Dev\AuraPivotApp\Library`. **`Library/` is its 
 
 ## File structure (final state)
 
-| Path | Responsibility | Converts to |
-|------|----------------|-------------|
-| `tsconfig.json` | strict TS config | new |
-| `global.d.ts` | ambient FREEPLAN build tokens | new |
-| `rollup.config.dts.js` | bundles per-file `.d.ts` → one `index.d.ts` | new |
-| `pivot-core/types.ts` | all shared interfaces + public API types + MUI augmentation | from `types.js` |
-| `pivot-core/*.ts` (10 files) | framework-agnostic engine | from `.js` |
-| `context/`, `hooks/`, `theme/`, `localization/` | React infra | from `.js`/`.jsx` |
-| `options/*.ts` | options schema + adapter + prop-types validator | from `.js` |
-| `components/**/*.tsx` (9 files) | MUI UI | from `.jsx` |
-| `AuraPivot.tsx`, `index.ts` | public entry | from `.jsx`/`.js` |
-| `rollup.config.js` | stays `.js` — edited, not converted | edited |
+| Path                                            | Responsibility                                              | Converts to       |
+| ----------------------------------------------- | ----------------------------------------------------------- | ----------------- |
+| `tsconfig.json`                                 | strict TS config                                            | new               |
+| `global.d.ts`                                   | ambient FREEPLAN build tokens                               | new               |
+| `rollup.config.dts.js`                          | bundles per-file `.d.ts` → one `index.d.ts`                 | new               |
+| `pivot-core/types.ts`                           | all shared interfaces + public API types + MUI augmentation | from `types.js`   |
+| `pivot-core/*.ts` (10 files)                    | framework-agnostic engine                                   | from `.js`        |
+| `context/`, `hooks/`, `theme/`, `localization/` | React infra                                                 | from `.js`/`.jsx` |
+| `options/*.ts`                                  | options schema + adapter + prop-types validator             | from `.js`        |
+| `components/**/*.tsx` (9 files)                 | MUI UI                                                      | from `.jsx`       |
+| `AuraPivot.tsx`, `index.ts`                     | public entry                                                | from `.jsx`/`.js` |
+| `rollup.config.js`                              | stays `.js` — edited, not converted                         | edited            |
 
 ---
 
 ## Task 1: Tooling — deps, tsconfig, ambient declarations, rollup wiring
 
 **Files:**
+
 - Create: `tsconfig.json`
 - Create: `global.d.ts`
 - Modify: `package.json` (devDependencies)
@@ -50,9 +51,11 @@ All paths are relative to `C:\My\Dev\AuraPivotApp\Library`. **`Library/` is its 
 - [ ] **Step 1: Install TypeScript toolchain**
 
 Run:
+
 ```bash
 npm install --save-dev typescript @babel/preset-typescript rollup-plugin-dts @types/react @types/react-dom @types/file-saver
 ```
+
 Expected: the six packages appear under `devDependencies` in `package.json`.
 
 - [ ] **Step 2: Create `tsconfig.json`**
@@ -81,6 +84,7 @@ Expected: the six packages appear under `devDependencies` in `package.json`.
 ```
 
 Notes for the engineer:
+
 - `noEmit` is intentionally **absent** — it conflicts with `--emitDeclarationOnly` used at build time. Emit mode is picked per-script on the CLI.
 - `isolatedModules: true` matches Babel's file-by-file transpile; it forces `export type` for type-only re-exports (relevant in Task 2 and Task 4).
 - `include` only matches `.ts`/`.tsx`, so the still-`.jsx`/`.js` files are invisible to `tsc` until converted — that is what keeps `tsc --noEmit` green after each task.
@@ -103,16 +107,19 @@ declare const __FREEPLAN_WATERMARK_ICON__: string;
 Three edits — the rollup config file itself stays `.js`.
 
 Edit A — `buildFlags()` `transform`, extend the extension filter (around line 78):
+
 ```javascript
-    if (!/\.([jt]sx?|mjs)$/.test(id)) return null;
+if (!/\.([jt]sx?|mjs)$/.test(id)) return null;
 ```
 
 Edit B — `resolve()` plugin `extensions` (around line 160):
+
 ```javascript
       extensions: [".js", ".jsx", ".ts", ".tsx", ".json"],
 ```
 
 Edit C — `babel()` plugin call (around line 169). Add `@babel/preset-typescript` AND an explicit `extensions` array — `@rollup/plugin-babel` defaults to `.js,.jsx,.mjs` and will silently skip `.ts`/`.tsx` without it:
+
 ```javascript
     babel({
       exclude: "node_modules/**",
@@ -144,6 +151,7 @@ git commit -m "Add TypeScript toolchain and rollup wiring"
 ## Task 2: `pivot-core/types.ts` — the type backbone
 
 **Files:**
+
 - Modify (rename): `pivot-core/types.js` → `pivot-core/types.ts`
 - Read for reference: `options/optionsSchema.js`, `options/optionsPropType.js`
 
@@ -160,7 +168,8 @@ git mv pivot-core/types.js pivot-core/types.ts
 Replace every `@typedef` block with a real exported type. One-to-one mapping:
 
 ```typescript
-export type FieldType = "string" | "number" | "date" | "time" | "month" | "weekday";
+export type FieldType =
+  "string" | "number" | "date" | "time" | "month" | "weekday";
 
 export interface FieldMeta {
   type: FieldType;
@@ -171,7 +180,8 @@ export type MetadataRow = Record<string, FieldMeta>;
 export type DataRow = Record<string, string | number | null>;
 
 export type SortDirection = "asc" | "desc" | "none";
-export type AggregationType = "sum" | "count" | "distinctcount" | "avg" | "min" | "max";
+export type AggregationType =
+  "sum" | "count" | "distinctcount" | "avg" | "min" | "max";
 
 export interface SliceField {
   uniqueName: string;
@@ -256,6 +266,7 @@ export type EngineEventHandler = (...args: unknown[]) => void;
 - [ ] **Step 4: Add the public `AuraPivotOptions` type**
 
 This is the most consumer-facing type in the shipped `.d.ts`. Translate it from the two existing schema files:
+
 - The top-level shape and the enum unions come from `options/optionsSchema.js` (`DEFAULT_OPTIONS`, `DENSITIES`, `TOTALS_POSITIONS`, etc.).
 - The nested element shapes (`data.fields[]`, `data.measures[]`, `format.conditional[]`, …) come from the `PropTypes.shape({...})` blocks in `options/optionsPropType.js` — each `PropTypes.shape` translates one-to-one to an `interface`.
 
@@ -292,7 +303,7 @@ export interface AuraPivotLayoutOptions {
 export interface AuraPivotOptions {
   toolbar?: AuraPivotToolbarOptions;
   layout?: AuraPivotLayoutOptions;
-  data?: AuraPivotDataOptions;     // define from optionsPropType.js `data` shape
+  data?: AuraPivotDataOptions; // define from optionsPropType.js `data` shape
   format?: AuraPivotFormatOptions; // define from optionsPropType.js `format` shape
 }
 ```
@@ -361,6 +372,7 @@ git commit -m "Convert pivot-core/types to TypeScript with public API types"
 ## Task 3: `pivot-core/` engine leaves
 
 **Files (rename each, `.js` → `.ts`):**
+
 - `pivot-core/data/DataNormalizer.js`
 - `pivot-core/data/DateHierarchyExpander.js`
 - `pivot-core/slice/FilterEngine.js`
@@ -395,6 +407,7 @@ Expected: FAIL — many `TS7006` (parameter implicitly has an `any` type), `TS70
 - [ ] **Step 3: Annotate the nine files**
 
 Work each error to zero. Guidance:
+
 - Import shared types from `../types` / `../../types` (`MetadataRow`, `DataRow`, `TreeNode`, `MatrixCell`, `PivotMatrix`, `SliceMeasure`, `AggregationType`, `FieldType`, etc.). Use `import type { ... }` for type-only imports (`isolatedModules` is on).
 - Annotate every exported function's parameters and return type explicitly — these are the engine's internal API surface and Task 4 depends on them.
 - For object maps keyed by field name, use `Record<string, X>` rather than index signatures inline.
@@ -423,6 +436,7 @@ git commit -m "Convert pivot-core engine leaves to TypeScript"
 ## Task 4: `PivotEngine.ts` + `pivot-core/index.ts`
 
 **Files:**
+
 - Rename: `pivot-core/PivotEngine.js` → `pivot-core/PivotEngine.ts`
 - Rename: `pivot-core/index.js` → `pivot-core/index.ts`
 
@@ -487,6 +501,7 @@ git commit -m "Convert PivotEngine and pivot-core entry to TypeScript"
 ## Task 5: React infrastructure — context, hooks, theme, localization
 
 **Files (rename each):**
+
 - `context/PivotContext.jsx` → `.tsx`
 - `hooks/usePivotMatrix.js` → `.ts`
 - `hooks/usePortalContainer.js` → `.ts`
@@ -540,6 +555,7 @@ git commit -m "Convert React infrastructure modules to TypeScript"
 ## Task 6: `options/` — schema, prop-types validator, adapter
 
 **Files (rename each, `.js` → `.ts`):**
+
 - `options/optionsSchema.js`
 - `options/optionsPropType.js`
 - `options/optionsAdapter.js`
@@ -587,6 +603,7 @@ git commit -m "Convert options schema and adapter to TypeScript"
 ## Task 7: `components/` — toolbar, dialogs, field list, filter bar
 
 **Files (rename each, `.jsx` → `.tsx`):**
+
 - `components/Toolbar/PivotToolbar.jsx`
 - `components/FieldList/FieldList.jsx`
 - `components/FilterBar/FilterBar.jsx`
@@ -644,6 +661,7 @@ git commit -m "Convert toolbar, dialogs and field list to TypeScript"
 ## Task 8: `components/PivotTable.tsx`
 
 **Files:**
+
 - Rename: `components/PivotTable/PivotTable.jsx` → `.tsx`
 
 The largest UI file (~2,500 lines) — the virtualized grid that composes the Task 7 components.
@@ -688,6 +706,7 @@ git commit -m "Convert PivotTable to TypeScript"
 ## Task 9: `AuraPivot.tsx` + `index.ts` — public entry
 
 **Files:**
+
 - Rename: `AuraPivot.jsx` → `AuraPivot.tsx`
 - Rename: `index.js` → `index.ts`
 - Modify: `rollup.config.js` (entry input)
@@ -730,6 +749,7 @@ export type {
 - [ ] **Step 5: Point rollup at the new entry**
 
 In `rollup.config.js`, change the input:
+
 ```javascript
   input: "index.ts",
 ```
@@ -756,6 +776,7 @@ git commit -m "Convert AuraPivot component and package entry to TypeScript"
 ## Task 10: Declaration emit — `tsc` + `rollup-plugin-dts`
 
 **Files:**
+
 - Create: `rollup.config.dts.js`
 - Modify: `package.json` (scripts)
 
@@ -798,6 +819,7 @@ Expected: success. `tsc` typechecks (strict) and emits to `dist/types/`, both ro
 
 Run: `node -e "const fs=require('fs'); ['dist/index.js','dist/index.esm.js','dist/index.d.ts'].forEach(f=>console.log(f, fs.existsSync(f)))"`
 Expected:
+
 ```
 dist/index.js true
 dist/index.esm.js true
@@ -828,6 +850,7 @@ git commit -m "Emit bundled index.d.ts via tsc and rollup-plugin-dts"
 ## Task 11: Update the PresentationApp Vite alias
 
 **Files:**
+
 - Modify: `../PresentationApp/vite.config.js`
 
 `PresentationApp/vite.config.js` aliases `aura-pivot` straight at the Library source. Two converted files are referenced by name. **This task commits in the parent `AuraPivotApp` repo, not the `Library` repo.**
@@ -835,22 +858,26 @@ git commit -m "Emit bundled index.d.ts via tsc and rollup-plugin-dts"
 - [ ] **Step 1: Update the non-FREEPLAN entry path**
 
 In `../PresentationApp/vite.config.js`, the `libEntry` constant (around line 15-17):
+
 ```javascript
 const libEntry = FREEPLAN
   ? path.resolve(libRoot, "dist/index.esm.js")
   : path.resolve(libRoot, "AuraPivot.tsx");
 ```
+
 (`AuraPivot.jsx` → `AuraPivot.tsx`. The FREEPLAN branch points at `dist/index.esm.js` — unchanged.)
 
 - [ ] **Step 2: Update the theme alias path**
 
 The `aura-pivot/theme` alias (around line 41-42):
+
 ```javascript
       {
         find: /^aura-pivot\/theme$/,
         replacement: path.resolve(libRoot, "theme/swatches.ts"),
       },
 ```
+
 (`theme/swatches.js` → `theme/swatches.ts`. The `locales/*` alias targets the `localization/` JSON directory — unchanged.)
 
 - [ ] **Step 3: Verify the PresentationApp build**
@@ -877,6 +904,7 @@ cd Library
 ## Task 12: Update documentation
 
 **Files:**
+
 - Modify: `CLAUDE.md` (Library repo)
 - Modify: `../CLAUDE.md` (parent `AuraPivotApp` repo)
 
@@ -885,6 +913,7 @@ The repo guidance files now describe a state that no longer exists.
 - [ ] **Step 1: Update `Library/CLAUDE.md`**
 
 Three corrections:
+
 - The "Build" section says "There is no type-check step — types are JSDoc typedefs in `pivot-core/types.js`." Replace with: the build runs `tsc` for typechecking and declaration emit; `npm run typecheck` runs a check-only pass; types live in `pivot-core/types.ts`.
 - The "Conventions" section line "Plain JavaScript + JSX, no TypeScript. Types live in `pivot-core/types.js` as JSDoc typedefs." Replace with: the codebase is TypeScript (`strict: true`); shared types live in `pivot-core/types.ts`.
 - The "Architecture" section reference to `pivot-core/types.js` — update to `pivot-core/types.ts`.

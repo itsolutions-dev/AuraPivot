@@ -4,11 +4,14 @@
  * the input set is empty).
  */
 
-import type { AggregationType } from "../types";
-import { getNumberFormat } from "../format/intlCache";
+import type { AggregationType } from '../types';
+import { getNumberFormat } from '../format/intlCache';
 
 const sum = (values: number[]): number =>
-  values.reduce((acc: number, v: number) => acc + (Number.isFinite(v) ? v : 0), 0);
+  values.reduce(
+    (acc: number, v: number) => acc + (Number.isFinite(v) ? v : 0),
+    0,
+  );
 
 const count = (values: number[]): number => values.length;
 
@@ -37,21 +40,29 @@ const max = (values: number[]): number | null => {
   return m === -Infinity ? null : m;
 };
 
-export const AGGREGATIONS: Record<string, (values: number[]) => number | null> = {
-  sum,
-  count,
-  distinctcount,
-  avg,
-  min,
-  max,
-};
+export const AGGREGATIONS: Record<string, (values: number[]) => number | null> =
+  {
+    sum,
+    count,
+    distinctcount,
+    avg,
+    min,
+    max,
+  };
 
-export const applyAggregation = (type: AggregationType | string, values: number[]): number | null => {
+export const applyAggregation = (
+  type: AggregationType | string,
+  values: number[],
+): number | null => {
   const fn = AGGREGATIONS[type] || count;
   return fn(values);
 };
 
-export const formatMeasureValue = (value: number | null | undefined, aggregation: string, locale?: string): string => {
+export const formatMeasureValue = (
+  value: number | null | undefined,
+  aggregation: string,
+  locale?: string,
+): string => {
   if (value === null || value === undefined) return '';
   if (!Number.isFinite(value)) return '';
   // `locale || undefined` lets Intl fall back to the browser's default

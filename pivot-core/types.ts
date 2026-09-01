@@ -7,7 +7,8 @@
 // Core engine types (ported from JSDoc typedefs)
 // ---------------------------------------------------------------------------
 
-export type FieldType = "string" | "number" | "date" | "time" | "month" | "weekday";
+export type FieldType =
+  'string' | 'number' | 'date' | 'time' | 'month' | 'weekday';
 
 export interface FieldMeta {
   type: FieldType;
@@ -17,8 +18,9 @@ export interface FieldMeta {
 export type MetadataRow = Record<string, FieldMeta>;
 export type DataRow = Record<string, string | number | null>;
 
-export type SortDirection = "asc" | "desc" | "none";
-export type AggregationType = "sum" | "count" | "distinctcount" | "avg" | "min" | "max";
+export type SortDirection = 'asc' | 'desc' | 'none';
+export type AggregationType =
+  'sum' | 'count' | 'distinctcount' | 'avg' | 'min' | 'max';
 
 export interface SliceField {
   uniqueName: string;
@@ -94,7 +96,7 @@ export interface PivotMatrix {
 // Engine event types
 // ---------------------------------------------------------------------------
 
-export type EngineEvent = "dataChange" | "reportChange" | "formatChange";
+export type EngineEvent = 'dataChange' | 'reportChange' | 'formatChange';
 export type EngineEventHandler = (...args: unknown[]) => void;
 
 // ---------------------------------------------------------------------------
@@ -102,16 +104,17 @@ export type EngineEventHandler = (...args: unknown[]) => void;
 // (enum unions from optionsSchema.js)
 // ---------------------------------------------------------------------------
 
-export type Density = "Compact" | "Standard" | "Comfortable";
-export type TotalsPosition = "before" | "after" | "none";
-export type MeasuresAxis = "rows" | "columns";
-export type DimensionAxis = "row" | "column";
-export type Aggregation = "sum" | "count" | "distinctcount" | "avg" | "min" | "max" | "formula";
-export type Operator = "eq" | "ne" | "gt" | "gte" | "lt" | "lte" | "between";
-export type ConditionalMode = "first" | "all";
-export type DataType = "number" | "string" | "date" | "time" | "month";
+export type Density = 'Compact' | 'Standard' | 'Comfortable';
+export type TotalsPosition = 'before' | 'after' | 'none';
+export type MeasuresAxis = 'rows' | 'columns';
+export type DimensionAxis = 'row' | 'column';
+export type Aggregation =
+  'sum' | 'count' | 'distinctcount' | 'avg' | 'min' | 'max' | 'formula';
+export type Operator = 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'between';
+export type ConditionalMode = 'first' | 'all';
+export type DataType = 'number' | 'string' | 'date' | 'time' | 'month';
 /** Wired into the section-format maps (values/headers/dimensions/grandTotals) in Task 6. */
-export type TextAlign = "left" | "center" | "right";
+export type TextAlign = 'left' | 'center' | 'right';
 
 // --- toolbar section ---
 
@@ -247,4 +250,3 @@ export interface AuraPivotProps {
   beforeToolbarCreated?: (...args: unknown[]) => unknown;
   theme?: object | ((outer: object) => object);
 }
-

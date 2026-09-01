@@ -30,7 +30,14 @@ const pad = (n: number, width = 2): string => String(n).padStart(width, '0');
 
 const TOKEN_RE = /yyyy|yy|MMMM|MMM|MM|M|dd|d|EEEE|EEE|HH|H|mm|m|ss|s/g;
 
-const applyPattern = (d: Date, pattern: string, { monthNames, weekdayNames }: { monthNames: string[]; weekdayNames: string[] }): string => {
+const applyPattern = (
+  d: Date,
+  pattern: string,
+  {
+    monthNames,
+    weekdayNames,
+  }: { monthNames: string[]; weekdayNames: string[] },
+): string => {
   return pattern.replace(TOKEN_RE, (tok) => {
     switch (tok) {
       case 'yyyy':
@@ -86,11 +93,11 @@ const getLocalizedNames = (
   if (cached) return cached;
   const fmt = getDateTimeFormat(locale, { month: 'long' });
   const monthNames = Array.from({ length: 12 }, (_, i) =>
-    fmt.format(new Date(2000, i, 1))
+    fmt.format(new Date(2000, i, 1)),
   );
   const fmtWd = getDateTimeFormat(locale, { weekday: 'long' });
   const weekdayNames = Array.from({ length: 7 }, (_, i) =>
-    fmtWd.format(new Date(2000, 0, 2 + i))
+    fmtWd.format(new Date(2000, 0, 2 + i)),
   );
   const result = { monthNames, weekdayNames };
   namesCache.set(locale, result);
@@ -110,7 +117,11 @@ interface FormatDateOptions {
   weekdayNames?: string[];
 }
 
-export const formatDateValue = (value: unknown, format: string | null | undefined, options: FormatDateOptions = {}): string => {
+export const formatDateValue = (
+  value: unknown,
+  format: string | null | undefined,
+  options: FormatDateOptions = {},
+): string => {
   const d = parseDate(value);
   if (!d) return value === null || value === undefined ? '' : String(value);
 
@@ -139,7 +150,11 @@ export const formatDateValue = (value: unknown, format: string | null | undefine
   if (mode === 'iso') {
     // Drop sub-second precision and the trailing 'Z' so the value is
     // readable but still canonical.
-    return d.toISOString().replace(/\.\d+Z$/, 'Z').replace('T', ' ').replace('Z', '');
+    return d
+      .toISOString()
+      .replace(/\.\d+Z$/, 'Z')
+      .replace('T', ' ')
+      .replace('Z', '');
   }
   if (mode === 'iso-date') {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -179,7 +194,12 @@ interface FormatSubpartOptions {
   weekLabel?: string;
 }
 
-export const formatSubpartValue = (value: unknown, subpart: string, format: string | null | undefined, options: FormatSubpartOptions = {}): string => {
+export const formatSubpartValue = (
+  value: unknown,
+  subpart: string,
+  format: string | null | undefined,
+  options: FormatSubpartOptions = {},
+): string => {
   if (value === null || value === undefined || value === '') return '';
   const monthNames = options.monthNames;
   const weekdayNames = options.weekdayNames;

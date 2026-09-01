@@ -2,10 +2,14 @@
 // framework-agnostic PivotEngine. Pure functions — no React, no engine
 // internals touched.
 
-import type PivotEngine from "../pivot-core";
-import type { AuraPivotOptions, AuraPivotFieldEntry, DataRow } from "../pivot-core/types";
-import type { InternalOptions } from "../pivot-core/PivotEngine";
-import type { FilterEntry } from "../pivot-core/slice/FilterEngine";
+import type PivotEngine from '../pivot-core';
+import type {
+  AuraPivotOptions,
+  AuraPivotFieldEntry,
+  DataRow,
+} from '../pivot-core/types';
+import type { InternalOptions } from '../pivot-core/PivotEngine';
+import type { FilterEntry } from '../pivot-core/slice/FilterEngine';
 
 /**
  * Apply an `options` schema object (and the separate `dataSource` rows) to a
@@ -20,19 +24,25 @@ export function optionsToEngine(
 ): void {
   const o: AuraPivotOptions = options || {};
   const data = o.data || {};
-  const fields: AuraPivotFieldEntry[] = Array.isArray(data.fields) ? data.fields : [];
+  const fields: AuraPivotFieldEntry[] = Array.isArray(data.fields)
+    ? data.fields
+    : [];
   // `uniqueName` is required on AuraPivotFieldEntry; the `as string` matches the
   // original JS contract — fall back through to fieldName without injecting an
   // empty-string sentinel for the (unreachable) all-falsy case.
-  const keyOf = (f: AuraPivotFieldEntry): string => (f.uniqueName || f.fieldName) as string;
+  const keyOf = (f: AuraPivotFieldEntry): string =>
+    (f.uniqueName || f.fieldName) as string;
 
   // ---- dataset: build [metadata, ...rows] from data.fields + dataSource ----
   if (fields.length) {
-    const metadata: Record<string, { type: string; caption: string | undefined }> = {};
+    const metadata: Record<
+      string,
+      { type: string; caption: string | undefined }
+    > = {};
     fields.forEach((f) => {
       // `dataType` is optional in the schema — default an untyped field to
       // "string" so the engine never receives `type: undefined`.
-      metadata[keyOf(f)] = { type: f.dataType || "string", caption: f.caption };
+      metadata[keyOf(f)] = { type: f.dataType || 'string', caption: f.caption };
     });
     engine.setData([metadata, ...(dataSource || [])]);
   } else {
@@ -73,17 +83,25 @@ export function optionsToEngine(
 
   // ---- slice: dimensions / measures / filters (preserve expands + sort) ----
   const prev = engine.getSlice() || {};
-  const rows: Array<{ uniqueName: string; fieldSort?: Record<string, unknown> }> = [];
-  const columns: Array<{ uniqueName: string; fieldSort?: Record<string, unknown> }> = [];
+  const rows: Array<{
+    uniqueName: string;
+    fieldSort?: Record<string, unknown>;
+  }> = [];
+  const columns: Array<{
+    uniqueName: string;
+    fieldSort?: Record<string, unknown>;
+  }> = [];
   (Array.isArray(data.dimensions) ? data.dimensions : []).forEach((d) => {
-    const entry: { uniqueName: string; fieldSort?: Record<string, unknown> } = { uniqueName: d.uniqueName };
+    const entry: { uniqueName: string; fieldSort?: Record<string, unknown> } = {
+      uniqueName: d.uniqueName,
+    };
     if (d.fieldSort != null) entry.fieldSort = d.fieldSort;
-    if (d.axis === "column") columns.push(entry);
+    if (d.axis === 'column') columns.push(entry);
     else rows.push(entry);
   });
   // The `Measures` pseudo-field places the measure axis on rows or columns.
-  if (o.layout?.measuresAxis === "rows") rows.push({ uniqueName: "Measures" });
-  else columns.push({ uniqueName: "Measures" });
+  if (o.layout?.measuresAxis === 'rows') rows.push({ uniqueName: 'Measures' });
+  else columns.push({ uniqueName: 'Measures' });
   const measures = (Array.isArray(data.measures) ? data.measures : []).map(
     (m) => ({
       uniqueName: m.uniqueName,
@@ -91,7 +109,7 @@ export function optionsToEngine(
       // defaults an omitted one to "sum" (see PivotEngine.ts's slice
       // builder); match that default here rather than pass `undefined`
       // through to the internal (required) slice measure type.
-      aggregation: m.aggregation || "sum",
+      aggregation: m.aggregation || 'sum',
       hidden: !!m.hidden,
     }),
   );
@@ -166,32 +184,34 @@ export function engineToOptions(engine: PivotEngine): AuraPivotOptions {
     }));
 
   const dimensions: Array<{
-    axis: "row" | "column";
+    axis: 'row' | 'column';
     uniqueName: string;
     fieldSort: Record<string, unknown> | null;
   }> = [];
   rows.forEach((f) => {
-    if (f.uniqueName !== "Measures") {
+    if (f.uniqueName !== 'Measures') {
       dimensions.push({
-        axis: "row",
+        axis: 'row',
         uniqueName: f.uniqueName,
         fieldSort: f.fieldSort || null,
       });
     }
   });
   columns.forEach((f) => {
-    if (f.uniqueName !== "Measures") {
+    if (f.uniqueName !== 'Measures') {
       dimensions.push({
-        axis: "column",
+        axis: 'column',
         uniqueName: f.uniqueName,
         fieldSort: f.fieldSort || null,
       });
     }
   });
 
-  const measuresAxis: "rows" | "columns" = rows.some((f) => f.uniqueName === "Measures")
-    ? "rows"
-    : "columns";
+  const measuresAxis: 'rows' | 'columns' = rows.some(
+    (f) => f.uniqueName === 'Measures',
+  )
+    ? 'rows'
+    : 'columns';
 
   const toolbar = engOpts.toolbar || {};
 
@@ -225,7 +245,7 @@ export function engineToOptions(engine: PivotEngine): AuraPivotOptions {
       filters: slice.filters || [],
     },
     format: {
-      conditionalMode: format.conditionalMode || "first",
+      conditionalMode: format.conditionalMode || 'first',
       conditional: format.conditional || [],
       values: format.values || {},
       valuesByMeasure: format.valuesByMeasure || {},
