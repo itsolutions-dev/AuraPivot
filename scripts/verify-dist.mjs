@@ -24,55 +24,43 @@ for (const f of requiredFiles) {
   if (!fs.existsSync(path.join(outDir, f))) fail(`missing ${outDir}/${f}`);
 }
 
-// Bundled exceljs (~900 KB minified) would push the bundle well past these;
-// without it the library plus inlined deps stays far below. Obfuscation
-// legitimately inflates code ~3.5×, hence the split limits.
-const MAX_PLAIN_BYTES = 700 * 1024;
-const MAX_OBFUSCATED_BYTES = 1500 * 1024;
+// Bundled exceljs (~900 KB minified) would push the bundle well past this;
+// without it the library plus its inlined deps stays far below.
+const MAX_BYTES = 700 * 1024;
 
-const STAMP_RE = /__AURA_PIVOT_BUILD__\s*=\s*\{obfuscated:"(yes|no)"/;
+const STAMP_RE = /__AURA_PIVOT_BUILD__\s*=\s*\{version:"([^"]+)"/;
 
 for (const name of ["index.js", "index.esm.js"]) {
   const p = path.join(outDir, name);
   if (!fs.existsSync(p)) continue;
   const code = fs.readFileSync(p, "utf8");
 
-  const stamp = STAMP_RE.exec(code);
-  if (!stamp) {
+  if (!STAMP_RE.test(code)) {
     fail(`${p}: build stamp missing`);
     continue;
   }
-  const obfuscated = stamp[1] === "yes";
 
-  const maxBytes = obfuscated ? MAX_OBFUSCATED_BYTES : MAX_PLAIN_BYTES;
-  if (code.length > maxBytes) {
+  if (code.length > MAX_BYTES) {
     fail(
       `${p}: ${Math.round(code.length / 1024)} KB exceeds ${Math.round(
-        maxBytes / 1024,
-      )} KB — exceljs probably got bundled`,
+        MAX_BYTES / 1024,
+      )} KB — a heavy dependency probably got bundled`,
     );
   }
 
   // The lazy exceljs import must survive as a literal specifier so the
-  // consumer's bundler can resolve it (reservedStrings guards it from the
-  // obfuscator's string array).
+  // consumer's bundler can resolve it.
   if (!code.includes("exceljs")) {
     fail(`${p}: literal 'exceljs' specifier missing — lazy import broken`);
   }
 
   const mapPath = `${p}.map`;
-  if (obfuscated) {
-    if (fs.existsSync(mapPath)) {
-      fail(`${mapPath}: obfuscated builds must not ship sourcemaps`);
-    }
+  if (!fs.existsSync(mapPath)) {
+    fail(`${mapPath}: sourcemap missing`);
   } else {
-    if (!fs.existsSync(mapPath)) {
-      fail(`${mapPath}: sourcemap missing`);
-    } else {
-      const map = JSON.parse(fs.readFileSync(mapPath, "utf8"));
-      if (!map.mappings || map.mappings.length === 0) {
-        fail(`${mapPath}: sourcemap is an empty stub`);
-      }
+    const map = JSON.parse(fs.readFileSync(mapPath, "utf8"));
+    if (!map.mappings || map.mappings.length === 0) {
+      fail(`${mapPath}: sourcemap is an empty stub`);
     }
   }
 }
