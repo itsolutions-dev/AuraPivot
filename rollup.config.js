@@ -72,10 +72,18 @@ const intro = processShim + buildStamp;
 
 export default {
   input: "index.js",
-  // exceljs (~900 KB) is intentionally NOT bundled: ExcelExporter loads it
-  // with a dynamic import() on the first export, and the consumer's bundler
-  // resolves/code-splits it from this package's `dependencies`.
-  external: ["exceljs"],
+  // Nothing in `dependencies` is bundled. exceljs (~900 KB) is loaded by
+  // ExcelExporter through a dynamic import() on the first export; the other
+  // three are ordinary imports the consumer's bundler resolves and
+  // deduplicates against its own copy. Inlining them would ship a second
+  // react-virtuoso — with its own scroll observer — into apps that already
+  // use one.
+  external: [
+    "exceljs",
+    "react-virtuoso",
+    "file-saver",
+    /^@mui\/icons-material($|\/)/,
+  ],
   output: [
     {
       file: `${OUT_DIR}/index.js`,

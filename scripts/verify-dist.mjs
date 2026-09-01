@@ -24,9 +24,10 @@ for (const f of requiredFiles) {
   if (!fs.existsSync(path.join(outDir, f))) fail(`missing ${outDir}/${f}`);
 }
 
-// Bundled exceljs (~900 KB minified) would push the bundle well past this;
-// without it the library plus its inlined deps stays far below.
-const MAX_BYTES = 700 * 1024;
+// Observed 206 KB after externalising react-virtuoso, file-saver and
+// @mui/icons-material. The ceiling catches a dependency accidentally
+// falling back into the bundle, not ordinary growth.
+const MAX_BYTES = 250 * 1024;
 
 const STAMP_RE = /__AURA_PIVOT_BUILD__\s*=\s*\{version:"([^"]+)"/;
 
