@@ -17,6 +17,9 @@ const requiredFiles = [
   "index.js",
   "index.esm.js",
   "index.d.ts",
+  "theme.js",
+  "theme.esm.js",
+  "theme.d.ts",
   "locales/en.json",
   "locales/it.json",
 ];

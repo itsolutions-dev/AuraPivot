@@ -4,7 +4,6 @@ export { Pivot };
 export { mergeLocalization } from './localization/merge';
 export { PivotProvider, usePivot } from './context/PivotContext';
 export { default as usePivotMatrix } from './hooks/usePivotMatrix';
-//export { TONE_STOPS, buildSwatches, variantSwatches } from './theme/swatches';
 
 // Public type surface. The names are the ones the hand-written index.d.ts has
 // always published (`Pivot*`-prefixed), aliased onto their source types where

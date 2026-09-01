@@ -135,4 +135,28 @@ const dtsConfig = {
   plugins: [dts()],
 };
 
-export default [jsConfig, dtsConfig];
+const themeConfig = {
+  input: "theme/swatches.ts",
+  output: [
+    { file: `${OUT_DIR}/theme.js`, format: "cjs", exports: "named", sourcemap: true },
+    { file: `${OUT_DIR}/theme.esm.js`, format: "esm", sourcemap: true },
+  ],
+  plugins: [
+    resolve({ extensions: [".js", ".jsx", ".ts", ".tsx", ".json"] }),
+    babel({
+      exclude: "node_modules/**",
+      extensions: [".js", ".jsx", ".ts", ".tsx", ".mjs"],
+      babelHelpers: "bundled",
+      presets: ["@babel/preset-react", "@babel/preset-typescript"],
+    }),
+    finalizer,
+  ],
+};
+
+const themeDtsConfig = {
+  input: "theme/swatches.ts",
+  output: { file: `${OUT_DIR}/theme.d.ts`, format: "es" },
+  plugins: [dts()],
+};
+
+export default [jsConfig, dtsConfig, themeConfig, themeDtsConfig];

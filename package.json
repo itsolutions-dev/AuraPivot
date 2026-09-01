@@ -41,6 +41,11 @@
       "import": "./dist/index.esm.js",
       "require": "./dist/index.js"
     },
+    "./theme": {
+      "types": "./dist/theme.d.ts",
+      "import": "./dist/theme.esm.js",
+      "require": "./dist/theme.js"
+    },
     "./locales/it.json": "./dist/locales/it.json",
     "./locales/en.json": "./dist/locales/en.json",
     "./locales/*": "./dist/locales/*.json"
