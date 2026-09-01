@@ -87,7 +87,11 @@ export function optionsToEngine(
   const measures = (Array.isArray(data.measures) ? data.measures : []).map(
     (m) => ({
       uniqueName: m.uniqueName,
-      aggregation: m.aggregation,
+      // `aggregation` is optional on the public schema — PivotEngine itself
+      // defaults an omitted one to "sum" (see PivotEngine.ts's slice
+      // builder); match that default here rather than pass `undefined`
+      // through to the internal (required) slice measure type.
+      aggregation: m.aggregation || "sum",
       hidden: !!m.hidden,
     }),
   );

@@ -149,7 +149,7 @@ export interface AuraPivotFieldEntry {
   caption?: string;
   showInDrillThrough?: boolean;
   drillThroughOrder?: number;
-  dateFormat?: string;
+  dateFormat?: string | null;
 }
 
 export interface AuraPivotCalculatedFieldEntry {
@@ -161,21 +161,22 @@ export interface AuraPivotCalculatedFieldEntry {
 export interface AuraPivotDimensionEntry {
   axis: DimensionAxis;
   uniqueName: string;
-  fieldSort?: Record<string, unknown>;
+  fieldSort?: Record<string, unknown> | null;
 }
 
 export interface AuraPivotMeasureEntry {
   uniqueName: string;
-  aggregation: Aggregation;
+  /** Defaults to `"sum"` when omitted — see `PivotEngine`'s slice builder. */
+  aggregation?: Aggregation;
   hidden?: boolean;
 }
 
 /** A filter entry carrying exactly one of: members / value / range */
 export interface AuraPivotFilterEntry {
-  uniqueName?: string;
+  uniqueName: string;
   members?: string[];
   value?: unknown;
-  range?: unknown;
+  range?: { min?: number; max?: number };
 }
 
 export interface AuraPivotDataOptions {
@@ -198,6 +199,10 @@ export interface AuraPivotCellStyle {
 }
 
 export interface AuraPivotConditionalRule {
+  /** Stable rule id. */
+  id?: string;
+  /** Target measure key. */
+  measure?: string;
   operator?: Operator;
   value?: unknown;
   value2?: unknown;
@@ -209,7 +214,7 @@ export interface AuraPivotFormatOptions {
   conditional?: AuraPivotConditionalRule[];
   /** Section format map — keys are measure/field unique names; values are format objects */
   values?: Record<string, unknown>;
-  valuesByMeasure?: Record<string, unknown>;
+  valuesByMeasure?: Record<string, Record<string, unknown>>;
   headers?: Record<string, unknown>;
   dimensions?: Record<string, unknown>;
   grandTotals?: Record<string, unknown>;
