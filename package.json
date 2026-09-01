@@ -99,7 +99,8 @@
   },
   "files": [
     "dist",
-    "LICENSE"
+    "LICENSE",
+    "THIRD-PARTY-NOTICES.md"
   ],
   "overrides": {
     "uuid": "^11.1.1"
@@ -107,7 +108,7 @@
   "scripts": {
     "check": "tsc --noEmit",
     "test": "vitest run",
-    "build": "npm run check && rollup -c && node scripts/verify-dist.mjs",
+    "build": "npm run check && rollup -c && node scripts/third-party-notices.mjs && node scripts/verify-dist.mjs",
     "prepublishOnly": "npm run build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

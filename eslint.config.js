@@ -36,7 +36,11 @@ export default tseslint.config(
   {
     // The only plain-JS files in the repo, both build tooling — they run
     // under Node, not the library's browser/React runtime.
-    files: ["scripts/verify-dist.mjs", "rollup.config.js"],
+    files: [
+      "scripts/verify-dist.mjs",
+      "scripts/third-party-notices.mjs",
+      "rollup.config.js",
+    ],
     languageOptions: {
       globals: {
         process: "readonly",
