@@ -2,6 +2,36 @@
   "type": "module",
   "name": "@its/aura-pivot",
   "version": "2.4.8",
+  "description": "React pivot table with virtualized rendering, automatic date hierarchies, calculated fields and Excel export.",
+  "keywords": [
+    "react",
+    "pivot-table",
+    "pivot",
+    "data-grid",
+    "mui",
+    "typescript",
+    "analytics",
+    "virtualized",
+    "excel-export"
+  ],
+  "license": "MIT",
+  "author": "IT Solutions S.r.l.",
+  "homepage": "https://aurapivot-docs.web.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itsolutions-dev/AuraPivot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/itsolutions-dev/AuraPivot/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
@@ -58,7 +88,8 @@
     "vitest": "^4.1.11"
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE"
   ],
   "overrides": {
     "uuid": "^11.1.1"
