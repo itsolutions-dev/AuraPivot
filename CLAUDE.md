@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-`@its/aura-pivot` — a React pivot-table library published as a drop-in replacement for `<Pivot>` from the legacy `@AuraPivot/react-AuraPivot` component. Shipped as an npm package (CJS + ESM bundles via Rollup). Peer deps: React 18+, `@mui/material` v9+, `@emotion/react`, `@emotion/styled`, `react-intl`.
+`aura-pivot` — a React pivot-table library published as a drop-in replacement for `<Pivot>` from the legacy `@AuraPivot/react-AuraPivot` component. Shipped as an npm package (CJS + ESM bundles via Rollup). Peer deps: React 18+, `@mui/material` v9+, `@emotion/react`, `@emotion/styled`, `react-intl`.
 
 ## Build
 
@@ -22,7 +22,7 @@ exceljs is NOT bundled: `ExcelExporter` lazy-loads it with `import('exceljs')` o
 
 When `OBFUSCATOR=1`, obfuscation runs per-module after babel: heavy options for UI code, a light set (no control-flow flattening / dead-code injection) for the hot compute paths listed in `HOT_PATHS`; terser always finalizes the bundle.
 
-Public entry: `index.js` re-exports `Pivot` (default + named), `PivotProvider`/`usePivot`, `usePivotMatrix`, and the `mergeLocalization` helper. Public type declarations are hand-maintained in `index.d.ts` (root) and copied to `dist/index.d.ts` by the `copyTypes` rollup plugin — keep it in sync when the public surface changes. Locale dictionaries are NOT bundled — they ship as separate JSON files at `dist/locales/{it,en}.json`, exposed via package `exports` subpaths (`@its/aura-pivot/locales/it.json`, `…/en.json`). The rollup `copyLocales` plugin copies `localization/*.json` to `dist/locales/` on build.
+Public entry: `index.js` re-exports `Pivot` (default + named), `PivotProvider`/`usePivot`, `usePivotMatrix`, and the `mergeLocalization` helper. Public type declarations are hand-maintained in `index.d.ts` (root) and copied to `dist/index.d.ts` by the `copyTypes` rollup plugin — keep it in sync when the public surface changes. Locale dictionaries are NOT bundled — they ship as separate JSON files at `dist/locales/{it,en}.json`, exposed via package `exports` subpaths (`aura-pivot/locales/it.json`, `…/en.json`). The rollup `copyLocales` plugin copies `localization/*.json` to `dist/locales/` on build.
 
 ## Architecture
 
@@ -60,7 +60,7 @@ The `<AuraPivot>` component is configured through the structured `options` prop 
 
 - `options` is applied **seed-on-change**: re-applied only when the object reference changes. `onOptionsChange` hands the host the component's own emitted object — feeding it straight back is a no-op (loop guard in `AuraPivot.jsx`).
 - `dataSource` is a plain rows array; the engine's `[metadata, ...rows]` shape is assembled inside `options/optionsAdapter.js` from `options.data.fields` + `dataSource`.
-- The top-level `localization` prop carries the dictionary. **English fallbacks are built in** (proven by `PivotEngine.localization.test.ts` + the smoke test): engine-level defaults (`AGG_LABEL`, `"Total"`, the `"{agg} Total of {field}"` caption template, English month/weekday names in `DateHierarchyExpander`) plus inline literals in every component — a zero-config pivot renders fully in English. Dictionary JSONs are NOT bundled: for other languages consumers statically import `@its/aura-pivot/locales/<lang>.json` or load one at runtime (e.g. via i18next + i18next-http-backend) and pass the object in. `setLocalization` validates the dictionary in dev builds (console.warn + fall back to English on malformed input). `mergeLocalization` from `localization/merge.js` is exposed for layering per-instance overrides — the component itself no longer merges. `locale` prop is BCP-47 and is threaded to every Intl call (`localeCompare`, `Intl.NumberFormat`, `Intl.DateTimeFormat`); `undefined` means "defer to browser default" and must stay `undefined` (not `""`).
+- The top-level `localization` prop carries the dictionary. **English fallbacks are built in** (proven by `PivotEngine.localization.test.ts` + the smoke test): engine-level defaults (`AGG_LABEL`, `"Total"`, the `"{agg} Total of {field}"` caption template, English month/weekday names in `DateHierarchyExpander`) plus inline literals in every component — a zero-config pivot renders fully in English. Dictionary JSONs are NOT bundled: for other languages consumers statically import `aura-pivot/locales/<lang>.json` or load one at runtime (e.g. via i18next + i18next-http-backend) and pass the object in. `setLocalization` validates the dictionary in dev builds (console.warn + fall back to English on malformed input). `mergeLocalization` from `localization/merge.js` is exposed for layering per-instance overrides — the component itself no longer merges. `locale` prop is BCP-47 and is threaded to every Intl call (`localeCompare`, `Intl.NumberFormat`, `Intl.DateTimeFormat`); `undefined` means "defer to browser default" and must stay `undefined` (not `""`).
 - `format` accepts both `values` and the legacy alias `general` (read paths expose both for back-compat).
 - Aggregation label localization: engine's internal key `avg` maps to the dictionary key `average` (see `AGG_LOCALE_KEY` in `PivotEngine.js`).
 - `Measures` is a reserved `uniqueName` used as a pseudo-field to place the measure axis on rows or columns — filter it out before passing row/column fields to the tree builder.

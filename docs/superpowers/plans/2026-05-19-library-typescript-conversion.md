@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Convert the `@its/aura-pivot` package (`Library/`) from plain JS/JSX to strict TypeScript, emitting a real `dist/index.d.ts` for consumers.
+**Goal:** Convert the `aura-pivot` package (`Library/`) from plain JS/JSX to strict TypeScript, emitting a real `dist/index.d.ts` for consumers.
 
 **Architecture:** Big-bang conversion of all 30 source files to `.ts`/`.tsx`, ordered bottom-up by the import graph so `tsc --noEmit` stays green after every task (no `allowJs`). Babel keeps producing the JS bundle (`@babel/preset-typescript` strips types); a separate `tsc` pass typechecks and emits declarations, bundled into one `dist/index.d.ts` via `rollup-plugin-dts`.
 
@@ -830,7 +830,7 @@ git commit -m "Emit bundled index.d.ts via tsc and rollup-plugin-dts"
 **Files:**
 - Modify: `../PresentationApp/vite.config.js`
 
-`PresentationApp/vite.config.js` aliases `@its/aura-pivot` straight at the Library source. Two converted files are referenced by name. **This task commits in the parent `AuraPivotApp` repo, not the `Library` repo.**
+`PresentationApp/vite.config.js` aliases `aura-pivot` straight at the Library source. Two converted files are referenced by name. **This task commits in the parent `AuraPivotApp` repo, not the `Library` repo.**
 
 - [ ] **Step 1: Update the non-FREEPLAN entry path**
 
@@ -844,10 +844,10 @@ const libEntry = FREEPLAN
 
 - [ ] **Step 2: Update the theme alias path**
 
-The `@its/aura-pivot/theme` alias (around line 41-42):
+The `aura-pivot/theme` alias (around line 41-42):
 ```javascript
       {
-        find: /^@its\/aura-pivot\/theme$/,
+        find: /^aura-pivot\/theme$/,
         replacement: path.resolve(libRoot, "theme/swatches.ts"),
       },
 ```
@@ -891,7 +891,7 @@ Three corrections:
 
 - [ ] **Step 2: Update the parent `../CLAUDE.md`**
 
-The "PresentationApp architecture" section states Vite resolves `@its/aura-pivot` to `Library/AuraPivot.jsx`. Update `AuraPivot.jsx` → `AuraPivot.tsx`.
+The "PresentationApp architecture" section states Vite resolves `aura-pivot` to `Library/AuraPivot.jsx`. Update `AuraPivot.jsx` → `AuraPivot.tsx`.
 
 - [ ] **Step 3: Commit the Library doc**
 

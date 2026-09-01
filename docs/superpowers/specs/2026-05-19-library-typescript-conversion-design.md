@@ -1,7 +1,7 @@
 # Library TypeScript Conversion — Design
 
 **Date:** 2026-05-19
-**Scope:** `Library/` — the `@its/aura-pivot` package
+**Scope:** `Library/` — the `aura-pivot` package
 **Status:** Approved design, ready for implementation planning
 
 ## Goal
@@ -123,8 +123,8 @@ is typed. Each `any` carries an inline comment explaining why.
 `PresentationApp/vite.config.js` aliases the Library source directly. After conversion:
 
 - `libEntry` non-FREEPLAN branch: `AuraPivot.jsx` → `AuraPivot.tsx`.
-- `@its/aura-pivot/theme` alias: `theme/swatches.js` → `theme/swatches.ts`.
-- The `@its/aura-pivot/locales/*` alias points at the `localization/` JSON dir — unaffected.
+- `aura-pivot/theme` alias: `theme/swatches.js` → `theme/swatches.ts`.
+- The `aura-pivot/locales/*` alias points at the `localization/` JSON dir — unaffected.
 - The FREEPLAN branch points at `dist/index.esm.js` — unaffected.
 
 Vite/esbuild handles `.ts`/`.tsx` natively, so PresentationApp itself (plain JS) needs no
