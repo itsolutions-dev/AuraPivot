@@ -11,6 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 npm run check         # tsc --noEmit
 npm test               # vitest run — 11 files / 135 tests (pivot-core, options, localization, hooks, components)
+npm run test:coverage  # vitest run --coverage — thresholds in vitest.config.ts are a ratchet pinned to coverage measured 2026-09-01; a drop fails the run instead of passing quietly
 npm run build          # npm run check && rollup -c && node scripts/verify-dist.mjs
 npm run lint            # eslint .
 npm run lint:fix        # eslint . --fix
