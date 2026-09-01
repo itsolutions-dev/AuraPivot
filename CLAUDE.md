@@ -33,16 +33,24 @@ Two distinct layers. Keep the boundary clean — the core is framework-agnostic 
 
 Orchestrator is `pivot-core/PivotEngine.ts`. It owns all mutable state (data, slice, options, format, calculated fields, date formats, localization, locale) and exposes an event bus (`on`/`off` for `datachange`, `reportchange`, `formatchange`). The React layer never mutates state directly; it calls engine methods and re-reads via events.
 
-Pipeline inside `processMatrix()`:
+Data path from raw dataset to rendered/exported output — only stages 3-6 run inside `processMatrix()`:
 
-1. `data/DataNormalizer.normalizeDataset` — accepts the AuraPivot `[metadata, ...rows]` shape; synthesizes metadata from the first row if the metadata header is missing.
-2. `data/DateHierarchyExpander.expandHierarchies` — adds virtual `<field>.Year|Quarter|Month|Day|Weekday|Hour|Minute` columns for date fields, using the localized month/weekday names pushed in via `setDateLocalization`.
+**At `setData()`/`setDateLocalization()` time:**
+
+1. `data/DataNormalizer.normalizeDataset` — accepts the AuraPivot `[metadata, ...rows]` shape; synthesizes metadata from the first row if the metadata header is missing. Runs in `setData()` and again in `setDateLocalization()`, so a locale change re-normalizes without a fresh dataset.
+2. `data/DateHierarchyExpander.expandHierarchies` — adds virtual `<field>.Year|Quarter|Month|Day|Weekday|Hour|Minute` columns for date fields, using the localized month/weekday names pushed in via `setDateLocalization`. Runs alongside `normalizeDataset`, in `setData()` and `setDateLocalization()`.
+
+**Inside `processMatrix()`:**
+
 3. `slice/FilterEngine.applyFilters` — include/exclude member filtering.
-4. `slice/TreeBuilder.buildTree` — builds the row and column trees. The special `Measures` pseudo-field (`uniqueName === "Measures"`) is a layout placeholder, not a real dimension; `PivotEngine` derives `hasMeasuresOnRows`/`hasMeasuresOnColumns` from where it appears and passes them to the matrix step separately.
+4. `slice/TreeBuilder.buildTree` — builds the row tree and column tree, formatting dimension values via `_buildDimensionFormatter()`, which wraps `format/DateFormatter` for date fields. The special `Measures` pseudo-field (`uniqueName === "Measures"`) is a layout placeholder, not a real dimension; `PivotEngine` derives `hasMeasuresOnRows`/`hasMeasuresOnColumns` from where it appears and passes them to the matrix step separately.
 5. `matrix/MatrixComputer.computeMatrix` — produces the `ComputedMatrix` (see `pivot-core/matrix/MatrixComputer.ts` for the shape, and `pivot-core/types.ts` for the shared engine types): `rowLeaves`, `colLeaves`, `cells` Map keyed by `"<rowKey>||<colKey>||<measureKey>"`, plus the enriched measures list.
-6. `aggregation/Aggregator` — sum/count/distinctcount/avg/min/max plus the derived `ratioTotal`, `currentRatio`, and `formula` (calculated fields). Formula strings are evaluated by `matrix/FormulaEvaluator.ts` — a safe tokenizer/AST evaluator (no `Function()`/`eval`, CSP-friendly); the same module's `parseFormulaExpression` backs the CalculatedFieldDialog syntax validation.
-7. `format/CellFormatter` and `format/DateFormatter` — number / currency / percentage / date rendering, conditional styling.
-8. `export/ExcelExporter.exportMatrixToExcel` — xlsx export of the already-computed matrix.
+6. `aggregation/Aggregator` — reached indirectly, through `computeMatrix` (`processMatrix()` never calls it directly) — sum/count/distinctcount/avg/min/max plus the derived `ratioTotal`, `currentRatio`, and `formula` (calculated fields). Formula strings are evaluated by `matrix/FormulaEvaluator.ts` — a safe tokenizer/AST evaluator (no `Function()`/`eval`, CSP-friendly); the same module's `parseFormulaExpression` backs the CalculatedFieldDialog syntax validation.
+
+**Outside the compute path:**
+
+7. `format/CellFormatter` — never called by the engine. `resolveCellStyle`/`formatNumberWithFormat` are imported by `components/PivotTable/PivotTable.tsx` and run at render time against the already-computed matrix; both are re-exported from `pivot-core/index.ts`.
+8. `export/ExcelExporter.exportMatrixToExcel` — run from the separate async `exportExcel()` method, which calls `processMatrix()` first and then calls `exportMatrixToExcel`.
 
 Dirty flag: every setter that affects the matrix sets `_dirty = true`; `processMatrix()` memoizes and returns `_matrix` when not dirty. The React layer relies on this — a re-render without a state change is free.
 
