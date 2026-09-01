@@ -83,6 +83,6 @@ The `<AuraPivot>` component is configured through the structured `options` prop 
 ## Conventions
 
 - TypeScript strict everywhere in the library source (`tsconfig.json` has `"strict": true`). No `@ts-nocheck`/`@ts-ignore`/`@ts-expect-error` anywhere — do not add any. `rollup.config.js`, `scripts/verify-dist.mjs`, and `scripts/third-party-notices.mjs` are the only plain-JS files in the repo, all build tooling, not library source.
-- 2-space indent. Quote style is mixed between files (some `.ts`/`.tsx` files use single quotes, others double) — follow whatever the file already uses; do not reformat a whole file to switch style.
+- 2-space indent. Formatting is enforced by Prettier, not by convention: `.prettierrc.json` sets double quotes as the base with a `singleQuote: true` override for `*.ts`/`*.tsx`, so library sources are single-quoted and the plain-JS build tooling is double-quoted. Run `npm run format` and let it decide; `npm run format:check` gates CI.
 - React 19 in devDependencies but peer range is `>=18`; do not use features that break on 18.
 - MUI v9 theming — components read `theme.font?.primary`, the pastel palette, and dark-mode tokens from the ambient theme. Avoid hardcoded colors. Optional `theme` prop on `<AuraPivot>` wraps the subtree in `<ThemeProvider>` for scoped overrides.
