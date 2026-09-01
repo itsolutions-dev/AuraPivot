@@ -80,6 +80,7 @@
     "@types/file-saver": "^2.0.7",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
+    "@vitest/coverage-v8": "^4.1.11",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsx-a11y": "^6.10.2",
@@ -108,6 +109,7 @@
   "scripts": {
     "check": "tsc --noEmit",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "build": "npm run check && rollup -c && node scripts/third-party-notices.mjs && node scripts/verify-dist.mjs",
     "prepublishOnly": "npm run build",
     "lint": "eslint .",
