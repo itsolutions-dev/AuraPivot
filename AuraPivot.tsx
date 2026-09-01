@@ -47,8 +47,12 @@ export interface AuraPivotProps
   localization?: LocalizationDictionary;
   /** Receives the toolbar API so consumers can add / filter / reorder tabs. */
   beforeToolbarCreated?: (api: ToolbarApi) => void;
-  /** MUI theme object, or `(outerTheme) => theme` for partial overrides. */
-  theme?: Theme | ((outer: Theme) => Theme);
+  /**
+   * MUI theme object — complete or partial, matching what `<ThemeProvider>`
+   * accepts — or `(outerTheme) => theme` for overrides derived from the
+   * surrounding theme.
+   */
+  theme?: Partial<Theme> | ((outer: Theme) => Theme);
 }
 
 /** Imperative handle exposed on the component ref. */
