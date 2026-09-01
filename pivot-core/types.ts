@@ -174,7 +174,7 @@ export interface AuraPivotMeasureEntry {
 /** A filter entry carrying exactly one of: members / value / range */
 export interface AuraPivotFilterEntry {
   uniqueName: string;
-  members?: string[];
+  members?: unknown[];
   value?: unknown;
   range?: { min?: number; max?: number };
 }
