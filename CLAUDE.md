@@ -17,9 +17,14 @@ npm run lint            # eslint .
 npm run lint:fix        # eslint . --fix
 npm run format          # prettier --write .
 npm run format:check    # prettier --check .
+npm run changeset       # changeset — record a pending release note
+npm run version         # changeset version && npm install --package-lock-only — do not use `npm version` (see below)
+npm run release         # npm run build && changeset publish — CI-only, never run locally
 ```
 
 `prepublishOnly` runs `npm run build`. Only `dist/`, `LICENSE` and `THIRD-PARTY-NOTICES.md` are published (`files` in `package.json`). No dev server.
+
+Releases are automated with [Changesets](https://github.com/changesets/changesets) (`.changeset/config.json`, `.github/workflows/release.yml`): a push to `master` opens/updates a version PR, and merging it publishes to npm with provenance (`id-token: write`, `NPM_CONFIG_PROVENANCE: true`) once the `NPM_TOKEN` repository secret exists. Every change with user-visible impact needs a changeset (`npx changeset`). The `version` script is registered as npm's `version` lifecycle hook, so **do not run `npm version`** in this repo — it would run `changeset version` instead of a plain bump; that is intentional, not a bug.
 
 `rollup.config.js` imports `package.json` with `import pkg from "./package.json" with { type: "json" }` — this import-attribute syntax needs Node ≥ 20 _to build_; that is a development-time requirement only, not the published floor (`engines.node` is `>=18`). `dist/` is cleaned at the start of every build. The bundle intro carries a runtime stamp `globalThis.__AURA_PIVOT_BUILD__ = { version }` (version only — there is no obfuscation step and no `obfuscated` field). `scripts/verify-dist.mjs` runs after rollup and fails the build if: any required output file is missing (the CJS entry named by `main` in `package.json`, `index.esm.js`, `index.d.ts`, `theme.js`, `theme.esm.js`, `theme.d.ts`, `locales/en.json`, `locales/it.json`), either JS bundle lacks the build stamp, exceeds 250 KB, drops the literal `'exceljs'` specifier, or ships a missing/empty sourcemap; or the generated `index.d.ts` no longer exports one of the required public type names (`PivotOptions`, `AuraPivotProps`, `AuraPivotRef`, `PivotEngine`, `LocalizationDictionary`).
 

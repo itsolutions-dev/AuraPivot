@@ -68,6 +68,8 @@
     "@babel/preset-env": "^7.29.7",
     "@babel/preset-react": "^7.29.7",
     "@babel/preset-typescript": "^7.29.7",
+    "@changesets/changelog-github": "^1.0.0",
+    "@changesets/cli": "^3.0.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@eslint/js": "^9.39.1",
@@ -115,6 +117,9 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "changeset": "changeset",
+    "version": "changeset version && npm install --package-lock-only",
+    "release": "npm run build && changeset publish"
   }
 }
