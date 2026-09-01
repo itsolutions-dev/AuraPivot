@@ -110,7 +110,7 @@ export type EngineEventHandler = (...args: unknown[]) => void;
 
 // ---------------------------------------------------------------------------
 // Public AuraPivotOptions types
-// (enum unions from optionsSchema.js; shapes from optionsPropType.js)
+// (enum unions from optionsSchema.js)
 // ---------------------------------------------------------------------------
 
 export type Density = "Compact" | "Standard" | "Comfortable";
@@ -124,7 +124,7 @@ export type DataType = "number" | "string" | "date" | "time" | "month";
 /** Wired into the section-format maps (values/headers/dimensions/grandTotals) in Task 6. */
 export type TextAlign = "left" | "center" | "right";
 
-// --- toolbar section (from optionsPropType.js toolbar shape) ---
+// --- toolbar section ---
 
 export interface AuraPivotToolbarOptions {
   visible?: boolean;
@@ -134,7 +134,7 @@ export interface AuraPivotToolbarOptions {
   showFullscreen?: boolean;
 }
 
-// --- layout section (from optionsPropType.js layout shape) ---
+// --- layout section ---
 
 export interface AuraPivotLayoutOptions {
   showTitle?: boolean;
@@ -151,7 +151,7 @@ export interface AuraPivotLayoutOptions {
   measuresAxis?: MeasuresAxis;
 }
 
-// --- data section element shapes (from optionsPropType.js data shape) ---
+// --- data section element shapes ---
 
 export interface AuraPivotFieldEntry {
   fieldName?: string;
@@ -197,10 +197,10 @@ export interface AuraPivotDataOptions {
   filters?: AuraPivotFilterEntry[];
 }
 
-// --- format section element shapes (from optionsPropType.js format shape) ---
+// --- format section element shapes ---
 
 export interface AuraPivotCellStyle {
-  /** Hex `#RRGGBB`; `""` means inherit/reset, `null` means unset (see `hexColor` validator in optionsPropType.js). */
+  /** Hex `#RRGGBB`; `""` means inherit/reset, `null` means unset. */
   textColor?: string | null;
   /** Hex `#RRGGBB`; `""` means inherit/reset, `null` means unset. */
   backgroundColor?: string | null;

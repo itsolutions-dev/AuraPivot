@@ -6,7 +6,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import PropTypes from "prop-types";
 import {
   Box,
   Snackbar,
@@ -23,7 +22,6 @@ import FieldList from "./components/FieldList/FieldList";
 import FormatDialog from "./components/FormatDialog/FormatDialog";
 import FilterBar from "./components/FilterBar/FilterBar";
 import { optionsToEngine, engineToOptions } from "./options/optionsAdapter";
-import optionsPropType from "./options/optionsPropType";
 
 /**
  * AuraPivot — a configurable React pivot table.
@@ -360,17 +358,5 @@ const Pivot = forwardRef(function Pivot(props, ref) {
     content
   );
 });
-
-Pivot.propTypes = {
-  width: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-  height: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-  locale: PropTypes.string,
-  localization: PropTypes.object,
-  options: optionsPropType,
-  dataSource: PropTypes.array,
-  onOptionsChange: PropTypes.func,
-  beforeToolbarCreated: PropTypes.func,
-  theme: PropTypes.oneOfType([PropTypes.object, PropTypes.func]),
-};
 
 export default Pivot;

@@ -1,6 +1,5 @@
 // Enum constants for the `options` prop schema. Single source of truth for
-// both the runtime adapter (optionsAdapter.ts) and the PropTypes validator
-// (optionsPropType.ts).
+// the runtime adapter (optionsAdapter.ts).
 
 import type { AuraPivotOptions } from "../pivot-core/types";
 

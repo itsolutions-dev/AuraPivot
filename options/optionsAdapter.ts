@@ -21,9 +21,9 @@ export function optionsToEngine(
   const o: AuraPivotOptions = options || {};
   const data = o.data || {};
   const fields: AuraPivotFieldEntry[] = Array.isArray(data.fields) ? data.fields : [];
-  // `uniqueName` is required on AuraPivotFieldEntry (PropTypes .isRequired); the
-  // `as string` matches the original JS contract — fall back through to fieldName
-  // without injecting an empty-string sentinel for the (unreachable) all-falsy case.
+  // `uniqueName` is required on AuraPivotFieldEntry; the `as string` matches the
+  // original JS contract — fall back through to fieldName without injecting an
+  // empty-string sentinel for the (unreachable) all-falsy case.
   const keyOf = (f: AuraPivotFieldEntry): string => (f.uniqueName || f.fieldName) as string;
 
   // ---- dataset: build [metadata, ...rows] from data.fields + dataSource ----

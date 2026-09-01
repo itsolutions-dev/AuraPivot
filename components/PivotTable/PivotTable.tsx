@@ -6,7 +6,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import PropTypes from "prop-types";
 import {
   Box,
   IconButton,
@@ -2074,16 +2073,6 @@ const DimensionHeaderCell = function DimensionHeaderCell({
   );
 };
 
-DimensionHeaderCell.propTypes = {
-  dims: PropTypes.array,
-  captionFor: PropTypes.func.isRequired,
-  activeFilters: PropTypes.instanceOf(Set).isRequired,
-  onOpen: PropTypes.func.isRequired,
-  fallback: PropTypes.string,
-  style: PropTypes.object,
-  density: PropTypes.object,
-};
-
 interface HeaderCellProps {
   children?: React.ReactNode;
   primary?: boolean;
@@ -2207,19 +2196,6 @@ const HeaderCell = function HeaderCell({
   );
 };
 
-HeaderCell.propTypes = {
-  children: PropTypes.node,
-  primary: PropTypes.bool,
-  style: PropTypes.object,
-  density: PropTypes.object,
-  sortable: PropTypes.bool,
-  sortDirection: PropTypes.oneOf(["asc", "desc", null]),
-  sortTooltip: PropTypes.string,
-  onClick: PropTypes.func,
-  action: PropTypes.node,
-  prefix: PropTypes.node,
-};
-
 const SHADE_AMOUNT = [0, 0.04, 0.08, 0.12];
 
 const tintForMode = (color: string, amount: number, mode: string) => {
@@ -2314,17 +2290,6 @@ const ChevronCell = function ChevronCell({
       )}
     </Box>
   );
-};
-
-ChevronCell.propTypes = {
-  show: PropTypes.bool,
-  expanded: PropTypes.bool,
-  onToggle: PropTypes.func,
-  isGrandTotal: PropTypes.bool,
-  isTotal: PropTypes.bool,
-  shade: PropTypes.number,
-  density: PropTypes.object,
-  indent: PropTypes.number,
 };
 
 interface BodyLabelCellProps {
@@ -2489,22 +2454,6 @@ const BodyLabelCell = function BodyLabelCell({
       )}
     </Box>
   );
-};
-
-BodyLabelCell.propTypes = {
-  indent: PropTypes.number,
-  isTotal: PropTypes.bool,
-  isGrandTotal: PropTypes.bool,
-  caption: PropTypes.string,
-  onToggleChildren: PropTypes.func,
-  childrenExpanded: PropTypes.bool,
-  style: PropTypes.object,
-  shade: PropTypes.number,
-  density: PropTypes.object,
-  sortable: PropTypes.bool,
-  sortDirection: PropTypes.oneOf(["asc", "desc", null]),
-  sortTooltip: PropTypes.string,
-  onSortClick: PropTypes.func,
 };
 
 interface BodyValueCellProps {
@@ -2789,21 +2738,6 @@ const BodyValueCell = function BodyValueCell({
       {cellBox}
     </Tooltip>
   );
-};
-
-BodyValueCell.propTypes = {
-  children: PropTypes.node,
-  isTotal: PropTypes.bool,
-  isGrandTotal: PropTypes.bool,
-  style: PropTypes.object,
-  shade: PropTypes.number,
-  density: PropTypes.object,
-  clickable: PropTypes.bool,
-  onClick: PropTypes.func,
-  hiddenMeasureItems: PropTypes.array,
-  hiddenMeasuresLabel: PropTypes.string,
-  error: PropTypes.string,
-  errorLabel: PropTypes.string,
 };
 
 export default PivotTable;
