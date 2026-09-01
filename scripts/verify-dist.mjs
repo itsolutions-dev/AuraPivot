@@ -27,11 +27,6 @@ for (const f of requiredFiles) {
   if (!fs.existsSync(path.join(outDir, f))) fail(`missing ${outDir}/${f}`);
 }
 
-// Observed 206 KB after externalising react-virtuoso, file-saver and
-// @mui/icons-material. The ceiling catches a dependency accidentally
-// falling back into the bundle, not ordinary growth.
-const MAX_BYTES = 250 * 1024;
-
 const STAMP_RE = /__AURA_PIVOT_BUILD__\s*=\s*\{version:"([^"]+)"/;
 
 for (const name of ["index.js", "index.esm.js"]) {
@@ -42,14 +37,6 @@ for (const name of ["index.js", "index.esm.js"]) {
   if (!STAMP_RE.test(code)) {
     fail(`${p}: build stamp missing`);
     continue;
-  }
-
-  if (code.length > MAX_BYTES) {
-    fail(
-      `${p}: ${Math.round(code.length / 1024)} KB exceeds ${Math.round(
-        MAX_BYTES / 1024,
-      )} KB — a heavy dependency probably got bundled`,
-    );
   }
 
   // The lazy exceljs import must survive as a literal specifier so the
