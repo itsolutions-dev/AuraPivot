@@ -92,9 +92,9 @@ later on the server side, if you render there.
 
 ## Documentation
 
-The [documentation site](https://aurapivot-docs.web.app) covers every key of
-the `options` schema with a screenshot of what it does, plus video
-walkthroughs. The [playground](https://aurapivot.web.app) lets you build a
+The [documentation site](https://docs.aurapivot.dev) covers every key of
+the `options` schema, with screenshots for a growing subset of them. The
+[playground](https://aurapivot.dev) lets you build a
 configuration by clicking and copy the resulting `options` object out. For the
 surface that sits outside `options` — the full prop and ref API, the MUI theme
 tokens the pivot reads, localization, and the public hooks — see the

@@ -3,9 +3,10 @@
 Reference material for `aura-pivot`: the component prop and ref surface, the
 data and report shapes, the MUI theme tokens the pivot reads, localization, and
 the public hooks. Every key of the `options` prop is documented separately on
-the [documentation site](https://aurapivot-docs.web.app), with a screenshot of
-what each one does — go there for the schema, and stay here for the parts that
-live outside `options`.
+the [documentation site](https://aurapivot-docs.web.app); some sections
+include a screenshot of what the option does, with more coverage landing over
+time — go there for the schema, and stay here for the parts that live outside
+`options`.
 
 ---
 
@@ -77,10 +78,13 @@ const options = {
 };
 ```
 
-Fields omitted from `options.data.fields` are inferred from the first data
-row. (Internally the engine still consumes the legacy AuraPivot
-`[metadata, ...rows]` shape — the adapter assembles it from
-`options.data.fields` + `dataSource`.)
+Field inference only happens when `options.data.fields` is omitted or an
+**entirely empty array** — in that case every key on the first row of
+`dataSource` becomes a field. Once `data.fields` has even one entry, that
+list is authoritative: any row key not declared there is silently dropped,
+not inferred. Declare every field you need in the pivot. (Internally the
+engine still consumes the legacy AuraPivot `[metadata, ...rows]` shape — the
+adapter assembles it from `options.data.fields` + `dataSource`.)
 
 ### Field types
 
@@ -145,9 +149,32 @@ Derived aggregations also available: `ratioTotal` (% of grand total), `currentRa
 
 ### Sort direction per field
 
+There is no `sort` property on a dimension entry. Sort is configured through
+`fieldSort`, an object with a `mode` of `'alpha'` (sort by the member's own
+value) or `'measure'` (sort by a measure's aggregated value):
+
 ```js
-{ uniqueName: 'callDate.Year', sort: 'asc' | 'desc' | 'none' }
+// Alphabetical, descending
+{
+  axis: 'row',
+  uniqueName: 'callDate.Year',
+  fieldSort: { mode: 'alpha', direction: 'desc' },
+}
+
+// By a measure's aggregated value
+{
+  axis: 'row',
+  uniqueName: 'agentName',
+  fieldSort: {
+    mode: 'measure',
+    direction: 'desc',
+    measure: { uniqueName: 'revenue', aggregation: 'sum' },
+  },
+}
 ```
+
+`direction` is `'asc' | 'desc' | 'none'`. Omitting `fieldSort` (or `mode`)
+falls back to alphabetical ascending.
 
 ---
 
