@@ -50,7 +50,7 @@ Data path from raw dataset to rendered/exported output — only stages 3-6 run i
 **At `setData()`/`setDateLocalization()` time:**
 
 1. `data/DataNormalizer.normalizeDataset` — accepts the AuraPivot `[metadata, ...rows]` shape; synthesizes metadata from the first row if the metadata header is missing. Runs in `setData()` and again in `setDateLocalization()`, so a locale change re-normalizes without a fresh dataset.
-2. `data/DateHierarchyExpander.expandHierarchies` — adds virtual `<field>.Year|Quarter|Month|Day|Weekday|Hour|Minute` columns for date fields, using the localized month/weekday names pushed in via `setDateLocalization`. Runs alongside `normalizeDataset`, in `setData()` and `setDateLocalization()`.
+2. `data/DateHierarchyExpander.expandHierarchies` — adds virtual `<field>.Year|Quarter|Month|Week|Day|Weekday|Hour|Minute` columns for date fields, using the localized month/weekday names pushed in via `setDateLocalization`. Runs alongside `normalizeDataset`, in `setData()` and `setDateLocalization()`.
 
 **Inside `processMatrix()`:**
 
