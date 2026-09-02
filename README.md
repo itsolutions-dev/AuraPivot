@@ -1,451 +1,122 @@
 # aura-pivot
 
-A new powerful React pivot table library.
+A React pivot table that stays responsive when the dataset stops being small.
 
-Built on MUI v9, React 18+, and react-virtuoso. No row limit. Full AuraPivot report compatibility.
+[![npm](https://img.shields.io/npm/v/aura-pivot.svg)](https://www.npmjs.com/package/aura-pivot)
+[![CI](https://github.com/itsolutions-dev/AuraPivot/actions/workflows/ci.yml/badge.svg)](https://github.com/itsolutions-dev/AuraPivot/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/aura-pivot.svg)](https://github.com/itsolutions-dev/AuraPivot/blob/master/LICENSE)
 
----
+![A sales pivot table with region, category and product nested on the rows and quarters on the columns, totalling revenue, quantity and margin](https://raw.githubusercontent.com/itsolutions-dev/AuraPivot/master/docs/assets/aura-pivot.png)
 
-## Key differences from AuraPivot
+**[Live playground](https://aurapivot.web.app)** · **[Documentation](https://aurapivot-docs.web.app)**
 
-|                   | AuraPivot | AuraPivot                                      |
-| ----------------- | --------- | ---------------------------------------------- |
-| Row limit         | ~1 MB     | None                                           |
-| Rendering         | DOM       | Virtualized (react-virtuoso)                   |
-| Theming           | Custom    | MUI v9 (inherits or override via `theme` prop) |
-| Date hierarchies  | Manual    | Auto-expanded                                  |
-| Calculated fields | No        | Yes                                            |
-| Excel export      | Plugin    | Built-in (exceljs)                             |
-
----
-
-## Installation
+## Install
 
 ```bash
 npm install aura-pivot
-```
-
-Peer dependencies (must be installed separately):
-
-```bash
 npm install react react-dom @mui/material @emotion/react @emotion/styled
 ```
 
----
+The second line is peer dependencies. If you are already using MUI — and the
+reason to pick this library is usually that you are — you have them.
 
-## Quick start
+## Quickstart
 
 ```jsx
+import { useState } from "react";
 import AuraPivot from "aura-pivot";
 
-function MyReport() {
+const rows = [
+  { agent: "Rossi", region: "North", revenue: 1200 },
+  { agent: "Bianchi", region: "South", revenue: 950 },
+  { agent: "Rossi", region: "South", revenue: 430 },
+];
+
+export default function Report() {
   const [options, setOptions] = useState({
-    layout: { enableDrillThrough: true, measuresAxis: "columns" },
     data: {
       fields: [
-        { uniqueName: "agentName", dataType: "string", caption: "Agent" },
+        { uniqueName: "agent", dataType: "string", caption: "Agent" },
+        { uniqueName: "region", dataType: "string", caption: "Region" },
         { uniqueName: "revenue", dataType: "number", caption: "Revenue" },
       ],
-      dimensions: [{ axis: "row", uniqueName: "agentName" }],
+      dimensions: [
+        { axis: "row", uniqueName: "agent" },
+        { axis: "column", uniqueName: "region" },
+      ],
       measures: [{ uniqueName: "revenue", aggregation: "sum" }],
     },
   });
 
   return (
     <AuraPivot
-      width="100%"
       height={600}
       options={options}
-      dataSource={rows} // plain array of row objects
+      dataSource={rows}
       onOptionsChange={setOptions}
     />
   );
 }
 ```
 
-See [docs/options-guide.en.md](docs/options-guide.en.md) for the full `options` schema.
-
----
-
-## Props
-
-| Prop                   | Type                | Default         | Description                                                                                                                                                                                                      |
-| ---------------------- | ------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `options`              | `PivotOptions`      | —               | Full configuration (`toolbar` / `layout` / `data` / `format` sections). Applied **seed-on-change**: re-applied only when the object reference changes. See [docs/options-guide.en.md](docs/options-guide.en.md). |
-| `dataSource`           | `array`             | —               | Plain array of row objects. The schema for those rows lives in `options.data.fields`.                                                                                                                            |
-| `onOptionsChange`      | `function`          | —               | Called with the complete updated `options` object after every in-component edit. Feeding it straight back into `options` is safe (loop guard).                                                                   |
-| `localization`         | `object`            | English         | Localization dictionary. English fallbacks are built in — omit the prop and the pivot renders fully in English. For other languages pass a dict from `aura-pivot/locales/<lang>.json` or your i18next setup.     |
-| `width`                | `string \| number`  | `'100%'`        | Container width.                                                                                                                                                                                                 |
-| `height`               | `string \| number`  | `'100%'`        | Container height.                                                                                                                                                                                                |
-| `locale`               | `string`            | browser default | BCP-47 locale tag (`'en'`, `'it-IT'`, …). Controls number formatting, date formatting, and string sorting. Pass `undefined` to follow the browser.                                                               |
-| `beforeToolbarCreated` | `function`          | —               | Receives `{ getTabs }` — use it to inject custom toolbar tabs. String icons may be raw `<svg>` markup (sanitized before rendering).                                                                              |
-| `theme`                | `Theme \| function` | —               | Optional MUI theme object (or callback `(outerTheme) => theme`). When set the pivot subtree is wrapped in a `ThemeProvider`. When omitted the component inherits the host app theme. See [Theming](#theming).    |
-
-Toolbar visibility is part of `options`, not a prop: `options.toolbar.visible`
-(master switch) plus `showFields` / `showFormat` / `showExport` /
-`showFullscreen` per tab.
-
-TypeScript: the package ships `dist/index.d.ts` — `PivotOptions`,
-`AuraPivotProps`, `AuraPivotRef` and the hook types are all importable.
-
----
-
-## Ref API
-
-Attach a ref to `<AuraPivot>` to read the current configuration on demand or
-reach the raw engine.
-
-```jsx
-const ref = useRef();
-
-// Pull the current options schema (same shape onOptionsChange emits)
-ref.current.auraPivot.getOptions(); // → PivotOptions
-
-// Raw engine escape hatch for advanced use
-ref.current.engine; // PivotEngine instance
-```
-
-The legacy `getReport` / `setReport` pair is still reachable through
-`ref.current.engine` but is no longer part of the public prop/ref surface —
-use the `options` round-trip instead.
-
----
-
-## Data format
-
-`dataSource` is a plain array of row objects; the schema for those rows lives
-in `options.data.fields`:
-
-```js
-const rows = [
-  { callDate: "2024-03-15", agentName: "Alice", revenue: 1200 },
-  { callDate: "2024-03-16", agentName: "Bob", revenue: 980 },
-  // ...
-];
-
-const options = {
-  data: {
-    fields: [
-      { uniqueName: "callDate", dataType: "date", caption: "Call Date" },
-      { uniqueName: "agentName", dataType: "string", caption: "Agent" },
-      { uniqueName: "revenue", dataType: "number", caption: "Revenue" },
-    ],
-    // dimensions / measures / filters / calculatedFields …
-  },
-};
-```
-
-Fields omitted from `options.data.fields` are inferred from the first data
-row. (Internally the engine still consumes the legacy AuraPivot
-`[metadata, ...rows]` shape — the adapter assembles it from
-`options.data.fields` + `dataSource`.)
-
-### Field types
-
-| Type        | Description                                 |
-| ----------- | ------------------------------------------- |
-| `'string'`  | Dimension — used for grouping and filtering |
-| `'number'`  | Measure candidate — summed, averaged, etc.  |
-| `'date'`    | Triggers automatic date hierarchy expansion |
-| `'time'`    | Time value                                  |
-| `'month'`   | Month label                                 |
-| `'weekday'` | Weekday label                               |
-
-### Date hierarchies
-
-Fields typed as `date` are automatically expanded into virtual sub-fields:
-
-```
-callDate.Year
-callDate.Quarter
-callDate.Month
-callDate.Week
-callDate.Day
-callDate.Weekday
-callDate.Hour
-callDate.Minute
-```
-
-These virtual fields appear in the field list and can be used as row/column dimensions like any other field.
-
----
-
-## Report structure
-
-The configuration that flows in and out of the pivot is the `options` object
-(via the `options` prop / `onOptionsChange` / `ref.auraPivot.getOptions()`):
-
-```js
-{
-  toolbar: { visible: true, showExport: true /* … */ },
-  layout:  { measuresAxis: 'columns', totalsRowsPosition: 'before' /* … */ },
-  data: {
-    fields:     [{ uniqueName: 'callDate', dataType: 'date' } /* … */],
-    dimensions: [
-      { axis: 'row', uniqueName: 'callDate.Year' },
-      { axis: 'column', uniqueName: 'agentName' },
-    ],
-    measures:   [{ uniqueName: 'revenue', aggregation: 'sum' }],
-    filters:    [{ uniqueName: 'agentName', members: ['Alice', 'Bob'] }],
-    calculatedFields: [{ uniqueName: 'margin', formula: 'sum("revenue") - sum("cost")' }],
-  },
-  format: { conditional: [/* … */], values: {/* … */} },
-}
-```
-
-The full schema is documented in [docs/options-guide.en.md](docs/options-guide.en.md).
-
-### Aggregation types
-
-`sum` · `count` · `distinctcount` · `avg` · `min` · `max`
-
-Derived aggregations also available: `ratioTotal` (% of grand total), `currentRatio` (% of parent subtotal), `formula` (calculated field expression).
-
-### Sort direction per field
-
-```js
-{ uniqueName: 'callDate.Year', sort: 'asc' | 'desc' | 'none' }
-```
-
----
-
-## Theming
-
-The pivot reads colors, typography, spacing, and the optional `theme.font?.primary` token from the ambient MUI theme. By default it inherits whatever `<ThemeProvider>` wraps the host app — no extra wiring is needed when its look should match the rest of the application.
-
-Pass the `theme` prop to override that behavior and scope a custom theme to the pivot subtree only. Useful when:
-
-- the pivot must look different from the rest of the host app (e.g. light pivot inside a dark dashboard),
-- the host app is not on MUI and you want to inject a self-contained theme for the pivot,
-- you need to tweak a few palette / typography tokens without touching the global theme.
-
-### Full theme override
-
-Pass any object produced by `createTheme`. It fully replaces the ambient theme inside the pivot.
-
-```jsx
-import { createTheme } from "@mui/material/styles";
-import AuraPivot from "aura-pivot";
-
-const pivotTheme = createTheme({
-  palette: {
-    mode: "light",
-    primary: { main: "#1a73e8" },
-    background: { paper: "#ffffff", default: "#f7f9fc" },
-    divider: "#e0e4eb",
-  },
-  typography: { fontFamily: "Roboto, sans-serif" },
-  // Custom token consumed by the pivot Box wrapper:
-  font: { primary: "Roboto, sans-serif" },
-});
-
-<AuraPivot theme={pivotTheme} options={options} dataSource={rows} />;
-```
-
-### Partial override (merge with host theme)
-
-Pass a callback `(outerTheme) => theme` to keep the host palette/typography and only patch what you need. MUI's `ThemeProvider` invokes the callback with the outer theme.
-
-```jsx
-import { createTheme } from "@mui/material/styles";
-import AuraPivot from "aura-pivot";
-
-const pivotTheme = (outer) =>
-  createTheme({
-    ...outer,
-    palette: {
-      ...outer.palette,
-      primary: { main: "#0b8043" },
-    },
-    font: { ...(outer.font || {}), primary: "Inter, sans-serif" },
-  });
-
-<AuraPivot theme={pivotTheme} options={options} dataSource={rows} />;
-```
-
-### Tokens read by the pivot
-
-If you build a custom theme from scratch, make sure these tokens exist — components fall back to MUI defaults where possible but the wrapper Box reads them directly:
-
-| Token                      | Used for                                            |
-| -------------------------- | --------------------------------------------------- |
-| `palette.background.paper` | Pivot container background                          |
-| `palette.text.primary`     | Default text color                                  |
-| `palette.divider`          | Container border, header separators                 |
-| `palette.primary.main`     | Toolbar accents, selection highlights               |
-| `palette.action.hover`     | Row / cell hover state                              |
-| `palette.mode`             | `'light' \| 'dark'` — toggles dark-mode adjustments |
-| `font.primary`             | Custom font-family token (falls back to `'Inter'`)  |
-| `typography.fontFamily`    | MUI components (toolbar, dialogs)                   |
-
-Dark mode works out of the box — set `palette.mode: 'dark'` on the theme you pass.
-
----
-
-## Localization
-
-English works out of the box — every label has a built-in English fallback,
-so the `localization` prop is only needed for other languages (or to override
-specific English captions). Full dictionary JSONs are **not** bundled into the
-library code: Italian and English dictionaries ship as separate JSON files
-under `aura-pivot/locales/`. A malformed dictionary is rejected with a
-`console.warn` in development builds and the pivot falls back to English.
-
-### Static import (small apps, single language)
-
-```jsx
-import AuraPivot from "aura-pivot";
-import en from "aura-pivot/locales/en.json";
-
-<AuraPivot localization={en} locale="en" options={options} dataSource={rows} />;
-```
-
-### Per-instance overrides
-
-```jsx
-import AuraPivot, { mergeLocalization } from "aura-pivot";
-import en from "aura-pivot/locales/en.json";
-
-const localization = mergeLocalization(en, {
-  grid: { grandTotal: "Overall Total" },
-  aggregations: { sum: "Total" },
-});
-
-<AuraPivot
-  localization={localization}
-  locale="en"
-  options={options}
-  dataSource={rows}
-/>;
-```
-
-`mergeLocalization(base, override)` does a shallow merge per top-level section.
-
-### Lazy loading with i18next + i18next-http-backend
-
-For apps that ship many languages or want to load translations on demand, wire `i18next` with `i18next-http-backend` and feed the loaded resource bundle into the `localization` prop.
-
-1. Copy the JSON files you want to host (you can start from `node_modules/aura-pivot/dist/locales/{it,en}.json`) into your public folder, e.g. `public/locales/<lng>/pivot.json`. Add new languages by dropping new JSON files in the same shape.
-2. Initialize `i18next`:
-
-```js
-import i18n from "i18next";
-import HttpBackend from "i18next-http-backend";
-import { initReactI18next } from "react-i18next";
-
-i18n
-  .use(HttpBackend)
-  .use(initReactI18next)
-  .init({
-    fallbackLng: "en",
-    ns: ["pivot"],
-    defaultNS: "pivot",
-    backend: { loadPath: "/locales/{{lng}}/{{ns}}.json" },
-  });
-```
-
-3. Read the bundle for the active language and pass it to `<AuraPivot>`:
-
-```jsx
-import { useTranslation } from "react-i18next";
-import AuraPivot from "aura-pivot";
-
-function PivotPanel(props) {
-  const { i18n } = useTranslation("pivot");
-  const localization = i18n.getResourceBundle(i18n.language, "pivot");
-  return (
-    <AuraPivot
-      locale={i18n.language}
-      localization={localization}
-      options={props.options}
-      dataSource={props.rows}
-    />
-  );
-}
-```
-
-`changeLanguage('fr')` triggers a one-time HTTP fetch of `/locales/fr/pivot.json`; the component re-renders with the new dictionary automatically.
-
----
-
-## Advanced: hooks
-
-Use `usePivotMatrix(engine)` to read the computed matrix from sibling components outside the pivot. Grab the engine through the component ref:
-
-```jsx
-import AuraPivot, { usePivotMatrix } from "aura-pivot";
-
-function MatrixStats({ engine }) {
-  const { matrix, loading } = usePivotMatrix(engine);
-  if (loading) return <span>Computing…</span>;
-  return (
-    <span>
-      {matrix.rowLeaves.length} rows × {matrix.colLeaves.length} columns
-    </span>
-  );
-}
-
-function App() {
-  const [engine, setEngine] = useState(null);
-
-  return (
-    <>
-      <AuraPivot
-        ref={(r) => setEngine(r?.engine ?? null)}
-        options={options}
-        dataSource={rows}
-      />
-      {engine && <MatrixStats engine={engine} />}
-    </>
-  );
-}
-```
-
-`usePivotMatrix` subscribes to the engine's `dataChange`, `reportChange`, and `formatChange` events (via `useSyncExternalStore` — tear-free under React 18+ concurrent rendering) and returns `{ matrix, loading }`. Components sharing one engine share one snapshot and a single recompute. For datasets above 5 000 rows the recompute is deferred one macrotask so the loading indicator can paint first.
-
-`PivotProvider` / `usePivot` are also exported for advanced composition. The provider takes a full context `value` of shape `{ engine, localization, locale, options, fullscreenRef, isFullscreen }` — it is the same context the pivot's internal components read.
-
----
-
-## Build
-
-```bash
-npm run check           # tsc --noEmit (also runs as part of every build)
-npm test                # vitest
-npm run build           # full build (terser-minified) → dist/
-```
-
-Outputs:
-
-| File                                     | Format     | Use                                        |
-| ---------------------------------------- | ---------- | ------------------------------------------ |
-| `dist/index.js`                          | CommonJS   | Legacy bundlers, Node                      |
-| `dist/index.esm.js`                      | ESM        | Webpack, Vite, modern bundlers             |
-| `dist/index.js.map` / `index.esm.js.map` | Sourcemap  | Debugging (omitted from obfuscated builds) |
-| `dist/index.d.ts`                        | TypeScript | Public type declarations                   |
-| `dist/locales/*.json`                    | JSON       | Opt-in localization dictionaries           |
-
-Every build is asserted by `scripts/verify-dist.mjs` (build stamp, artifact
-completeness, sourcemap integrity, size ceiling). The build is also
-inspectable at runtime via `globalThis.__AURA_PIVOT_BUILD__`.
-
-Excel export note: `exceljs` (~900 KB) is **not** bundled — it loads through a
-dynamic `import('exceljs')` on the first export click and is resolved by your
-bundler from this package's regular `dependencies`. Nothing to configure.
-
-Requires Node ≥ 18 (Rollup config uses import assertions).
-
----
-
-## Compatibility notes
-
-- React peer range is `>=18`. Library is developed against React 19 in devDependencies but does not use features unavailable on 18.
-- MUI v9 is required. Components read `theme.font?.primary` and the ambient palette for theming — no hardcoded colors.
-- `@emotion/react` and `@emotion/styled` are peer dependencies (required by MUI v9 styling engine).
-- The `Measures` string is a reserved `uniqueName` used as a pseudo-field to control whether measures appear on rows or columns. Do not use it as a real field name in your dataset.
-
----
+That is a working pivot with a toolbar, a field list, filtering, sorting and
+Excel export. `onOptionsChange` hands you the full configuration back every
+time the user changes something, so persisting a report is `JSON.stringify`
+and restoring it is passing the object back in.
+
+## What you get
+
+- **Rows are virtualized.** The grid renders through react-virtuoso, so the DOM
+  holds the visible window rather than the whole dataset — adding rows does not
+  add nodes. Aggregation is a separate, main-thread cost; see
+  [Limitations](#limitations).
+- **Date fields expand themselves.** Give the pivot a date column and you get
+  Year, Quarter, Month, Week, Day, Weekday, Hour and Minute as drillable
+  levels, with month and weekday names in the user's language.
+- **Calculated fields without `eval`.** Formulas go through a hand-written
+  tokenizer and AST evaluator, so the library runs under a strict
+  Content-Security-Policy that forbids `unsafe-eval`.
+- **Excel export that is not in your bundle.** `exceljs` is a dynamic import
+  loaded the first time someone clicks export. Users who never export never
+  download it.
+- **It looks like the rest of your app.** Theming is MUI: the pivot inherits
+  your palette, typography and dark mode from the ambient theme, or takes a
+  scoped one through the `theme` prop.
+- **Fully typed.** Declarations are generated from source, so they cannot
+  drift from the implementation.
+
+## Requirements
+
+React 18 or 19, MUI v9, and the Emotion peers MUI already needs. Node 18 or
+later on the server side, if you render there.
+
+## Documentation
+
+The [documentation site](https://aurapivot-docs.web.app) covers every key of
+the `options` schema with a screenshot of what it does, plus video
+walkthroughs. The [playground](https://aurapivot.web.app) lets you build a
+configuration by clicking and copy the resulting `options` object out. For the
+surface that sits outside `options` — the full prop and ref API, the MUI theme
+tokens the pivot reads, localization, and the public hooks — see the
+[API reference](https://github.com/itsolutions-dev/AuraPivot/blob/master/docs/api-reference.md).
+
+## Limitations
+
+- Aggregation runs on the main thread. A dataset in the millions of rows will
+  produce a visible pause on the first compute and on every slice change.
+- There is no server-side aggregation mode. The pivot works on data you have
+  already loaded into the browser.
+- MUI v9 is a hard requirement, not an adapter. There is no headless build.
+
+## Contributing
+
+Bug reports with a reproduction get fixed. See
+[CONTRIBUTING.md](https://github.com/itsolutions-dev/AuraPivot/blob/master/CONTRIBUTING.md) for the setup — note that this
+repository has no dev server of its own. You see a change through a playground
+that lives in the parent repository, which resolves this package by path, so
+the clone has to sit inside it in a directory named `Library`. That is the one
+non-obvious part.
 
 ## License
 
-Private package — distributed under the terms of the host organization's internal license.
+MIT © IT Solutions S.r.l.
