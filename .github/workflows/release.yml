@@ -28,7 +28,7 @@ jobs:
       # Opens or updates a version PR when changesets are pending; publishes
       # when that PR is merged and the changesets have been consumed.
       - name: Create version PR or publish
-        uses: changesets/action@v1
+        uses: changesets/action@v2
         with:
           version: npm run version
           publish: npm run release
