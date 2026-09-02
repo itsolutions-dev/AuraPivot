@@ -24,6 +24,8 @@ const fail = (msg) => problems.push(msg);
 // what gets asserted is exactly what a consumer resolves.
 const cjsEntry = pkg.main;
 const esmEntry = pkg.module;
+const themeCjsEntry = pkg.exports["./theme"].require;
+const themeEsmEntry = pkg.exports["./theme"].import;
 
 const requiredFiles = [
   path.basename(cjsEntry),
@@ -94,21 +96,36 @@ if (fs.existsSync(dtsPath)) {
 // entries are therefore loaded for real, and the empty-namespace case is
 // treated as a failure in its own right.
 const PUBLIC_NAME = "Pivot";
+const THEME_PUBLIC_NAME = "TONE_STOPS";
 
 const loadChecks = [
   {
     entry: cjsEntry,
     kind: "CJS",
+    publicName: PUBLIC_NAME,
     load: () => requireCjs(path.resolve(cjsEntry)),
   },
   {
     entry: esmEntry,
     kind: "ESM",
+    publicName: PUBLIC_NAME,
     load: () => import(pathToFileURL(path.resolve(esmEntry)).href),
+  },
+  {
+    entry: themeCjsEntry,
+    kind: "theme CJS",
+    publicName: THEME_PUBLIC_NAME,
+    load: () => requireCjs(path.resolve(themeCjsEntry)),
+  },
+  {
+    entry: themeEsmEntry,
+    kind: "theme ESM",
+    publicName: THEME_PUBLIC_NAME,
+    load: () => import(pathToFileURL(path.resolve(themeEsmEntry)).href),
   },
 ];
 
-for (const { entry, kind, load } of loadChecks) {
+for (const { entry, kind, publicName, load } of loadChecks) {
   if (!fs.existsSync(entry)) continue; // already reported as missing
   let ns;
   try {
@@ -122,8 +139,8 @@ for (const { entry, kind, load } of loadChecks) {
     fail(`${entry}: ${kind} entry loaded but exports nothing`);
     continue;
   }
-  if (!keys.includes(PUBLIC_NAME)) {
-    fail(`${entry}: ${kind} entry does not export '${PUBLIC_NAME}'`);
+  if (!keys.includes(publicName)) {
+    fail(`${entry}: ${kind} entry does not export '${publicName}'`);
   }
 }
 

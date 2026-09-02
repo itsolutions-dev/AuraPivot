@@ -48,7 +48,15 @@
     },
     "./locales/it.json": "./dist/locales/it.json",
     "./locales/en.json": "./dist/locales/en.json",
-    "./locales/*": "./dist/locales/*.json"
+    "./locales/*": "./dist/locales/*.json",
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "theme": [
+        "./dist/theme.d.ts"
+      ]
+    }
   },
   "peerDependencies": {
     "@emotion/react": ">=11.5",
