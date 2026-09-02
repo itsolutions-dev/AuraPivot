@@ -8,7 +8,11 @@
  * code-splits it from `dependencies`.
  */
 
-import { saveAs } from 'file-saver';
+// file-saver ships minified CommonJS with no named exports: bundlers
+// synthesize `saveAs` as a named binding, plain Node ESM does not, so a
+// named import throws before any library code runs. The default import is
+// the interop-safe form and behaves identically under a bundler.
+import FileSaver from 'file-saver';
 import type ExcelJS from 'exceljs';
 import type { MetadataRow } from '../types';
 import type { ComputedMatrix } from '../matrix/MatrixComputer';
@@ -115,5 +119,5 @@ export const exportMatrixToExcel = async ({
   const blob = new Blob([buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
-  saveAs(blob, filename);
+  FileSaver.saveAs(blob, filename);
 };

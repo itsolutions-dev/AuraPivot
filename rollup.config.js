@@ -75,7 +75,7 @@ const jsConfig = {
   ],
   output: [
     {
-      file: `${OUT_DIR}/index.js`,
+      file: `${OUT_DIR}/index.cjs`,
       format: "cjs",
       // Explicit named mode (the bundle mixes a default and named exports):
       // plain require() consumers read `.default` / `.Pivot`, interop-aware
@@ -139,7 +139,7 @@ const themeConfig = {
   input: "theme/swatches.ts",
   output: [
     {
-      file: `${OUT_DIR}/theme.js`,
+      file: `${OUT_DIR}/theme.cjs`,
       format: "cjs",
       exports: "named",
       sourcemap: true,

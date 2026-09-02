@@ -69,3 +69,6 @@ storybook-static
 # Build artifacts
 # ==============================
 THIRD-PARTY-NOTICES.md
+# `npm pack` writes the tarball into the repo root; it is a build product,
+# never a tracked file.
+*.tgz

@@ -8,16 +8,28 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
+
+// This file is ESM, so the CommonJS half of the load check needs its own
+// require.
+const requireCjs = createRequire(import.meta.url);
+const pkg = requireCjs("../package.json");
 
 const outDir = "dist";
 const problems = [];
 const fail = (msg) => problems.push(msg);
 
+// Entry paths are read from package.json rather than duplicated here, so
+// what gets asserted is exactly what a consumer resolves.
+const cjsEntry = pkg.main;
+const esmEntry = pkg.module;
+
 const requiredFiles = [
-  "index.js",
-  "index.esm.js",
+  path.basename(cjsEntry),
+  path.basename(esmEntry),
   "index.d.ts",
-  "theme.js",
+  "theme.cjs",
   "theme.esm.js",
   "theme.d.ts",
   "locales/en.json",
@@ -29,7 +41,7 @@ for (const f of requiredFiles) {
 
 const STAMP_RE = /__AURA_PIVOT_BUILD__\s*=\s*\{version:"([^"]+)"/;
 
-for (const name of ["index.js", "index.esm.js"]) {
+for (const name of [path.basename(cjsEntry), path.basename(esmEntry)]) {
   const p = path.join(outDir, name);
   if (!fs.existsSync(p)) continue;
   const code = fs.readFileSync(p, "utf8");
@@ -72,6 +84,46 @@ if (fs.existsSync(dtsPath)) {
     if (!new RegExp(`\\b${name}\\b`).test(dts)) {
       fail(`${dtsPath}: public type '${name}' is no longer exported`);
     }
+  }
+}
+
+// Existence is not loadability. `package.json` declares `type: module`, so
+// a CommonJS bundle named `.js` was parsed as ESM and `require()` of it
+// yielded an empty namespace with NO error — which is why checking only
+// that the files are present let that ship from the initial commit. Both
+// entries are therefore loaded for real, and the empty-namespace case is
+// treated as a failure in its own right.
+const PUBLIC_NAME = "Pivot";
+
+const loadChecks = [
+  {
+    entry: cjsEntry,
+    kind: "CJS",
+    load: () => requireCjs(path.resolve(cjsEntry)),
+  },
+  {
+    entry: esmEntry,
+    kind: "ESM",
+    load: () => import(pathToFileURL(path.resolve(esmEntry)).href),
+  },
+];
+
+for (const { entry, kind, load } of loadChecks) {
+  if (!fs.existsSync(entry)) continue; // already reported as missing
+  let ns;
+  try {
+    ns = await load();
+  } catch (err) {
+    fail(`${entry}: ${kind} entry failed to load — ${err.message}`);
+    continue;
+  }
+  const keys = ns ? Object.keys(ns) : [];
+  if (keys.length === 0) {
+    fail(`${entry}: ${kind} entry loaded but exports nothing`);
+    continue;
+  }
+  if (!keys.includes(PUBLIC_NAME)) {
+    fail(`${entry}: ${kind} entry does not export '${PUBLIC_NAME}'`);
   }
 }
 

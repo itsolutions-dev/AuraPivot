@@ -32,19 +32,19 @@
     "access": "public",
     "provenance": true
   },
-  "main": "dist/index.js",
+  "main": "dist/index.cjs",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.esm.js",
-      "require": "./dist/index.js"
+      "require": "./dist/index.cjs"
     },
     "./theme": {
       "types": "./dist/theme.d.ts",
       "import": "./dist/theme.esm.js",
-      "require": "./dist/theme.js"
+      "require": "./dist/theme.cjs"
     },
     "./locales/it.json": "./dist/locales/it.json",
     "./locales/en.json": "./dist/locales/en.json",

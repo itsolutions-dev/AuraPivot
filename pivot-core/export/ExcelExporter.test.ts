@@ -67,9 +67,14 @@ vi.mock('exceljs', () => {
   return { default: { Workbook: FakeWorkbook } };
 });
 
+// Mirrors the source's default import: file-saver is CommonJS with no
+// named exports, so the mock has to expose `saveAs` under `default` or it
+// stops intercepting and the assertions below would pass vacuously.
 vi.mock('file-saver', () => ({
-  saveAs: (blob: unknown, filename: string) => {
-    state.savedBlobs.push({ blob, filename });
+  default: {
+    saveAs: (blob: unknown, filename: string) => {
+      state.savedBlobs.push({ blob, filename });
+    },
   },
 }));
 
