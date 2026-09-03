@@ -67,12 +67,7 @@ const jsConfig = {
   // deduplicates against its own copy. Inlining them would ship a second
   // react-virtuoso — with its own scroll observer — into apps that already
   // use one.
-  external: [
-    "exceljs",
-    "react-virtuoso",
-    "file-saver",
-    /^@mui\/icons-material($|\/)/,
-  ],
+  external: ["exceljs", "react-virtuoso", /^@mui\/icons-material($|\/)/],
   output: [
     {
       file: `${OUT_DIR}/index.cjs`,

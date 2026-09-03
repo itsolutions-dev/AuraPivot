@@ -1,6 +1,7 @@
 /**
  * Excel export for a computed PivotMatrix.
- * Uses exceljs to produce a styled .xlsx and file-saver to trigger download.
+ * Uses exceljs to produce a styled .xlsx and a synthetic <a download> to
+ * trigger the download.
  *
  * exceljs is ~900 KB and is loaded with a dynamic import() on the first
  * export call only — it must never sit in the consumer's critical path.
@@ -8,16 +9,26 @@
  * code-splits it from `dependencies`.
  */
 
-// file-saver ships minified CommonJS with no named exports: bundlers
-// synthesize `saveAs` as a named binding, plain Node ESM does not, so a
-// named import throws before any library code runs. The default import is
-// the interop-safe form and behaves identically under a bundler.
-import FileSaver from 'file-saver';
 import type ExcelJS from 'exceljs';
 import type { MetadataRow } from '../types';
 import type { ComputedMatrix } from '../matrix/MatrixComputer';
 
 type ExcelJSModule = typeof ExcelJS;
+
+// Object URL + synthetic <a download>. Every browser in the peer React >=18
+// support range implements this; a library for it is a dependency for six
+// lines of DOM.
+const saveBlob = (blob: Blob, filename: string): void => {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.rel = 'noopener';
+  a.click();
+  // Firefox aborts the transfer if the URL dies in the same task as the
+  // click, so revoke on the next macrotask.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+};
 
 let exceljsPromise: Promise<ExcelJSModule> | null = null;
 
@@ -119,5 +130,5 @@ export const exportMatrixToExcel = async ({
   const blob = new Blob([buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
-  FileSaver.saveAs(blob, filename);
+  saveBlob(blob, filename);
 };

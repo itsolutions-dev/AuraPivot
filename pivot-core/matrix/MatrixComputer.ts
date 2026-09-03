@@ -34,14 +34,19 @@ interface CalculatedField {
   formula: string;
 }
 
+interface SortMeasure {
+  uniqueName: string;
+  aggregation: string;
+}
+
 /** Sort config for column-driven row sort or row-driven column sort. */
 interface SortConfig {
   rowKey?: string;
   rowDirection?: 'asc' | 'desc';
-  rowMeasure?: { uniqueName: string; aggregation: string };
+  rowMeasure?: SortMeasure;
   colKey?: string;
   colDirection?: 'asc' | 'desc';
-  colMeasure?: { uniqueName: string; aggregation: string };
+  colMeasure?: SortMeasure;
 }
 
 /** Layout options passed to computeMatrix. */
@@ -138,6 +143,30 @@ const buildAxisLeaves = (
     });
   });
   return out;
+};
+
+/**
+ * Shared sibling comparator: numeric values first (missing values last in
+ * either direction), caption fallback. Used by every axis sort below.
+ */
+const compareNodes = (
+  va: number | null,
+  vb: number | null,
+  a: TreeNode,
+  b: TreeNode,
+  dir: number,
+  locale: string | undefined,
+): number => {
+  if (va !== null && vb !== null) return (va - vb) * dir;
+  if (va !== null) return -1 * dir;
+  if (vb !== null) return 1 * dir;
+  return (
+    String(a.caption || '').localeCompare(
+      String(b.caption || ''),
+      locale || undefined,
+      { numeric: true },
+    ) * dir
+  );
 };
 
 const intersectIndexes = (a: number[], b: number[]): number[] => {
@@ -564,20 +593,9 @@ export const computeMatrix = ({
           const v = cells.get(cellKey)?.value;
           return Number.isFinite(v) ? (v as number) : null;
         };
-        node.children.sort((a, b) => {
-          const va = readValue(a);
-          const vb = readValue(b);
-          if (va !== null && vb !== null) return (va - vb) * dir;
-          if (va !== null) return -1 * dir;
-          if (vb !== null) return 1 * dir;
-          return (
-            String(a.caption || '').localeCompare(
-              String(b.caption || ''),
-              locale || undefined,
-              { numeric: true },
-            ) * dir
-          );
-        });
+        node.children.sort((a, b) =>
+          compareNodes(readValue(a), readValue(b), a, b, dir, locale),
+        );
       }
       if (node.children) node.children.forEach((c) => walk(c, depth + 1));
     };
@@ -586,92 +604,59 @@ export const computeMatrix = ({
   applyDimensionSort(rowRoot, rowFields, 'row');
   applyDimensionSort(colRoot, colFields, 'col');
 
-  // Row-driven sort: reorder column-tree siblings using the values in a
-  // single row. Mirror of the column-driven sort below — the comparator
-  // reads cells at `${sort.rowKey}::${child.key}` and, when measures live
-  // on the column axis, picks the user-selected measure variant (falling
-  // back to the first effective measure for legacy slices).
-  if (sort && sort.rowKey) {
-    const dir = sort.rowDirection === 'asc' ? 1 : -1;
-    const sortMeasure = sort.rowMeasure;
+  // Axis sorts driven by a single opposite-axis key. The two directions are
+  // exact mirrors: reorder one tree's siblings by the cell values sitting on
+  // a fixed key of the other tree. When measures live on the tree being
+  // sorted, the key alone doesn't pin one value per node — every node has a
+  // cell per measure variant — so the key is suffixed with the measure the
+  // user picked, falling back to the first effective measure so legacy
+  // slices keep their previous order.
+  const sortAxisByOppositeKey = (
+    root: TreeNode,
+    direction: string | undefined,
+    sortMeasure: SortMeasure | undefined,
+    measuresOnThisAxis: boolean,
+    cellKey: (nodeKey: string) => string,
+  ): void => {
+    const dir = direction === 'asc' ? 1 : -1;
     const measureForKey =
-      measuresOnCols &&
+      measuresOnThisAxis &&
       sortMeasure &&
       effectiveMeasures.find(
         (m) =>
           m.uniqueName === sortMeasure.uniqueName &&
           m.aggregation === sortMeasure.aggregation,
       );
-    const colKeySuffix = measuresOnCols
-      ? measureForKey
-        ? `||M:${measureForKey.uniqueName}:${measureForKey.aggregation}`
-        : effectiveMeasures[0]
-          ? `||M:${effectiveMeasures[0].uniqueName}:${effectiveMeasures[0].aggregation}`
-          : ''
-      : '';
-    sortTreeSiblings(colRoot, (a, b) => {
-      if (a.isTotal && !b.isTotal) return 0;
-      if (!a.isTotal && b.isTotal) return 0;
-      const va = cells.get(`${sort.rowKey}::${a.key}${colKeySuffix}`)?.value;
-      const vb = cells.get(`${sort.rowKey}::${b.key}${colKeySuffix}`)?.value;
-      const aNum = Number.isFinite(va) ? (va as number) : null;
-      const bNum = Number.isFinite(vb) ? (vb as number) : null;
-      if (aNum !== null && bNum !== null) return (aNum - bNum) * dir;
-      if (aNum !== null) return -1 * dir;
-      if (bNum !== null) return 1 * dir;
-      return (
-        String(a.caption || '').localeCompare(
-          String(b.caption || ''),
-          locale || undefined,
-          { numeric: true },
-        ) * dir
-      );
+    const pick = measureForKey || (measuresOnThisAxis && effectiveMeasures[0]);
+    const suffix = pick ? `||M:${pick.uniqueName}:${pick.aggregation}` : '';
+    const read = (node: TreeNode): number | null => {
+      const v = cells.get(cellKey(`${node.key}${suffix}`))?.value;
+      return Number.isFinite(v) ? (v as number) : null;
+    };
+    sortTreeSiblings(root, (a, b) => {
+      if (!!a.isTotal !== !!b.isTotal) return 0;
+      return compareNodes(read(a), read(b), a, b, dir, locale);
     });
+  };
+
+  if (sort && sort.rowKey) {
+    sortAxisByOppositeKey(
+      colRoot,
+      sort.rowDirection,
+      sort.rowMeasure,
+      measuresOnCols,
+      (k) => `${sort.rowKey}::${k}`,
+    );
   }
 
-  // When sort is active, reorder row-tree siblings at every depth. The
-  // comparator reads the cell value on the sorted column; if measures live
-  // on rows, we probe the cell key of the FIRST measure variant of the node.
   if (sort && sort.colKey) {
-    const dir = sort.colDirection === 'asc' ? 1 : -1;
-    // When measures live on rows the column key alone doesn't pin a single
-    // value per row-tree node — every node has one cell per measure variant.
-    // Prefer the measure picked by the user (sort.colMeasure); fall back to
-    // the first effective measure so legacy slices keep their previous order.
-    const sortMeasure = sort.colMeasure;
-    const measureForKey =
-      measuresOnRows &&
-      sortMeasure &&
-      effectiveMeasures.find(
-        (m) =>
-          m.uniqueName === sortMeasure.uniqueName &&
-          m.aggregation === sortMeasure.aggregation,
-      );
-    const rowKeySuffix = measuresOnRows
-      ? measureForKey
-        ? `||M:${measureForKey.uniqueName}:${measureForKey.aggregation}`
-        : effectiveMeasures[0]
-          ? `||M:${effectiveMeasures[0].uniqueName}:${effectiveMeasures[0].aggregation}`
-          : ''
-      : '';
-    sortTreeSiblings(rowRoot, (a, b) => {
-      if (a.isTotal && !b.isTotal) return 0;
-      if (!a.isTotal && b.isTotal) return 0;
-      const va = cells.get(`${a.key}${rowKeySuffix}::${sort.colKey}`)?.value;
-      const vb = cells.get(`${b.key}${rowKeySuffix}::${sort.colKey}`)?.value;
-      const aNum = Number.isFinite(va) ? (va as number) : null;
-      const bNum = Number.isFinite(vb) ? (vb as number) : null;
-      if (aNum !== null && bNum !== null) return (aNum - bNum) * dir;
-      if (aNum !== null) return -1 * dir;
-      if (bNum !== null) return 1 * dir;
-      return (
-        String(a.caption || '').localeCompare(
-          String(b.caption || ''),
-          locale || undefined,
-          { numeric: true },
-        ) * dir
-      );
-    });
+    sortAxisByOppositeKey(
+      rowRoot,
+      sort.colDirection,
+      sort.colMeasure,
+      measuresOnRows,
+      (k) => `${k}::${sort.colKey}`,
+    );
   }
 
   // `emitGroupHeaders` only on the row axis: the column axis renders parents

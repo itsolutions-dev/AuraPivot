@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, expect, test, vi } from 'vitest';
 
 /**
@@ -67,16 +68,20 @@ vi.mock('exceljs', () => {
   return { default: { Workbook: FakeWorkbook } };
 });
 
-// Mirrors the source's default import: file-saver is CommonJS with no
-// named exports, so the mock has to expose `saveAs` under `default` or it
-// stops intercepting and the assertions below would pass vacuously.
-vi.mock('file-saver', () => ({
-  default: {
-    saveAs: (blob: unknown, filename: string) => {
-      state.savedBlobs.push({ blob, filename });
-    },
-  },
-}));
+// The exporter downloads via an object URL + synthetic <a download>.
+// happy-dom has no download implementation, so intercept both halves: the
+// blob handed to createObjectURL and the anchor that gets clicked.
+let lastBlob: unknown = null;
+vi.spyOn(URL, 'createObjectURL').mockImplementation((b: Blob | MediaSource) => {
+  lastBlob = b;
+  return 'blob:test';
+});
+vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+  this: HTMLAnchorElement,
+) {
+  state.savedBlobs.push({ blob: lastBlob, filename: this.download });
+});
 
 const tinyMatrix = {
   rowLeaves: [{ key: 'r1', caption: 'Alice', depth: 0, isTotal: false }],

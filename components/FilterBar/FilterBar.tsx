@@ -20,6 +20,7 @@ import { usePivot } from '../../context/PivotContext';
 import { usePortalContainer } from '../../hooks/usePortalContainer';
 import useEngineVersion from '../../hooks/useEngineVersion';
 import type { FilterEntry } from '../../pivot-core/slice/FilterEngine';
+import { distinctValuesFor } from '../../pivot-core/slice/FilterEngine';
 
 /**
  * Horizontal bar rendered above the grid. Shows one chip per field dropped
@@ -126,26 +127,6 @@ const filterSummary = (
     return `= ${filter.value}`;
   }
   return tb.all || 'All';
-};
-
-const distinctValuesFor = (
-  engine: { getRows: () => Record<string, unknown>[] },
-  uniqueName: string,
-  locale: string | undefined,
-): unknown[] => {
-  const seen = new Map<string, unknown>();
-  engine.getRows().forEach((row) => {
-    const v = row?.[uniqueName];
-    if (v === null || v === undefined || v === '') return;
-    const key = String(v);
-    if (!seen.has(key)) seen.set(key, v);
-  });
-  return Array.from(seen.values()).sort((a, b) => {
-    if (typeof a === 'number' && typeof b === 'number') return a - b;
-    return String(a).localeCompare(String(b), locale || undefined, {
-      numeric: true,
-    });
-  });
 };
 
 const toDateInputValue = (value: unknown): string => {

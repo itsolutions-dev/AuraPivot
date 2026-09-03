@@ -508,12 +508,6 @@ const PivotTable = function PivotTable() {
   const applySort = useCallback(
     (colKey: string, measure: MeasureRef | null) => {
       const current = engine.getSlice()?.sort || null;
-      const sameMeasureKey = (
-        a: Partial<MeasureRef> | null | undefined,
-        b: Partial<MeasureRef> | null | undefined,
-      ) =>
-        (a?.uniqueName || null) === (b?.uniqueName || null) &&
-        (a?.aggregation || null) === (b?.aggregation || null);
       let nextDirection: string | null = 'desc';
       if (
         current &&
@@ -576,12 +570,6 @@ const PivotTable = function PivotTable() {
   const applySortByRow = useCallback(
     (rowKey: string, measure: MeasureRef | null) => {
       const current = engine.getSlice()?.sort || null;
-      const sameMeasureKey = (
-        a: Partial<MeasureRef> | null | undefined,
-        b: Partial<MeasureRef> | null | undefined,
-      ) =>
-        (a?.uniqueName || null) === (b?.uniqueName || null) &&
-        (a?.aggregation || null) === (b?.aggregation || null);
       let nextDirection: string | null = 'desc';
       if (
         current &&
@@ -753,28 +741,45 @@ const PivotTable = function PivotTable() {
     breadcrumbs: { field?: string; value?: string }[];
   } | null>(null);
 
+  // One index per matrix: "<rowBase>::<colBase>" -> measureKey -> value,
+  // where a base key is the axis key with its "||M:<measure>" variant suffix
+  // stripped. Both lookups below used to linear-scan the whole cells Map on
+  // every rendered cell, which is quadratic on a wide grid. Insertion order
+  // is preserved so "first match wins" still means the same cell.
+  const cellsByBase = useMemo(() => {
+    const idx = new Map<string, Map<string, number | null>>();
+    if (!matrix) return idx;
+    for (const [k, v] of matrix.cells) {
+      const sep = k.indexOf('::');
+      if (sep < 0) continue;
+      const mk = v?.measureKey;
+      if (!mk) continue;
+      const base = `${k.slice(0, sep).split('||M:')[0]}::${
+        k.slice(sep + 2).split('||M:')[0]
+      }`;
+      let byMeasure = idx.get(base);
+      if (!byMeasure) {
+        byMeasure = new Map();
+        idx.set(base, byMeasure);
+      }
+      if (!byMeasure.has(mk)) byMeasure.set(mk, v.value);
+    }
+    return idx;
+  }, [matrix]);
+
   const getHiddenMeasureItems = useCallback(
     (rowNode: AxisLeaf, col: AxisLeaf): HiddenMeasureItem[] => {
       if (hiddenMeasures.size === 0 || !matrix) return [];
-      const rowKeyBase = String(rowNode.key).split('||M:')[0];
-      const colKeyBase = String(col.key).split('||M:')[0];
+      const base = `${String(rowNode.key).split('||M:')[0]}::${
+        String(col.key).split('||M:')[0]
+      }`;
+      const byMeasure = cellsByBase.get(base);
       const hiddenList = (slice.measures || []).filter((m) => m?.hidden);
       return hiddenList.map((m) => {
         const targetKey = `${m.uniqueName}:${m.aggregation}`;
-        let found: { value: number | null; measureKey: string } | null = null;
-        for (const [k, v] of matrix.cells) {
-          const sep = k.indexOf('::');
-          if (sep < 0) continue;
-          const rk = k.slice(0, sep);
-          const ck = k.slice(sep + 2);
-          if (rk.split('||M:')[0] !== rowKeyBase) continue;
-          if (ck.split('||M:')[0] !== colKeyBase) continue;
-          const mk = v?.measureKey;
-          if (mk === targetKey) {
-            found = { value: v.value, measureKey: mk };
-            break;
-          }
-        }
+        const found = byMeasure?.has(targetKey)
+          ? { value: byMeasure.get(targetKey) ?? null, measureKey: targetKey }
+          : null;
         const section = found
           ? getValuesSection(formatObj, found.measureKey)
           : null;
@@ -788,7 +793,15 @@ const PivotTable = function PivotTable() {
         };
       });
     },
-    [hiddenMeasures, matrix, slice.measures, formatObj, captionFor, aggLabel],
+    [
+      hiddenMeasures,
+      matrix,
+      cellsByBase,
+      slice.measures,
+      formatObj,
+      captionFor,
+      aggLabel,
+    ],
   );
 
   const handleToggleChildren = useCallback(
@@ -1347,23 +1360,16 @@ const PivotTable = function PivotTable() {
             const measureKey = cell?.measureKey || col.measureKey || null;
             const getMeasureValue = (target: string | null | undefined) => {
               if (!target) return null;
-              const rowKeyBase = String(rowNode.key).split('||M:')[0];
-              const colKeyBase = String(col.key).split('||M:')[0];
-              const wantsExact = String(target).includes(':');
-              for (const [k, v] of matrix.cells) {
-                const sep = k.indexOf('::');
-                if (sep < 0) continue;
-                const rk = k.slice(0, sep);
-                const ck = k.slice(sep + 2);
-                if (rk.split('||M:')[0] !== rowKeyBase) continue;
-                if (ck.split('||M:')[0] !== colKeyBase) continue;
-                const mk = v?.measureKey;
-                if (!mk) continue;
-                if (wantsExact) {
-                  if (mk === target) return v.value;
-                } else if (mk.startsWith(`${target}:`)) {
-                  return v.value;
-                }
+              const base = `${String(rowNode.key).split('||M:')[0]}::${
+                String(col.key).split('||M:')[0]
+              }`;
+              const byMeasure = cellsByBase.get(base);
+              if (!byMeasure) return null;
+              if (String(target).includes(':')) {
+                return byMeasure.has(target) ? byMeasure.get(target)! : null;
+              }
+              for (const [mk, v] of byMeasure) {
+                if (mk.startsWith(`${target}:`)) return v;
               }
               return null;
             };
@@ -1491,6 +1497,7 @@ const PivotTable = function PivotTable() {
       colLeaves,
       stickyColStyle,
       matrix,
+      cellsByBase,
       hiddenMeasures,
       getHiddenMeasureItems,
       compact,
@@ -2209,6 +2216,13 @@ const HeaderCell = function HeaderCell({
   );
 };
 
+const sameMeasureKey = (
+  a: Partial<MeasureRef> | null | undefined,
+  b: Partial<MeasureRef> | null | undefined,
+): boolean =>
+  (a?.uniqueName || null) === (b?.uniqueName || null) &&
+  (a?.aggregation || null) === (b?.aggregation || null);
+
 const SHADE_AMOUNT = [0, 0.04, 0.08, 0.12];
 
 const tintForMode = (color: string, amount: number, mode: string) => {
@@ -2221,6 +2235,22 @@ const tintForMode = (color: string, amount: number, mode: string) => {
 };
 
 const GRAND_TOTAL_TINT = 0.18;
+
+/** Striped-row and grand-total background tints for the current theme. */
+const rowTints = (
+  theme: Theme,
+  shade: number | undefined,
+): { stripedBg: string; grandTotalBg: string } => {
+  const basePaper = theme.palette.background.paper;
+  return {
+    stripedBg: tintForMode(
+      basePaper,
+      SHADE_AMOUNT[Math.max(0, Math.min(3, shade || 0))],
+      theme.palette.mode,
+    ),
+    grandTotalBg: tintForMode(basePaper, GRAND_TOTAL_TINT, theme.palette.mode),
+  };
+};
 
 interface ChevronCellProps {
   show?: boolean;
@@ -2249,14 +2279,7 @@ const ChevronCell = function ChevronCell({
   return (
     <Box
       sx={(theme) => {
-        const amt = SHADE_AMOUNT[Math.max(0, Math.min(3, shade || 0))];
-        const basePaper = theme.palette.background.paper;
-        const stripedBg = tintForMode(basePaper, amt, theme.palette.mode);
-        const grandTotalBg = tintForMode(
-          basePaper,
-          GRAND_TOTAL_TINT,
-          theme.palette.mode,
-        );
+        const { stripedBg, grandTotalBg } = rowTints(theme, shade);
         return {
           display: 'flex',
           alignItems: 'center',
@@ -2343,14 +2366,7 @@ const BodyLabelCell = function BodyLabelCell({
     <Box
       onClick={sortable ? onSortClick : undefined}
       sx={(theme) => {
-        const amt = SHADE_AMOUNT[Math.max(0, Math.min(3, shade || 0))];
-        const basePaper = theme.palette.background.paper;
-        const stripedBg = tintForMode(basePaper, amt, theme.palette.mode);
-        const grandTotalBg = tintForMode(
-          basePaper,
-          GRAND_TOTAL_TINT,
-          theme.palette.mode,
-        );
+        const { stripedBg, grandTotalBg } = rowTints(theme, shade);
         return {
           display: 'flex',
           alignItems: 'center',
@@ -2533,13 +2549,7 @@ const BodyValueCell = function BodyValueCell({
     <Box
       onClick={clickable ? onClick : undefined}
       sx={(theme) => {
-        const basePaper = theme.palette.background.paper;
-        const stripedBg = tintForMode(basePaper, shadeAmt, theme.palette.mode);
-        const grandTotalBg = tintForMode(
-          basePaper,
-          GRAND_TOTAL_TINT,
-          theme.palette.mode,
-        );
+        const { stripedBg, grandTotalBg } = rowTints(theme, shade);
         return {
           px: d.bodyPaddingX,
           py: d.rowPaddingY,

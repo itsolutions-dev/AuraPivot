@@ -124,3 +124,27 @@ export const applyFilters = (
     return true;
   });
 };
+
+/**
+ * Distinct, sorted, non-empty values of one field across the engine's rows.
+ * Backs the member pickers in FilterBar and DimensionFilterDialog.
+ */
+export const distinctValuesFor = (
+  engine: { getRows: () => Record<string, unknown>[] },
+  uniqueName: string,
+  locale: string | undefined,
+): unknown[] => {
+  const seen = new Map<string, unknown>();
+  engine.getRows().forEach((row) => {
+    const v = row?.[uniqueName];
+    if (v === null || v === undefined || v === '') return;
+    const key = String(v);
+    if (!seen.has(key)) seen.set(key, v);
+  });
+  return Array.from(seen.values()).sort((a, b) => {
+    if (typeof a === 'number' && typeof b === 'number') return a - b;
+    return String(a).localeCompare(String(b), locale || undefined, {
+      numeric: true,
+    });
+  });
+};

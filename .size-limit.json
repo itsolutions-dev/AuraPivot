@@ -10,7 +10,6 @@
       "@emotion/styled",
       "exceljs",
       "react-virtuoso",
-      "file-saver",
       "@mui/icons-material"
     ],
     "limit": "52.5 KB"
@@ -26,7 +25,6 @@
       "@emotion/styled",
       "exceljs",
       "react-virtuoso",
-      "file-saver",
       "@mui/icons-material"
     ],
     "limit": "625 B"
