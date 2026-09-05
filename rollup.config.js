@@ -123,9 +123,21 @@ const jsConfig = {
 // Declarations are bundled from source rather than hand-maintained: a
 // contributor changing a prop type gets the shipped .d.ts updated for
 // free, and cannot silently desynchronise it.
+//
+// The same declarations are written twice, under both extensions. Module
+// format is resolved from the extension, and `package.json` declares
+// `type: module`, so a lone `index.d.ts` is read as ESM declarations — while
+// the `require` condition resolves to the CommonJS `index.cjs`. TypeScript
+// consumers on moduleResolution node16/nodenext then get types claiming ESM
+// over CJS JavaScript ("masquerading as ESM") and their build fails. Pairing
+// each condition with declarations whose extension matches its format is the
+// fix; the content is identical, only the extension carries meaning.
 const dtsConfig = {
   input: "index.ts",
-  output: { file: `${OUT_DIR}/index.d.ts`, format: "es" },
+  output: [
+    { file: `${OUT_DIR}/index.d.ts`, format: "es" },
+    { file: `${OUT_DIR}/index.d.cts`, format: "es" },
+  ],
   external: [/\.css$/, /^@mui\//, /^react/, "exceljs", "react-virtuoso"],
   plugins: [dts()],
 };
@@ -155,7 +167,10 @@ const themeConfig = {
 
 const themeDtsConfig = {
   input: "theme/swatches.ts",
-  output: { file: `${OUT_DIR}/theme.d.ts`, format: "es" },
+  output: [
+    { file: `${OUT_DIR}/theme.d.ts`, format: "es" },
+    { file: `${OUT_DIR}/theme.d.cts`, format: "es" },
+  ],
   plugins: [dts()],
 };
 

@@ -21,24 +21,54 @@ const problems = [];
 const fail = (msg) => problems.push(msg);
 
 // Entry paths are read from package.json rather than duplicated here, so
-// what gets asserted is exactly what a consumer resolves.
+// what gets asserted is exactly what a consumer resolves. Each subpath now
+// nests its target under the condition, so the JS lives at `.default` and
+// the declarations that condition pairs with live at `.types`.
+const conditionTarget = (subpath, condition) =>
+  pkg.exports[subpath][condition].default;
+const conditionTypes = (subpath, condition) =>
+  pkg.exports[subpath][condition].types;
+
 const cjsEntry = pkg.main;
 const esmEntry = pkg.module;
-const themeCjsEntry = pkg.exports["./theme"].require;
-const themeEsmEntry = pkg.exports["./theme"].import;
+const themeCjsEntry = conditionTarget("./theme", "require");
+const themeEsmEntry = conditionTarget("./theme", "import");
 
 const requiredFiles = [
   path.basename(cjsEntry),
   path.basename(esmEntry),
   "index.d.ts",
+  "index.d.cts",
   "theme.cjs",
   "theme.esm.js",
   "theme.d.ts",
+  "theme.d.cts",
   "locales/en.json",
   "locales/it.json",
 ];
 for (const f of requiredFiles) {
   if (!fs.existsSync(path.join(outDir, f))) fail(`missing ${outDir}/${f}`);
+}
+
+// Declarations must match the module format of the JavaScript their
+// condition resolves to, or a node16/nodenext consumer gets types that
+// masquerade as ESM over CommonJS and fails to compile. The extension is
+// the only thing that carries that information, so assert it: `.d.cts`
+// under `require`, `.d.ts` under `import`. Collapsing both back to a single
+// top-level `types` key is exactly the regression this catches.
+for (const subpath of [".", "./theme"]) {
+  const requireTypes = conditionTypes(subpath, "require");
+  const importTypes = conditionTypes(subpath, "import");
+  if (!requireTypes.endsWith(".d.cts")) {
+    fail(
+      `exports["${subpath}"].require.types is '${requireTypes}' — a CommonJS condition needs .d.cts declarations`,
+    );
+  }
+  if (!importTypes.endsWith(".d.ts")) {
+    fail(
+      `exports["${subpath}"].import.types is '${importTypes}' — an ESM condition needs .d.ts declarations`,
+    );
+  }
 }
 
 const STAMP_RE = /__AURA_PIVOT_BUILD__\s*=\s*\{version:"([^"]+)"/;
@@ -79,12 +109,15 @@ const REQUIRED_TYPES = [
   "PivotEngine",
   "LocalizationDictionary",
 ];
-const dtsPath = path.join(outDir, "index.d.ts");
-if (fs.existsSync(dtsPath)) {
+// Both extensions are checked: the .d.cts is what CommonJS consumers read,
+// so a build that emitted only one of the pair would go unnoticed here.
+for (const name of ["index.d.ts", "index.d.cts"]) {
+  const dtsPath = path.join(outDir, name);
+  if (!fs.existsSync(dtsPath)) continue;
   const dts = fs.readFileSync(dtsPath, "utf8");
-  for (const name of REQUIRED_TYPES) {
-    if (!new RegExp(`\\b${name}\\b`).test(dts)) {
-      fail(`${dtsPath}: public type '${name}' is no longer exported`);
+  for (const typeName of REQUIRED_TYPES) {
+    if (!new RegExp(`\\b${typeName}\\b`).test(dts)) {
+      fail(`${dtsPath}: public type '${typeName}' is no longer exported`);
     }
   }
 }
