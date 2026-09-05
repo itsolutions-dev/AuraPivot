@@ -120,14 +120,14 @@ Una voce per ogni campo filtrato. Fornire **esattamente uno** tra `members`,
 
 Una regola `conditional`:
 
-| Chiave     | Tipo                                                        | Significato                                                                             |
-| ---------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `id`       | string                                                      | Id stabile della regola.                                                                |
-| `measure`  | string                                                      | Misura bersaglio `"<uniqueName>:<aggregation>"`.                                        |
-| `operator` | `eq` \| `ne` \| `gt` \| `gte` \| `lt` \| `lte` \| `between` | Confronto.                                                                              |
-| `value`    | number                                                      | Valore di confronto.                                                                    |
-| `value2`   | number                                                      | Estremo superiore — **obbligatorio** con `operator` `between`.                          |
-| `style`    | object                                                      | `{ textColor, backgroundColor, fontWeight, italic }`. I colori sono `#RRGGBB` o `null`. |
+| Chiave     | Tipo                                                         | Significato                                                                             |
+| ---------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| `id`       | string                                                       | Id stabile della regola.                                                                |
+| `measure`  | string                                                       | Misura bersaglio `"<uniqueName>:<aggregation>"`.                                        |
+| `operator` | `eq` \| `neq` \| `gt` \| `gte` \| `lt` \| `lte` \| `between` | Confronto.                                                                              |
+| `value`    | number                                                       | Valore di confronto.                                                                    |
+| `value2`   | number                                                       | Estremo superiore — **obbligatorio** con `operator` `between`.                          |
+| `style`    | object                                                       | `{ textColor, backgroundColor, fontWeight, italic }`. I colori sono `#RRGGBB` o `null`. |
 
 ## Leggere le modifiche dall'esterno
 

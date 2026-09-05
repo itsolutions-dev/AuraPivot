@@ -15,8 +15,8 @@
     "excel-export"
   ],
   "license": "MIT",
-  "author": "IT Solutions S.r.l.",
-  "homepage": "https://aurapivot-docs.web.app",
+  "author": "Adriano Buscema",
+  "homepage": "https://aurapivot.dev",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/itsolutions-dev/AuraPivot.git"

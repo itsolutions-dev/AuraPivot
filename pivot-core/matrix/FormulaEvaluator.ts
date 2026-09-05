@@ -356,9 +356,9 @@ const evalNode = (node: AstNode, opts: FormulaEvalOptions): unknown => {
 };
 
 /**
- * Parses and evaluates a formula expression. Throws on syntax errors,
- * unknown identifiers/functions and the free-plan IF() gate; the caller is
- * expected to catch and surface the message.
+ * Parses and evaluates a formula expression. Throws on syntax errors and on
+ * unknown identifiers or functions; the caller is expected to catch and
+ * surface the message.
  */
 export const evaluateFormulaExpression = (
   src: string,

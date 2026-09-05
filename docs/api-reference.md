@@ -3,7 +3,7 @@
 Reference material for `aura-pivot`: the component prop and ref surface, the
 data and report shapes, the MUI theme tokens the pivot reads, localization, and
 the public hooks. Every key of the `options` prop is documented separately on
-the [documentation site](https://aurapivot-docs.web.app); some sections
+the [documentation site](https://docs.aurapivot.dev); some sections
 include a screenshot of what the option does, with more coverage landing over
 time — go there for the schema, and stay here for the parts that live outside
 `options`.

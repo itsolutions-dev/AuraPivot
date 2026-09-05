@@ -4,5 +4,5 @@ contact_links:
     url: https://github.com/itsolutions-dev/AuraPivot/discussions
     about: Ask in Discussions — questions get answered faster there than in issues.
   - name: Documentation
-    url: https://aurapivot-docs.web.app
+    url: https://docs.aurapivot.dev
     about: The full options reference and tutorials.

@@ -8,7 +8,7 @@ A React pivot table that stays responsive when the dataset stops being small.
 
 ![A sales pivot table with region, category and product nested on the rows and quarters on the columns, totalling revenue, quantity and margin](https://raw.githubusercontent.com/itsolutions-dev/AuraPivot/master/docs/assets/aura-pivot.png)
 
-**[Live playground](https://aurapivot.web.app)** · **[Documentation](https://aurapivot-docs.web.app)**
+**[Live playground](https://aurapivot.dev)** · **[Documentation](https://docs.aurapivot.dev)** · **[API reference](docs/api-reference.md)**
 
 ## Install
 
@@ -59,10 +59,201 @@ export default function Report() {
 }
 ```
 
-That is a working pivot with a toolbar, a field list, filtering, sorting and
-Excel export. `onOptionsChange` hands you the full configuration back every
-time the user changes something, so persisting a report is `JSON.stringify`
-and restoring it is passing the object back in.
+That is a working pivot with a toolbar, a field list, filtering, sorting,
+drill-through and Excel export. `onOptionsChange` hands you the full
+configuration back every time the user changes something, so persisting a
+report is `JSON.stringify` and restoring it is passing the object back in.
+
+## Examples
+
+### Drill through time you never modelled
+
+Your table has one flat `date` column. You want Year → Quarter, without adding
+a single column to your dataset:
+
+```js
+const options = {
+  data: {
+    fields: [
+      { uniqueName: "orderDate", dataType: "date", caption: "Order date" },
+      { uniqueName: "country", dataType: "string", caption: "Country" },
+      { uniqueName: "revenue", dataType: "number", caption: "Revenue" },
+    ],
+    dimensions: [
+      { axis: "row", uniqueName: "orderDate.Year" },
+      { axis: "row", uniqueName: "orderDate.Quarter" },
+      { axis: "column", uniqueName: "country" },
+    ],
+    measures: [{ uniqueName: "revenue", aggregation: "sum" }],
+  },
+};
+```
+
+Typing a field as `date` generates eight virtual levels — `.Year`, `.Quarter`,
+`.Month`, `.Week`, `.Day`, `.Weekday`, `.Hour`, `.Minute` — with month and
+weekday names in the user's language. They show up in the field list like any
+other field, so the user can nest and reorder them by dragging.
+
+### A margin column that never reaches `eval()`
+
+Calculated fields are strings, and strings that turn into code are usually
+where a Content-Security-Policy conversation starts. Not here: formulas go
+through a hand-written tokenizer and AST walker, so the library runs under a
+`script-src` that forbids `unsafe-eval`.
+
+```js
+data: {
+  // …fields as above, plus a `cost` field
+  calculatedFields: [
+    {
+      uniqueName: "marginPct",
+      caption: "Margin %",
+      formula:
+        'IF(sum("revenue") == 0, 0, (sum("revenue") - sum("cost")) / sum("revenue") * 100)',
+    },
+  ],
+  measures: [
+    { uniqueName: "revenue", aggregation: "sum" },
+    { uniqueName: "marginPct", aggregation: "formula" }, // ← formula, not sum
+  ],
+}
+```
+
+The expression is re-evaluated at every row/column intersection against that
+cell's own aggregates, so the margin is right on subtotals and grand totals
+too — not an average of averages. `IF`, `ABS`, `MIN`, `MAX`, the `AND`/`OR`
+keywords and `^` are part of the grammar, and a bare field name is shorthand
+for `sum("field")`.
+
+### Make the bad numbers look bad
+
+```js
+format: {
+  conditionalMode: "first", // "first": first matching rule wins. "all": layer them.
+  conditional: [
+    {
+      id: "loss",
+      measure: "marginPct:formula", // "<uniqueName>:<aggregation>"
+      operator: "lt",
+      value: 0,
+      style: {
+        textColor: "#ffffff",
+        backgroundColor: "#b3261e",
+        fontWeight: 700,
+      },
+    },
+    {
+      id: "thin",
+      measure: "marginPct:formula",
+      operator: "between",
+      value: 0,
+      value2: 15, // required by `between`
+      style: { textColor: "#8a5a00", italic: true },
+    },
+  ],
+}
+```
+
+Operators are `eq`, `neq`, `gt`, `gte`, `lt`, `lte` and `between`. The same
+rules are what the built-in Format dialog writes, so anything a user sets by
+clicking comes back to you through `onOptionsChange` in exactly this shape.
+
+### A saved report is just JSON
+
+```jsx
+function SavedReport({ reportId, rows }) {
+  const [options, setOptions] = useState(null);
+
+  useEffect(() => {
+    fetch(`/api/reports/${reportId}`)
+      .then((r) => r.json())
+      .then(setOptions);
+  }, [reportId]);
+
+  if (!options) return null;
+
+  return (
+    <AuraPivot
+      height={600}
+      options={options}
+      dataSource={rows}
+      onOptionsChange={(next) => {
+        setOptions(next);
+        fetch(`/api/reports/${reportId}`, {
+          method: "PUT",
+          body: JSON.stringify(next),
+        });
+      }}
+    />
+  );
+}
+```
+
+`options` is applied **seed-on-change** — re-read only when the object
+_reference_ changes — and feeding back the object `onOptionsChange` just gave
+you is a no-op. There is no render loop to guard against, which is why the
+snippet above can be this short.
+
+### Your own KPIs, computed by the pivot
+
+The engine is a plain TypeScript object with an event bus, and `usePivotMatrix`
+subscribes to it. A sibling component can read the same computed matrix without
+triggering a second aggregation pass:
+
+```jsx
+import { useState } from "react";
+import AuraPivot, { usePivotMatrix } from "aura-pivot";
+
+function MatrixStats({ engine }) {
+  const { matrix, loading } = usePivotMatrix(engine);
+  if (loading || !matrix) return <span>Computing…</span>;
+  return (
+    <span>
+      {matrix.rowLeaves.length} rows × {matrix.colLeaves.length} columns
+    </span>
+  );
+}
+
+function Dashboard({ options, rows }) {
+  const [engine, setEngine] = useState(null);
+
+  return (
+    <>
+      {engine && <MatrixStats engine={engine} />}
+      <AuraPivot
+        ref={(r) => setEngine(r?.engine ?? null)}
+        options={options}
+        dataSource={rows}
+      />
+    </>
+  );
+}
+```
+
+Every consumer of one engine shares a single snapshot and a single recompute,
+through `useSyncExternalStore` — tear-free under React 18+ concurrent
+rendering.
+
+### It already speaks English, and it will speak yours
+
+```jsx
+import AuraPivot, { mergeLocalization } from "aura-pivot";
+import it from "aura-pivot/locales/it.json";
+
+<AuraPivot
+  locale="it-IT"
+  localization={mergeLocalization(it, {
+    grid: { grandTotal: "Totale complessivo" },
+  })}
+  options={options}
+  dataSource={rows}
+/>;
+```
+
+Omit both props and everything still renders in English: the fallbacks live in
+the code, not in a dictionary you have to remember to ship. `locale` is a
+BCP-47 tag threaded through every `Intl` call — number formatting, date
+formatting and string collation all follow it.
 
 ## What you get
 
@@ -70,12 +261,10 @@ and restoring it is passing the object back in.
   holds the visible window rather than the whole dataset — adding rows does not
   add nodes. Aggregation is a separate, main-thread cost; see
   [Limitations](#limitations).
-- **Date fields expand themselves.** Give the pivot a date column and you get
-  Year, Quarter, Month, Week, Day, Weekday, Hour and Minute as drillable
-  levels, with month and weekday names in the user's language.
-- **Calculated fields without `eval`.** Formulas go through a hand-written
-  tokenizer and AST evaluator, so the library runs under a strict
-  Content-Security-Policy that forbids `unsafe-eval`.
+- **Date fields expand themselves.** Eight drillable levels from one column,
+  localized.
+- **Calculated fields without `eval`.** A tokenizer and an AST evaluator, so a
+  strict CSP is not a blocker.
 - **Excel export that is not in your bundle.** `exceljs` is a dynamic import
   loaded the first time someone clicks export. Users who never export never
   download it.
@@ -92,13 +281,17 @@ later on the server side, if you render there.
 
 ## Documentation
 
-The [documentation site](https://docs.aurapivot.dev) covers every key of
-the `options` schema, with screenshots for a growing subset of them. The
-[playground](https://aurapivot.dev) lets you build a
-configuration by clicking and copy the resulting `options` object out. For the
-surface that sits outside `options` — the full prop and ref API, the MUI theme
-tokens the pivot reads, localization, and the public hooks — see the
-[API reference](https://github.com/itsolutions-dev/AuraPivot/blob/master/docs/api-reference.md).
+The [documentation site](https://docs.aurapivot.dev) covers every key of the
+`options` schema, with screenshots for a growing subset of them. The
+[playground](https://aurapivot.dev) lets you build a configuration by clicking
+and copy the resulting `options` object out.
+
+In this repository:
+
+- [docs/api-reference.md](docs/api-reference.md) — props, ref API, data shapes,
+  theme tokens, localization and the public hooks
+- [docs/options-guide.en.md](docs/options-guide.en.md) — every key of the
+  `options` object ([italiano](docs/options-guide.it.md))
 
 ## Limitations
 
@@ -111,12 +304,9 @@ tokens the pivot reads, localization, and the public hooks — see the
 ## Contributing
 
 Bug reports with a reproduction get fixed. See
-[CONTRIBUTING.md](https://github.com/itsolutions-dev/AuraPivot/blob/master/CONTRIBUTING.md) for the setup — note that this
-repository has no dev server of its own. You see a change through a playground
-that lives in the parent repository, which resolves this package by path, so
-the clone has to sit inside it in a directory named `Library`. That is the one
-non-obvious part.
+[CONTRIBUTING.md](CONTRIBUTING.md) for the setup, the checks CI runs, and the
+changeset every user-visible change needs.
 
 ## License
 
-MIT © IT Solutions S.r.l.
+[MIT](LICENSE).

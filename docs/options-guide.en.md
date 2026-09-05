@@ -120,14 +120,14 @@ One entry per filtered field. Provide **exactly one** of `members`, `value`,
 
 A `conditional` rule:
 
-| Key        | Type                                                        | Meaning                                                                                |
-| ---------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `id`       | string                                                      | Stable rule id.                                                                        |
-| `measure`  | string                                                      | Target measure key `"<uniqueName>:<aggregation>"`.                                     |
-| `operator` | `eq` \| `ne` \| `gt` \| `gte` \| `lt` \| `lte` \| `between` | Comparison.                                                                            |
-| `value`    | number                                                      | Comparison value.                                                                      |
-| `value2`   | number                                                      | Upper bound — **required** when `operator` is `between`.                               |
-| `style`    | object                                                      | `{ textColor, backgroundColor, fontWeight, italic }`. Colours are `#RRGGBB` or `null`. |
+| Key        | Type                                                         | Meaning                                                                                |
+| ---------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| `id`       | string                                                       | Stable rule id.                                                                        |
+| `measure`  | string                                                       | Target measure key `"<uniqueName>:<aggregation>"`.                                     |
+| `operator` | `eq` \| `neq` \| `gt` \| `gte` \| `lt` \| `lte` \| `between` | Comparison.                                                                            |
+| `value`    | number                                                       | Comparison value.                                                                      |
+| `value2`   | number                                                       | Upper bound — **required** when `operator` is `between`.                               |
+| `style`    | object                                                       | `{ textColor, backgroundColor, fontWeight, italic }`. Colours are `#RRGGBB` or `null`. |
 
 ## Reading edits back out
 
