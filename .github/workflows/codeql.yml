@@ -1,3 +1,8 @@
+# Requires Code Security (code scanning) to be enabled on the repository:
+# Settings -> Code security. Without it every run ends as a configuration
+# error — "Code Security must be enabled for this repository to use code
+# scanning" — no matter what this file says. It is free on public
+# repositories; on a private one it needs GitHub Advanced Security.
 name: CodeQL
 
 on:
