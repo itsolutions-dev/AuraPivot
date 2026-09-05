@@ -1,0 +1,32 @@
+[
+  {
+    "name": "ESM bundle",
+    "path": "dist/index.esm.js",
+    "ignore": [
+      "react",
+      "react-dom",
+      "@mui/material",
+      "@emotion/react",
+      "@emotion/styled",
+      "exceljs",
+      "react-virtuoso",
+      "@mui/icons-material"
+    ],
+    "limit": "52.5 KB"
+  },
+  {
+    "name": "theme entry",
+    "path": "dist/theme.esm.js",
+    "ignore": [
+      "react",
+      "react-dom",
+      "@mui/material",
+      "@emotion/react",
+      "@emotion/styled",
+      "exceljs",
+      "react-virtuoso",
+      "@mui/icons-material"
+    ],
+    "limit": "625 B"
+  }
+]

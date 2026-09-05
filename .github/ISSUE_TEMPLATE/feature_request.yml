@@ -1,0 +1,19 @@
+name: Feature request
+description: Suggest a capability the library does not have
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you solving
+      description: Describe the situation, not the solution. The most useful requests explain what you were trying to build when you hit the wall.
+    validations:
+      required: true
+  - type: textarea
+    id: workaround
+    attributes:
+      label: What you are doing instead today
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like the API to look like

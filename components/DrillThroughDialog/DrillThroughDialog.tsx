@@ -1,0 +1,964 @@
+import React, { useMemo, useState, useEffect } from 'react';
+import {
+  Box,
+  Dialog,
+  DialogContent,
+  IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TableSortLabel,
+  TextField,
+  InputAdornment,
+  Typography,
+  Chip,
+  Stack,
+  Divider,
+  alpha,
+  type Theme,
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import SearchIcon from '@mui/icons-material/Search';
+import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
+import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
+import { usePivot } from '../../context/PivotContext';
+import { usePortalContainer } from '../../hooks/usePortalContainer';
+import useEngineVersion from '../../hooks/useEngineVersion';
+import {
+  getDateTimeFormat,
+  getNumberFormat,
+} from '../../pivot-core/format/intlCache';
+
+/**
+ * Drill-through popup. Opens when the user clicks a non-null value cell and
+ * shows the subset of source rows that contributed to that aggregated value.
+ *
+ * The rows come from `matrix.sourceRows` (already filtered through the slice
+ * filters), intersected on the clicked rowNode and colNode row indexes. Only
+ * the fields actually present in the dataset metadata are rendered — no
+ * synthetic date hierarchy columns (`.Year`, `.Month`, …) to keep the table
+ * focused on the original record.
+ */
+
+// ---------------------------------------------------------------------------
+// Internal types
+// ---------------------------------------------------------------------------
+
+interface DrillColumn {
+  uniqueName: string;
+  caption: string;
+  type?: string;
+}
+
+interface Breadcrumb {
+  field?: string;
+  value?: string;
+}
+
+interface DrillThroughConfig {
+  fields?: Record<string, boolean | undefined>;
+  frozenCount?: number;
+}
+
+type SortDir = 'asc' | 'desc';
+
+// ---------------------------------------------------------------------------
+// Props interface
+// ---------------------------------------------------------------------------
+
+export interface DrillThroughDialogProps {
+  open: boolean;
+  onClose: () => void;
+  title?: string;
+  rows?: Record<string, unknown>[];
+  breadcrumbs?: Breadcrumb[];
+}
+
+/**
+ * Milliseconds for a date-ish cell value, or `null` when it cannot be
+ * parsed. Numeric timestamps (`1700000000000`, or the same as a string) are
+ * accepted: `new Date(string)` would reject them and yield NaN.
+ */
+const toTimestamp = (value: unknown): number | null => {
+  if (value instanceof Date) {
+    const t = value.getTime();
+    return Number.isFinite(t) ? t : null;
+  }
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  const raw = String(value ?? '').trim();
+  if (raw === '') return null;
+  if (/^-?\d+$/.test(raw)) return Number(raw);
+  const parsed = Date.parse(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+interface MetricProps {
+  label: string;
+  value: string | number;
+  hint?: string | null;
+  accent?: boolean;
+}
+
+function Metric({
+  label,
+  value,
+  hint,
+  accent,
+}: MetricProps): React.ReactElement {
+  return (
+    <Box>
+      <Typography
+        component="div"
+        sx={(theme) => ({
+          fontSize: theme.typography.overline.fontSize,
+          letterSpacing: '0.12em',
+          textTransform: 'uppercase',
+          color: theme.palette.text.secondary,
+          fontWeight: theme.typography.overline.fontWeight,
+          lineHeight: 1.1,
+        })}
+      >
+        {label}
+      </Typography>
+      <Stack direction="row" sx={{ alignItems: 'baseline' }} spacing={0.5}>
+        <Typography
+          component="span"
+          sx={(theme) => ({
+            fontSize: theme.typography.h6.fontSize,
+            fontWeight: theme.typography.h6.fontWeight,
+            letterSpacing: '-0.02em',
+            color: accent
+              ? theme.palette.primary.main
+              : theme.palette.text.primary,
+            fontFamily:
+              theme.font?.mono || '"JetBrains Mono", ui-monospace, monospace',
+            lineHeight: 1.2,
+          })}
+        >
+          {value}
+        </Typography>
+        {hint && (
+          <Typography
+            component="span"
+            sx={(theme) => ({
+              fontSize: theme.typography.caption.fontSize,
+              color: alpha(theme.palette.text.primary, 0.45),
+            })}
+          >
+            {hint}
+          </Typography>
+        )}
+      </Stack>
+    </Box>
+  );
+}
+
+interface EmptyStateProps {
+  t: Record<string, unknown>;
+}
+
+function EmptyState({ t }: EmptyStateProps): React.ReactElement {
+  const tDrill =
+    (t as Record<string, Record<string, string>>)?.drillThrough ?? {};
+  return (
+    <Box
+      sx={{
+        py: 8,
+        px: 4,
+        textAlign: 'center',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 1.5,
+      }}
+    >
+      <Box
+        sx={(theme) => ({
+          width: 56,
+          height: 56,
+          borderRadius: '50%',
+          background: alpha(theme.palette.text.primary, 0.04),
+          border: `1px dashed ${theme.palette.divider}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: alpha(theme.palette.text.primary, 0.4),
+        })}
+      >
+        <InboxOutlinedIcon />
+      </Box>
+      <Typography
+        variant="body2"
+        sx={{ fontStyle: 'italic', opacity: 0.6, maxWidth: 320 }}
+      >
+        {tDrill.noRecords || 'No records.'}
+      </Typography>
+    </Box>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+
+const DrillThroughDialog = function DrillThroughDialog({
+  open,
+  onClose,
+  title,
+  rows,
+  breadcrumbs,
+}: DrillThroughDialogProps): React.ReactElement {
+  const { engine, localization: t, locale } = usePivot();
+  const portalContainer = usePortalContainer();
+  const [filterText, setFilterText] = useState<string>('');
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  // Read-only mirrors of engine state: re-read on the shared version counter
+  // instead of copying into state from an event handler.
+  const engineVersion = useEngineVersion(engine);
+  const drillConfig = useMemo<DrillThroughConfig>(
+    () => engine.getDrillThroughConfig(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [engine, engineVersion],
+  );
+  const fieldOrder = useMemo<string[]>(
+    () => engine.getFieldOrder(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [engine, engineVersion],
+  );
+
+  // dynamic boundary: localization is Record<string,unknown>
+  const tDrill =
+    (t as Record<string, Record<string, string>>)?.drillThrough ?? {};
+
+  useEffect(() => {
+    if (open) {
+      setFilterText('');
+      setSortBy(null);
+      setSortDir('asc');
+    }
+  }, [open]);
+
+  const columns = useMemo<DrillColumn[]>(() => {
+    const meta = engine.getMetadata() || {};
+    const dtFields = drillConfig?.fields || {};
+    const isOn = (uniqueName: string): boolean => {
+      const v = dtFields[uniqueName];
+      return v === undefined ? true : !!v;
+    };
+    const base: DrillColumn[] = Object.entries(meta)
+      .filter(([uniqueName]) => !uniqueName.includes('.'))
+      .filter(([uniqueName]) => isOn(uniqueName))
+      .map(([uniqueName, m]) => ({
+        uniqueName,
+        caption: m?.caption || uniqueName,
+        type: m?.type,
+      }));
+    if (fieldOrder && fieldOrder.length > 0) {
+      const rank = new Map(fieldOrder.map((n, i) => [n, i]));
+      base.sort((a, b) => {
+        const ra = rank.has(a.uniqueName) ? rank.get(a.uniqueName)! : Infinity;
+        const rb = rank.has(b.uniqueName) ? rank.get(b.uniqueName)! : Infinity;
+        return ra - rb;
+      });
+    }
+    return base;
+  }, [engine, engineVersion, open, drillConfig, fieldOrder]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fixed width for left-pinned columns so cumulative `left` is computable
+  // without runtime DOM measurement. Same value applied to head + body cells.
+  const FROZEN_COL_WIDTH = 160;
+  const frozenCount = Math.max(
+    0,
+    Math.min(drillConfig?.frozenCount || 0, columns.length),
+  );
+  const frozenStyles = (
+    ci: number,
+    isHead: boolean,
+  ): React.CSSProperties | null => {
+    if (ci >= frozenCount) return null;
+    return {
+      position: 'sticky',
+      left: ci * FROZEN_COL_WIDTH,
+      // Header frozen cells sit at the top-left intersection, so they need
+      // a higher z-index than both the column-only sticky body cells and
+      // the row-only sticky header cells from MUI's stickyHeader prop.
+      zIndex: isHead ? 4 : 1,
+      minWidth: FROZEN_COL_WIDTH,
+      maxWidth: FROZEN_COL_WIDTH,
+    };
+  };
+
+  // Called once per cell for rendering *and* once per cell of every row on
+  // each keystroke in the search box, so the Intl instances must come from
+  // the shared cache — constructing them here would dominate the cost.
+  const formatValue = (value: unknown, type: string | undefined): string => {
+    if (value === null || value === undefined || value === '') return '—';
+    if (type === 'number' && Number.isFinite(Number(value))) {
+      return getNumberFormat(locale || undefined).format(Number(value));
+    }
+    if (type === 'date' || type === 'time') {
+      const d = new Date(String(value));
+      if (!Number.isNaN(d.getTime())) {
+        // Same option set `Date.prototype.toLocaleString()` applies by
+        // default, so the rendered text is unchanged.
+        return getDateTimeFormat(locale || undefined, {
+          year: 'numeric',
+          month: 'numeric',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: 'numeric',
+          second: 'numeric',
+        }).format(d);
+      }
+    }
+    return String(value);
+  };
+
+  const handleSort = (uniqueName: string) => {
+    if (sortBy === uniqueName) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(uniqueName);
+      setSortDir('asc');
+    }
+  };
+
+  // Identity of a source row is its position in the *unsorted* `rows` prop:
+  // stable while the user filters and re-sorts, unlike the render index.
+  const rowKeys = useMemo(() => {
+    const map = new WeakMap<object, string>();
+    (rows || []).forEach((row, i) => {
+      if (row) map.set(row, `r${i}`);
+    });
+    return map;
+  }, [rows]);
+
+  const displayedRows = useMemo<Record<string, unknown>[]>(() => {
+    if (!rows) return [];
+    const needle = filterText.trim().toLowerCase();
+    let result = rows;
+    if (needle) {
+      result = rows.filter((row) =>
+        columns.some((c) => {
+          const formatted = formatValue(row?.[c.uniqueName], c.type);
+          return formatted !== '—' && formatted.toLowerCase().includes(needle);
+        }),
+      );
+    }
+    if (sortBy) {
+      const col = columns.find((c) => c.uniqueName === sortBy);
+      const dir = sortDir === 'asc' ? 1 : -1;
+      result = [...result].sort((a, b) => {
+        const va = a?.[sortBy!];
+        const vb = b?.[sortBy!];
+        const aEmpty = va === null || va === undefined || va === '';
+        const bEmpty = vb === null || vb === undefined || vb === '';
+        if (aEmpty && bEmpty) return 0;
+        if (aEmpty) return 1;
+        if (bEmpty) return -1;
+        if (col?.type === 'number') {
+          return (Number(va) - Number(vb)) * dir;
+        }
+        if (col?.type === 'date' || col?.type === 'time') {
+          const ta = toTimestamp(va);
+          const tb = toTimestamp(vb);
+          // Unparseable values would make the comparator return NaN, which
+          // leaves Array.sort in undefined behaviour — push them to the end.
+          if (ta === null || tb === null) {
+            if (ta === null && tb === null) return 0;
+            return ta === null ? 1 : -1;
+          }
+          return (ta - tb) * dir;
+        }
+        return (
+          String(va).localeCompare(String(vb), locale || undefined, {
+            numeric: true,
+          }) * dir
+        );
+      });
+    }
+    return result;
+  }, [rows, columns, filterText, sortBy, sortDir, locale]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const titleText = title || tDrill.title || 'Detail data';
+  const recordsLabel =
+    displayedRows.length === 1
+      ? tDrill.record || 'record'
+      : tDrill.recordsFound || 'records';
+  const isFiltered = !!(filterText && rows?.length);
+  const hasRows = !!(rows && rows.length > 0);
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullWidth
+      maxWidth={false}
+      container={portalContainer}
+      slotProps={{
+        paper: {
+          sx: (theme: Theme) => ({
+            overflow: 'hidden',
+            borderRadius: 3,
+            border: `1px solid ${alpha(theme.palette.divider, 0.7)}`,
+            background: theme.palette.background.paper,
+            boxShadow:
+              theme.palette.mode === 'dark'
+                ? `0 30px 80px ${alpha(
+                    theme.palette.common.black,
+                    0.55,
+                  )}, 0 0 0 1px ${alpha(theme.palette.common.white, 0.04)}`
+                : `0 30px 80px ${alpha(
+                    theme.palette.common.black,
+                    0.18,
+                  )}, 0 0 0 1px ${alpha(theme.palette.common.black, 0.04)}`,
+            fontFamily: theme.font?.primary || theme.typography.fontFamily,
+          }),
+        },
+      }}
+    >
+      {/* ===== Header ===== */}
+      <Box
+        sx={(theme) => {
+          const accent = theme.palette.primary.main;
+          const accent2 =
+            theme.palette.secondary?.main ?? theme.palette.primary.dark;
+          return {
+            position: 'relative',
+            px: { xs: 2.5, sm: 3.5 },
+            pt: 2.75,
+            pb: 2.25,
+            borderBottom: `1px solid ${theme.palette.divider}`,
+            background:
+              theme.palette.mode === 'dark'
+                ? `linear-gradient(135deg, ${alpha(accent, 0.14)} 0%, ${alpha(
+                    accent2 || accent,
+                    0.06,
+                  )} 60%, transparent 100%)`
+                : `linear-gradient(135deg, ${alpha(accent, 0.08)} 0%, ${alpha(
+                    accent2 || accent,
+                    0.04,
+                  )} 60%, transparent 100%)`,
+            overflow: 'hidden',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              inset: 0,
+              backgroundImage: `radial-gradient(circle at 0% 0%, ${alpha(
+                accent,
+                0.18,
+              )} 0, transparent 38%), radial-gradient(circle at 95% 0%, ${alpha(
+                accent2 || accent,
+                0.12,
+              )} 0, transparent 40%)`,
+              pointerEvents: 'none',
+            },
+          };
+        }}
+      >
+        <Stack
+          direction="row"
+          spacing={2}
+          sx={{
+            position: 'relative',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={(theme) => ({
+                alignItems: 'center',
+                color: theme.palette.text.secondary,
+                fontSize: theme.typography.caption.fontSize,
+                letterSpacing: '0.18em',
+                textTransform: 'uppercase',
+                fontWeight: theme.typography.caption.fontWeight,
+                mb: 0.5,
+              })}
+            >
+              <Box
+                component="span"
+                sx={(theme) => ({
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: theme.palette.primary.main,
+                  boxShadow: (th) =>
+                    `0 0 0 4px ${alpha(th.palette.primary.main, 0.18)}`,
+                })}
+              />
+              <span>{tDrill.eyebrow || 'Drill-through'}</span>
+            </Stack>
+            <Typography
+              component="h2"
+              sx={(theme) => ({
+                fontSize: theme.typography.h2.fontSize,
+                fontWeight: theme.typography.h2.fontWeight,
+                letterSpacing: '-0.015em',
+                lineHeight: 1.2,
+                color: theme.palette.text.primary,
+                fontFamily:
+                  theme.font?.display ||
+                  theme.font?.primary ||
+                  theme.typography.fontFamily,
+              })}
+            >
+              {titleText}
+            </Typography>
+
+            {/* Metric ribbon */}
+            <Stack
+              direction="row"
+              spacing={2.5}
+              divider={
+                <Divider
+                  orientation="vertical"
+                  flexItem
+                  sx={{ opacity: 0.4 }}
+                />
+              }
+              sx={{ mt: 1.5 }}
+            >
+              <Metric
+                label={tDrill.records || 'records'}
+                value={displayedRows.length.toLocaleString(locale || undefined)}
+                hint={
+                  isFiltered && rows
+                    ? `/ ${rows.length.toLocaleString(locale || undefined)}`
+                    : null
+                }
+              />
+              <Metric
+                label={tDrill.columns || 'columns'}
+                value={columns.length}
+              />
+              {isFiltered ? (
+                <Metric
+                  label={tDrill.filtered || 'filtered'}
+                  value="•"
+                  accent
+                />
+              ) : null}
+            </Stack>
+
+            {breadcrumbs && breadcrumbs.length > 0 && (
+              <Stack
+                direction="row"
+                sx={{
+                  mt: 1.75,
+                  gap: 0.75,
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                }}
+              >
+                {breadcrumbs.map((b, idx) => (
+                  <React.Fragment key={idx}>
+                    {idx > 0 && (
+                      <Box
+                        component="span"
+                        sx={(theme) => ({
+                          color: alpha(theme.palette.text.primary, 0.35),
+                          fontSize: theme.typography.caption.fontSize,
+                          lineHeight: 1,
+                        })}
+                      >
+                        ›
+                      </Box>
+                    )}
+                    <Chip
+                      size="small"
+                      sx={(theme) => ({
+                        height: 24,
+                        borderRadius: 999,
+                        backgroundColor: alpha(
+                          theme.palette.primary.main,
+                          theme.palette.mode === 'dark' ? 0.16 : 0.08,
+                        ),
+                        color: theme.palette.text.primary,
+                        border: `1px solid ${alpha(
+                          theme.palette.primary.main,
+                          0.22,
+                        )}`,
+                        '& .MuiChip-label': {
+                          px: 1,
+                          fontSize: 11.5,
+                          fontWeight: theme.typography.subtitle2.fontWeight,
+                        },
+                      })}
+                      label={
+                        b.field ? (
+                          <Stack
+                            direction="row"
+                            spacing={0.75}
+                            component="span"
+                            sx={{ alignItems: 'baseline' }}
+                          >
+                            <Box
+                              component="span"
+                              sx={(theme) => ({
+                                color: alpha(theme.palette.text.primary, 0.55),
+                                fontSize: theme.typography.overline.fontSize,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.06em',
+                              })}
+                            >
+                              {b.field}
+                            </Box>
+                            <Box
+                              component="span"
+                              sx={(theme) => ({
+                                fontWeight: theme.typography.caption.fontWeight,
+                                fontSize: theme.typography.caption.fontSize,
+                              })}
+                            >
+                              {b.value}
+                            </Box>
+                          </Stack>
+                        ) : (
+                          <Box
+                            component="span"
+                            sx={(theme) => ({
+                              fontWeight: theme.typography.caption.fontWeight,
+                              fontSize: theme.typography.caption.fontSize,
+                            })}
+                          >
+                            {b.value}
+                          </Box>
+                        )
+                      }
+                    />
+                  </React.Fragment>
+                ))}
+              </Stack>
+            )}
+          </Box>
+
+          <IconButton
+            onClick={onClose}
+            size="small"
+            aria-label={tDrill.close || 'Close'}
+            sx={(theme) => ({
+              flexShrink: 0,
+              width: 34,
+              height: 34,
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.divider}`,
+              background: alpha(theme.palette.background.default, 0.6),
+              backdropFilter: 'blur(8px)',
+              transition: 'transform 140ms ease, background 140ms ease',
+              '&:hover': {
+                background: theme.palette.action.hover,
+                transform: 'rotate(90deg)',
+              },
+            })}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Stack>
+      </Box>
+
+      {/* ===== Body ===== */}
+      <DialogContent
+        sx={{
+          p: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 0,
+        }}
+      >
+        {!hasRows ? (
+          <EmptyState t={t} />
+        ) : (
+          <>
+            <Box
+              sx={(theme) => ({
+                px: { xs: 2.5, sm: 3.5 },
+                py: 2,
+                borderBottom: `1px solid ${theme.palette.divider}`,
+                background: alpha(theme.palette.background.default, 0.5),
+              })}
+            >
+              <TextField
+                size="small"
+                fullWidth
+                placeholder={tDrill.filter || 'Filter records…'}
+                value={filterText}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setFilterText(e.target.value)
+                }
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" sx={{ opacity: 0.55 }} />
+                      </InputAdornment>
+                    ),
+                    endAdornment:
+                      filterText && rows ? (
+                        <InputAdornment position="end">
+                          <Chip
+                            size="small"
+                            icon={
+                              <FilterAltOutlinedIcon
+                                sx={(theme) => ({
+                                  fontSize: theme.typography.fontSize,
+                                })}
+                              />
+                            }
+                            label={`${displayedRows.length.toLocaleString(
+                              locale || undefined,
+                            )} / ${rows.length.toLocaleString(locale || undefined)}`}
+                            sx={(theme) => ({
+                              height: 22,
+                              fontSize: theme.typography.caption.fontSize,
+                              background: alpha(
+                                theme.palette.primary.main,
+                                0.12,
+                              ),
+                              color: theme.palette.primary.main,
+                              border: 'none',
+                              '& .MuiChip-icon': {
+                                color: theme.palette.primary.main,
+                                ml: 0.5,
+                              },
+                            })}
+                          />
+                        </InputAdornment>
+                      ) : undefined,
+                    sx: (theme: Theme) => ({
+                      borderRadius: 2,
+                      background: theme.palette.background.paper,
+                      fontSize: theme.typography.fontSize,
+                      '& fieldset': {
+                        borderColor: theme.palette.divider,
+                      },
+                      '&:hover fieldset': {
+                        borderColor: alpha(theme.palette.primary.main, 0.4),
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: theme.palette.primary.main,
+                        boxShadow: `0 0 0 4px ${alpha(
+                          theme.palette.primary.main,
+                          0.12,
+                        )}`,
+                      },
+                    }),
+                  },
+                }}
+              />
+            </Box>
+
+            <TableContainer
+              sx={(theme) => ({
+                maxHeight: '65vh',
+                background: theme.palette.background.paper,
+                '&::-webkit-scrollbar': { width: 10, height: 10 },
+                '&::-webkit-scrollbar-thumb': {
+                  background: alpha(theme.palette.text.primary, 0.18),
+                  borderRadius: 8,
+                  border: `2px solid ${theme.palette.background.paper}`,
+                },
+                '&::-webkit-scrollbar-thumb:hover': {
+                  background: alpha(theme.palette.text.primary, 0.32),
+                },
+              })}
+            >
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    {columns.map((c, ci) => (
+                      <TableCell
+                        key={c.uniqueName}
+                        sortDirection={
+                          sortBy === c.uniqueName ? sortDir : false
+                        }
+                        sx={(theme) => ({
+                          fontWeight: theme.typography.overline.fontWeight,
+                          whiteSpace: 'nowrap',
+                          fontSize: theme.typography.overline.fontSize,
+                          letterSpacing: '0.08em',
+                          textTransform: 'uppercase',
+                          color: theme.palette.text.secondary,
+                          background:
+                            theme.palette.mode === 'dark'
+                              ? alpha(theme.palette.background.default, 0.92)
+                              : alpha(theme.palette.background.default, 0.85),
+                          backdropFilter: 'blur(6px)',
+                          borderBottom: `1px solid ${theme.palette.divider}`,
+                          py: 1.25,
+                          pl: ci === 0 ? { xs: 2.5, sm: 3.5 } : 1.5,
+                          textAlign: c.type === 'number' ? 'right' : 'left',
+                          '&:first-of-type': { borderTopLeftRadius: 0 },
+                          ...(frozenStyles(ci, true) || {}),
+                          // Frozen header needs an opaque background so body
+                          // cells scrolling underneath don't bleed through.
+                          ...(ci < frozenCount && {
+                            background: theme.palette.background.paper,
+                            boxShadow:
+                              ci === frozenCount - 1
+                                ? `1px 0 0 ${theme.palette.divider}`
+                                : undefined,
+                          }),
+                        })}
+                      >
+                        <TableSortLabel
+                          active={sortBy === c.uniqueName}
+                          direction={sortBy === c.uniqueName ? sortDir : 'asc'}
+                          onClick={() => handleSort(c.uniqueName)}
+                          sx={(theme) => ({
+                            fontWeight: 'inherit',
+                            fontSize: 'inherit',
+                            letterSpacing: 'inherit',
+                            textTransform: 'inherit',
+                            color: 'inherit',
+                            '&.Mui-active': {
+                              color: (th) => th.palette.primary.main,
+                            },
+                            '& .MuiTableSortLabel-icon': {
+                              fontSize: theme.typography.body2.fontSize,
+                              opacity: 0.8,
+                            },
+                          })}
+                        >
+                          {c.caption}
+                        </TableSortLabel>
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {displayedRows.map((row, idx) => (
+                    <TableRow
+                      key={rowKeys.get(row) ?? `i${idx}`}
+                      sx={(theme) => ({
+                        transition: 'background 120ms ease',
+                        '&:nth-of-type(odd) td': {
+                          background: alpha(
+                            theme.palette.text.primary,
+                            theme.palette.mode === 'dark' ? 0.02 : 0.014,
+                          ),
+                        },
+                        '&:hover td': {
+                          background: alpha(
+                            theme.palette.primary.main,
+                            theme.palette.mode === 'dark' ? 0.08 : 0.05,
+                          ),
+                        },
+                      })}
+                    >
+                      {columns.map((c, ci) => (
+                        <TableCell
+                          key={c.uniqueName}
+                          sx={(theme) => ({
+                            fontSize: theme.typography.caption.fontSize,
+                            whiteSpace: 'nowrap',
+                            color: theme.palette.text.primary,
+                            textAlign: c.type === 'number' ? 'right' : 'left',
+                            fontVariantNumeric:
+                              c.type === 'number' ? 'tabular-nums' : 'normal',
+                            fontFamily:
+                              c.type === 'number' ||
+                              c.type === 'date' ||
+                              c.type === 'time'
+                                ? theme.font?.mono ||
+                                  '"JetBrains Mono", ui-monospace, monospace'
+                                : 'inherit',
+                            borderBottom: `1px solid ${alpha(
+                              theme.palette.divider,
+                              0.5,
+                            )}`,
+                            pl: ci === 0 ? { xs: 2.5, sm: 3.5 } : 1.5,
+                            py: 1.1,
+                            ...(frozenStyles(ci, false) || {}),
+                            ...(ci < frozenCount && {
+                              background: `${theme.palette.background.paper} !important`,
+                              boxShadow:
+                                ci === frozenCount - 1
+                                  ? `1px 0 0 ${theme.palette.divider}`
+                                  : undefined,
+                            }),
+                          })}
+                        >
+                          {formatValue(row?.[c.uniqueName], c.type)}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                  {isFiltered && displayedRows.length === 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={columns.length}
+                        sx={(theme) => ({
+                          textAlign: 'center',
+                          py: 6,
+                          color: 'text.secondary',
+                          fontStyle: 'italic',
+                          fontSize: theme.typography.caption.fontSize,
+                        })}
+                      >
+                        {tDrill.noMatch || 'No records match the filter.'}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+
+            {/* Footer ribbon */}
+            <Box
+              sx={(theme) => ({
+                px: { xs: 2.5, sm: 3.5 },
+                py: 1.25,
+                borderTop: `1px solid ${theme.palette.divider}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 2,
+                background: alpha(theme.palette.background.default, 0.4),
+                fontSize: theme.typography.caption.fontSize,
+                color: theme.palette.text.secondary,
+              })}
+            >
+              <Box component="span">
+                {displayedRows.length.toLocaleString(locale || undefined)}{' '}
+                {recordsLabel}
+                {isFiltered && rows
+                  ? ` · ${tDrill.of || 'of'} ${rows.length.toLocaleString(
+                      locale || undefined,
+                    )}`
+                  : ''}
+              </Box>
+              <Box
+                component="span"
+                sx={(theme) => ({
+                  fontFamily:
+                    theme.font?.mono ||
+                    '"JetBrains Mono", ui-monospace, monospace',
+                  fontSize: theme.typography.caption.fontSize,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color: alpha(theme.palette.text.primary, 0.5),
+                })}
+              >
+                {sortBy ? `${sortBy} · ${sortDir}` : '—'}
+              </Box>
+            </Box>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default DrillThroughDialog;

@@ -1,0 +1,134 @@
+{
+  "type": "module",
+  "name": "aura-pivot",
+  "version": "2.4.8",
+  "description": "React pivot table with virtualized rendering, automatic date hierarchies, calculated fields and Excel export.",
+  "keywords": [
+    "react",
+    "pivot-table",
+    "pivot",
+    "data-grid",
+    "mui",
+    "typescript",
+    "analytics",
+    "virtualized",
+    "excel-export"
+  ],
+  "license": "MIT",
+  "author": "IT Solutions S.r.l.",
+  "homepage": "https://aurapivot-docs.web.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itsolutions-dev/AuraPivot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/itsolutions-dev/AuraPivot/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "main": "dist/index.cjs",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.cjs"
+    },
+    "./theme": {
+      "types": "./dist/theme.d.ts",
+      "import": "./dist/theme.esm.js",
+      "require": "./dist/theme.cjs"
+    },
+    "./locales/it.json": "./dist/locales/it.json",
+    "./locales/en.json": "./dist/locales/en.json",
+    "./locales/*": "./dist/locales/*.json",
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "theme": [
+        "./dist/theme.d.ts"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@emotion/react": ">=11.5",
+    "@emotion/styled": ">=11.3",
+    "@mui/material": ">=9",
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "dependencies": {
+    "@mui/icons-material": "^9.3.1",
+    "exceljs": "^4.4.0",
+    "react-virtuoso": "^4.18.12"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@babel/preset-env": "^7.29.7",
+    "@babel/preset-react": "^7.29.7",
+    "@babel/preset-typescript": "^7.29.7",
+    "@changesets/changelog-github": "^1.0.0",
+    "@changesets/cli": "^3.0.1",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@eslint/js": "^9.39.1",
+    "@mui/material": "^9.3.1",
+    "@rollup/plugin-babel": "^7.1.0",
+    "@rollup/plugin-commonjs": "^29.0.3",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-terser": "^1.0.0",
+    "@size-limit/preset-small-lib": "^13.0.3",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "@vitest/coverage-v8": "^4.1.11",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "happy-dom": "^20.11.10",
+    "magic-string": "^1.2.3",
+    "prettier": "^3.9.6",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "rollup": "^4.63.0",
+    "rollup-plugin-dts": "^6.5.1",
+    "rollup-plugin-peer-deps-external": "^2.2.4",
+    "rollup-plugin-postcss": "^4.0.2",
+    "size-limit": "^13.0.3",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.69.0",
+    "vitest": "^4.1.11"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "THIRD-PARTY-NOTICES.md"
+  ],
+  "overrides": {
+    "uuid": "^11.1.1"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "build": "npm run check && rollup -c && node scripts/third-party-notices.mjs && node scripts/verify-dist.mjs",
+    "prepublishOnly": "npm run build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "size": "size-limit",
+    "changeset": "changeset",
+    "version": "changeset version && npm install --package-lock-only",
+    "release": "npm run build && changeset publish"
+  }
+}

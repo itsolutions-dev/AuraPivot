@@ -1,0 +1,36 @@
+name: Bug report
+description: Something behaves differently from what the documentation says
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: input
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: A StackBlitz or a minimal repository. Bugs with a reproduction get fixed; bugs without one usually do not.
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: Your options object
+      description: The configuration passed to the component, with any confidential data replaced.
+      render: json
+  - type: input
+    id: version
+    attributes:
+      label: aura-pivot version
+    validations:
+      required: true
+  - type: input
+    id: react-version
+    attributes:
+      label: React and MUI versions
+    validations:
+      required: true
