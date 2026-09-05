@@ -45,7 +45,6 @@ jobs:
       # The peer range is >=18, so both majors have to actually be exercised.
       # Installing React 18 over the React 19 devDependency is the only way
       # to find out whether a 19-only API slipped in.
-      # Note: This matrix leg is unproven until the first CI run.
       - name: Install React ${{ matrix.react }}
         if: matrix.react == 18
         run: npm install --no-save react@18 react-dom@18 @testing-library/react@14

@@ -11,6 +11,11 @@ on:
 permissions:
   contents: read
   security-events: write
+  # github/codeql-action reads the workflow run it is part of (GET
+  # /repos/{owner}/{repo}/actions/runs/{run_id}). Without `actions: read` that
+  # call 403s with "Resource not accessible by integration" and the job ends as
+  # a configuration error even though the analysis itself succeeded.
+  actions: read
 
 jobs:
   analyze:
