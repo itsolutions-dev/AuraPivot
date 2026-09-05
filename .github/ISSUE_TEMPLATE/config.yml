@@ -1,8 +1,5 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Question or idea
-    url: https://github.com/itsolutions-dev/AuraPivot/discussions
-    about: Ask in Discussions — questions get answered faster there than in issues.
   - name: Documentation
     url: https://docs.aurapivot.dev
     about: The full options reference and tutorials.
