@@ -6,7 +6,7 @@ A React pivot table that stays responsive when the dataset stops being small.
 [![CI](https://github.com/itsolutions-dev/AuraPivot/actions/workflows/ci.yml/badge.svg)](https://github.com/itsolutions-dev/AuraPivot/actions/workflows/ci.yml)
 [![license](https://img.shields.io/npm/l/aurapivot.svg)](https://github.com/itsolutions-dev/AuraPivot/blob/master/LICENSE)
 
-![A sales pivot table with region, category and product nested on the rows and quarters on the columns, totalling revenue, quantity and margin](https://raw.githubusercontent.com/itsolutions-dev/AuraPivot/master/docs/assets/aura-pivot.png)
+![A sales pivot table in the Vibrant dark theme, with region, category and product nested on the rows and quarters on the columns, totalling sales, quantity and margin](https://raw.githubusercontent.com/itsolutions-dev/AuraPivot/master/docs/assets/aurapivot.png)
 
 **[Live playground](https://aurapivot.dev)** · **[Documentation](https://docs.aurapivot.dev)** · **[API reference](docs/api-reference.md)**
 
