@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "aura-pivot",
-  "version": "2.4.8",
+  "version": "2.5.0",
   "description": "React pivot table with virtualized rendering, automatic date hierarchies, calculated fields and Excel export.",
   "keywords": [
     "react",
