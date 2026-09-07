@@ -1,6 +1,6 @@
 /**
  * Localization dictionary — nested sections of caption strings. Ships
- * unbundled: import one from `aura-pivot/locales/en.json` /
+ * unbundled: import one from `aurapivot/locales/en.json` /
  * `…/locales/it.json` or supply your own object with the same shape.
  */
 export interface LocalizationDictionary {

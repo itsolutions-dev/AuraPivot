@@ -1,6 +1,6 @@
 # API reference
 
-Reference material for `aura-pivot`: the component prop and ref surface, the
+Reference material for `aurapivot`: the component prop and ref surface, the
 data and report shapes, the MUI theme tokens the pivot reads, localization, and
 the public hooks. Every key of the `options` prop is documented separately on
 the [documentation site](https://docs.aurapivot.dev); some sections
@@ -17,7 +17,7 @@ time — go there for the schema, and stay here for the parts that live outside
 | `options`              | `PivotOptions`      | —               | Full configuration (`toolbar` / `layout` / `data` / `format` sections). Applied **seed-on-change**: re-applied only when the object reference changes. See [docs/options-guide.en.md](options-guide.en.md).   |
 | `dataSource`           | `array`             | —               | Plain array of row objects. The schema for those rows lives in `options.data.fields`.                                                                                                                         |
 | `onOptionsChange`      | `function`          | —               | Called with the complete updated `options` object after every in-component edit. Feeding it straight back into `options` is safe (loop guard).                                                                |
-| `localization`         | `object`            | English         | Localization dictionary. English fallbacks are built in — omit the prop and the pivot renders fully in English. For other languages pass a dict from `aura-pivot/locales/<lang>.json` or your i18next setup.  |
+| `localization`         | `object`            | English         | Localization dictionary. English fallbacks are built in — omit the prop and the pivot renders fully in English. For other languages pass a dict from `aurapivot/locales/<lang>.json` or your i18next setup.   |
 | `width`                | `string \| number`  | `'100%'`        | Container width.                                                                                                                                                                                              |
 | `height`               | `string \| number`  | `'100%'`        | Container height.                                                                                                                                                                                             |
 | `locale`               | `string`            | browser default | BCP-47 locale tag (`'en'`, `'it-IT'`, …). Controls number formatting, date formatting, and string sorting. Pass `undefined` to follow the browser.                                                            |
@@ -194,7 +194,7 @@ Pass any object produced by `createTheme`. It fully replaces the ambient theme i
 
 ```jsx
 import { createTheme } from "@mui/material/styles";
-import AuraPivot from "aura-pivot";
+import AuraPivot from "aurapivot";
 
 const pivotTheme = createTheme({
   palette: {
@@ -217,7 +217,7 @@ Pass a callback `(outerTheme) => theme` to keep the host palette/typography and 
 
 ```jsx
 import { createTheme } from "@mui/material/styles";
-import AuraPivot from "aura-pivot";
+import AuraPivot from "aurapivot";
 
 const pivotTheme = (outer) =>
   createTheme({
@@ -257,14 +257,14 @@ English works out of the box — every label has a built-in English fallback,
 so the `localization` prop is only needed for other languages (or to override
 specific English captions). Full dictionary JSONs are **not** bundled into the
 library code: Italian and English dictionaries ship as separate JSON files
-under `aura-pivot/locales/`. A malformed dictionary is rejected with a
+under `aurapivot/locales/`. A malformed dictionary is rejected with a
 `console.warn` in development builds and the pivot falls back to English.
 
 ### Static import (small apps, single language)
 
 ```jsx
-import AuraPivot from "aura-pivot";
-import en from "aura-pivot/locales/en.json";
+import AuraPivot from "aurapivot";
+import en from "aurapivot/locales/en.json";
 
 <AuraPivot localization={en} locale="en" options={options} dataSource={rows} />;
 ```
@@ -272,8 +272,8 @@ import en from "aura-pivot/locales/en.json";
 ### Per-instance overrides
 
 ```jsx
-import AuraPivot, { mergeLocalization } from "aura-pivot";
-import en from "aura-pivot/locales/en.json";
+import AuraPivot, { mergeLocalization } from "aurapivot";
+import en from "aurapivot/locales/en.json";
 
 const localization = mergeLocalization(en, {
   grid: { grandTotal: "Overall Total" },
@@ -294,7 +294,7 @@ const localization = mergeLocalization(en, {
 
 For apps that ship many languages or want to load translations on demand, wire `i18next` with `i18next-http-backend` and feed the loaded resource bundle into the `localization` prop.
 
-1. Copy the JSON files you want to host (you can start from `node_modules/aura-pivot/dist/locales/{it,en}.json`) into your public folder, e.g. `public/locales/<lng>/pivot.json`. Add new languages by dropping new JSON files in the same shape.
+1. Copy the JSON files you want to host (you can start from `node_modules/aurapivot/dist/locales/{it,en}.json`) into your public folder, e.g. `public/locales/<lng>/pivot.json`. Add new languages by dropping new JSON files in the same shape.
 2. Initialize `i18next`:
 
 ```js
@@ -317,7 +317,7 @@ i18n
 
 ```jsx
 import { useTranslation } from "react-i18next";
-import AuraPivot from "aura-pivot";
+import AuraPivot from "aurapivot";
 
 function PivotPanel(props) {
   const { i18n } = useTranslation("pivot");
@@ -342,7 +342,7 @@ function PivotPanel(props) {
 Use `usePivotMatrix(engine)` to read the computed matrix from sibling components outside the pivot. Grab the engine through the component ref:
 
 ```jsx
-import AuraPivot, { usePivotMatrix } from "aura-pivot";
+import AuraPivot, { usePivotMatrix } from "aurapivot";
 
 function MatrixStats({ engine }) {
   const { matrix, loading } = usePivotMatrix(engine);

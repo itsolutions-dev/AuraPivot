@@ -1,7 +1,7 @@
 /**
  * Emits THIRD-PARTY-NOTICES.md from the production dependency tree.
  *
- * aura-pivot ships with production dependencies that the consumer's bundler
+ * aurapivot ships with production dependencies that the consumer's bundler
  * resolves. MIT and BSD both require retaining the copyright notice of every
  * dependency. Peer dependencies (consumer-supplied) are excluded; only the
  * production dependency closure is attributed.
@@ -110,7 +110,7 @@ for (const [name, dir] of [...seen].sort(([a], [b]) => a.localeCompare(b))) {
 
 const header =
   "# Third-party notices\n\n" +
-  "aura-pivot depends on the packages below, which are installed alongside it\n" +
+  "aurapivot depends on the packages below, which are installed alongside it\n" +
   "and may be bundled into applications that use it. Each is reproduced with\n" +
   "its own licence and copyright notice, as those licences require.\n\n---\n\n";
 

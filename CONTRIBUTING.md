@@ -36,12 +36,12 @@ app you already have:
 ```bash
 npm run build
 npm link                      # in this repository
-npm link aura-pivot           # in your app
+npm link aurapivot            # in your app
 ```
 
-Your app's bundler will then resolve `aura-pivot` to `dist/` here. Re-run
+Your app's bundler will then resolve `aurapivot` to `dist/` here. Re-run
 `npm run build` after each change — there is no watch build. If your app is
-Vite-based, an alias in `vite.config.js` pointing `aura-pivot` at this
+Vite-based, an alias in `vite.config.js` pointing `aurapivot` at this
 repository's `AuraPivot.tsx` skips the build step entirely and gives you HMR
 against the source.
 
@@ -138,15 +138,15 @@ not an option: npm revoked every one of them on 9 December 2025 and no longer
 lets them be created. npm caps a write-capable granular token at 90 days, so
 the secret has to be rotated on that cycle.
 
-Until `aura-pivot` exists on the registry, that token has to be scoped to
+Until `aurapivot` exists on the registry, that token has to be scoped to
 **all packages**, not to selected ones — a package you have not published yet
 cannot appear in the selected-packages list, so a restricted token has no
 authority over the name and the publish fails. It can be narrowed to just
-`aura-pivot` after the first release.
+`aurapivot` after the first release.
 
 Two failure modes worth recognising, because neither says what it means:
 
-- `E404 Not Found - PUT https://registry.npmjs.org/aura-pivot` — the token
+- `E404 Not Found - PUT https://registry.npmjs.org/aurapivot` — the token
   authenticated but is not allowed to write this name. npm answers an
   unauthorised write with 404 instead of 403 so as not to confirm whether the
   name exists, so this reads like a missing package rather than a permission
@@ -177,10 +177,10 @@ and generates provenance on its own without a `--provenance` flag. What it
 cannot do is create a package: a trusted publisher is registered from a
 package's settings page, so a name that does not exist yet has nowhere to
 register one ([npm/cli#8544](https://github.com/npm/cli/issues/8544)). That is
-why the first release of `aura-pivot` needs `NPM_TOKEN` at all.
+why the first release of `aurapivot` needs `NPM_TOKEN` at all.
 
 Once it has been published once, register this repository at
-`npmjs.com/package/aura-pivot/access` — organization `itsolutions-dev`,
+`npmjs.com/package/aurapivot/access` — organization `itsolutions-dev`,
 repository `AuraPivot`, workflow filename `release.yml` — and delete the
 `NPM_TOKEN` secret. The workflow already prefers the token when it is present
 and falls back to OIDC when it is not, so the switch is a matter of removing

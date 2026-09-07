@@ -1,10 +1,10 @@
-# aura-pivot
+# aurapivot
 
 A React pivot table that stays responsive when the dataset stops being small.
 
-[![npm](https://img.shields.io/npm/v/aura-pivot.svg)](https://www.npmjs.com/package/aura-pivot)
+[![npm](https://img.shields.io/npm/v/aurapivot.svg)](https://www.npmjs.com/package/aurapivot)
 [![CI](https://github.com/itsolutions-dev/AuraPivot/actions/workflows/ci.yml/badge.svg)](https://github.com/itsolutions-dev/AuraPivot/actions/workflows/ci.yml)
-[![license](https://img.shields.io/npm/l/aura-pivot.svg)](https://github.com/itsolutions-dev/AuraPivot/blob/master/LICENSE)
+[![license](https://img.shields.io/npm/l/aurapivot.svg)](https://github.com/itsolutions-dev/AuraPivot/blob/master/LICENSE)
 
 ![A sales pivot table with region, category and product nested on the rows and quarters on the columns, totalling revenue, quantity and margin](https://raw.githubusercontent.com/itsolutions-dev/AuraPivot/master/docs/assets/aura-pivot.png)
 
@@ -13,7 +13,7 @@ A React pivot table that stays responsive when the dataset stops being small.
 ## Install
 
 ```bash
-npm install aura-pivot
+npm install aurapivot
 npm install react react-dom @mui/material @emotion/react @emotion/styled
 ```
 
@@ -24,7 +24,7 @@ reason to pick this library is usually that you are — you have them.
 
 ```jsx
 import { useState } from "react";
-import AuraPivot from "aura-pivot";
+import AuraPivot from "aurapivot";
 
 const rows = [
   { agent: "Rossi", region: "North", revenue: 1200 },
@@ -202,7 +202,7 @@ triggering a second aggregation pass:
 
 ```jsx
 import { useState } from "react";
-import AuraPivot, { usePivotMatrix } from "aura-pivot";
+import AuraPivot, { usePivotMatrix } from "aurapivot";
 
 function MatrixStats({ engine }) {
   const { matrix, loading } = usePivotMatrix(engine);
@@ -237,8 +237,8 @@ rendering.
 ### It already speaks English, and it will speak yours
 
 ```jsx
-import AuraPivot, { mergeLocalization } from "aura-pivot";
-import it from "aura-pivot/locales/it.json";
+import AuraPivot, { mergeLocalization } from "aurapivot";
+import it from "aurapivot/locales/it.json";
 
 <AuraPivot
   locale="it-IT"

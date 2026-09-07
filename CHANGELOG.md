@@ -1,14 +1,14 @@
-# aura-pivot
+# aurapivot
 
 ## 2.5.0
 
 ### Minor Changes
 
-- [`855071a`](https://github.com/itsolutions-dev/AuraPivot/commit/855071abcdc58735cbc619aec962b6c508063cae) Thanks [@adribusc](https://github.com/adribusc)! - Relicensed under MIT and renamed to `aura-pivot`. The build no longer
+- [`855071a`](https://github.com/itsolutions-dev/AuraPivot/commit/855071abcdc58735cbc619aec962b6c508063cae) Thanks [@adribusc](https://github.com/adribusc)! - Relicensed under MIT and renamed to `aurapivot`. The build no longer
   obfuscates its output and ships sourcemaps. Type declarations are now
   generated from source. `react-virtuoso` is declared as a runtime
   dependency and, along with `file-saver` and `@mui/icons-material`, is no
-  longer bundled. New `aura-pivot/theme` entry point. PropTypes removed in
+  longer bundled. New `aurapivot/theme` entry point. PropTypes removed in
   favour of the shipped declarations.
 
   Two user-visible breaks ship in this release even though it stays a minor
@@ -18,7 +18,7 @@
   - Toolbar tab IDs changed from `wdr-tab-*` to `aura-tab-*`. A
     `beforeToolbarCreated` handler that filters tabs by id needs to match
     the new `aura-tab-*` prefix instead.
-  - The package moved from a scoped name to the unscoped `aura-pivot`.
+  - The package moved from a scoped name to the unscoped `aurapivot`.
     Update the import specifier accordingly.
 
 ### Patch Changes
@@ -30,8 +30,8 @@
   `nodenext` saw types claiming ESM over CommonJS JavaScript and refused to
   compile ("masquerading as ESM"). Both entry points now ship declarations under
   each extension, `.d.ts` paired with the ESM condition and `.d.cts` with the
-  CommonJS one. `publint` and `@arethetypeswrong/cli` are clean on `aura-pivot`
-  and `aura-pivot/theme` across node10, node16 from CJS, node16 from ESM and
+  CommonJS one. `publint` and `@arethetypeswrong/cli` are clean on `aurapivot`
+  and `aurapivot/theme` across node10, node16 from CJS, node16 from ESM and
   bundler resolution.
 
   No API change: the same declarations are emitted twice, only the extension
