@@ -92,10 +92,10 @@ jobs:
           # Provenance attestations are only accepted from public source
           # repositories — npm rejects the publish with 422 "Only public
           # source repositories are supported when publishing with
-          # provenance" otherwise. Deriving the flag from the repository's
-          # visibility keeps the publish working while this repository is
-          # private and turns attestations on by itself if it is made public.
-          # It is deliberately not set in publishConfig: package.json wins
-          # over env and CLI config at publish time, so a value pinned there
-          # cannot be turned off from here.
+          # provenance" otherwise. Deriving the flag from visibility rather
+          # than pinning it means attestations follow the repository: on while
+          # it is public, silently dropped rather than fatal if it ever goes
+          # private. Deliberately not set in publishConfig, where it used to
+          # be: package.json wins over env and CLI config at publish time, so
+          # a value pinned there cannot be turned off from here.
           NPM_CONFIG_PROVENANCE: ${{ github.event.repository.visibility == 'public' }}
