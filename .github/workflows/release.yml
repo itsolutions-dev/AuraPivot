@@ -49,7 +49,23 @@ jobs:
           fi
           name=$(node -p 'require("./package.json").name')
           if [ -n "${NPM_TOKEN:-}" ]; then
-            echo "NPM_TOKEN is set — $name will be published with it."
+            # Whose token it is, not just that one exists. A token that
+            # authenticates as the wrong account publishes nothing and says
+            # only `E404 Not Found - PUT`, because npm answers an
+            # unauthorized write on a name with 404 rather than 403 so as not
+            # to confirm whether that name exists. Printing the account turns
+            # that into something readable. whoami cannot go further and
+            # check publish rights on $name: for a name that does not exist
+            # yet there is nothing to query, so a token restricted to
+            # selected packages still gets through here and fails at the PUT.
+            if ! whoami_out=$(npm whoami 2>&1); then
+              echo "::error::NPM_TOKEN is set but the registry rejected it:"\
+                   "${whoami_out}. A granular token expires after at most 90"\
+                   "days — check whether this one has, and see the Releasing"\
+                   "section of CONTRIBUTING.md."
+              exit 1
+            fi
+            echo "NPM_TOKEN authenticates as '$whoami_out' — publishing $name as that account."
             exit 0
           fi
           # Trusted publishing cannot create a package: npm only accepts a

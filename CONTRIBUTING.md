@@ -130,13 +130,31 @@ Merging to `master` opens a version pull request. Merging _that_ publishes to
 npm, using the `NPM_TOKEN` repository secret. Nothing publishes from a local
 machine.
 
-`NPM_TOKEN` must be a **granular access token** with publish rights on
-`aura-pivot`, created at [npmjs.com/settings/~/tokens](https://www.npmjs.com/settings/~/tokens)
-with _Bypass 2FA_ enabled so a runner can use it. Classic and automation
-tokens are not an option: npm revoked every one of them on 9 December 2025 and
-no longer lets them be created. npm caps a write-capable granular token at 90
-days, so the secret has to be rotated on that cycle — an expired token shows
-up as `E401` on the publish step, not as anything wrong in this repository.
+`NPM_TOKEN` must be a **granular access token** with read _and write_
+permission, created at
+[npmjs.com/settings/~/tokens](https://www.npmjs.com/settings/~/tokens) with
+_Bypass 2FA_ enabled so a runner can use it. Classic and automation tokens are
+not an option: npm revoked every one of them on 9 December 2025 and no longer
+lets them be created. npm caps a write-capable granular token at 90 days, so
+the secret has to be rotated on that cycle.
+
+Until `aura-pivot` exists on the registry, that token has to be scoped to
+**all packages**, not to selected ones — a package you have not published yet
+cannot appear in the selected-packages list, so a restricted token has no
+authority over the name and the publish fails. It can be narrowed to just
+`aura-pivot` after the first release.
+
+Two failure modes worth recognising, because neither says what it means:
+
+- `E404 Not Found - PUT https://registry.npmjs.org/aura-pivot` — the token
+  authenticated but is not allowed to write this name. npm answers an
+  unauthorised write with 404 instead of 403 so as not to confirm whether the
+  name exists, so this reads like a missing package rather than a permission
+  problem. Usually the selected-packages scope above, or a read-only token, or
+  the wrong npm account. The preflight step prints which account the token
+  belongs to, which settles the last of those.
+- `E401` — the token is invalid or has passed its 90-day expiry. Nothing in
+  this repository is wrong; rotate the secret.
 
 ### Provenance
 
