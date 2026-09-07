@@ -29,8 +29,7 @@
   },
   "sideEffects": false,
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "main": "dist/index.cjs",
   "module": "dist/index.esm.js",

@@ -25,6 +25,51 @@ jobs:
           cache: npm
           registry-url: https://registry.npmjs.org
       - run: npm ci
+
+      # Unconfigured npm credentials fail late and unhelpfully: `changeset
+      # publish` runs the whole build first and then exits on
+      #
+      #   ENEEDAUTH: This command requires you to be logged in to
+      #   https://registry.npmjs.org/ ... use `npm adduser`
+      #
+      # which is not something a runner can do. This step fails before the
+      # build and names the missing piece instead. It stays quiet on the runs
+      # that only open the version pull request, so an ordinary push to master
+      # never goes red over a credential the run was not going to use.
+      - name: Check npm publish credentials
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -n "$(find .changeset -maxdepth 1 -name '*.md' ! -name 'README.md')" ]; then
+            echo "Changesets are pending: this run opens or updates the version"
+            echo "pull request and does not publish. Credentials not needed."
+            exit 0
+          fi
+          name=$(node -p 'require("./package.json").name')
+          if [ -n "${NPM_TOKEN:-}" ]; then
+            echo "NPM_TOKEN is set — $name will be published with it."
+            exit 0
+          fi
+          # Trusted publishing cannot create a package: npm only accepts a
+          # trusted publisher on a name that already exists, so the first
+          # release of a package needs a token even when OIDC is wired up.
+          if npm view "$name" version >/dev/null 2>&1; then
+            echo "::warning::NPM_TOKEN is not set, so this run falls back to"\
+                 "trusted publishing. That works only if $name has a trusted"\
+                 "publisher registered for this repository and workflow at"\
+                 "npmjs.com/package/$name/access."
+            exit 0
+          fi
+          echo "::error::Cannot publish $name: NPM_TOKEN is not set and $name"\
+               "does not exist on the registry, so trusted publishing cannot"\
+               "be used either — npm registers a trusted publisher only on an"\
+               "existing package. Create a granular access token with publish"\
+               "rights for $name and add it as the NPM_TOKEN repository"\
+               "secret. See the Releasing section of CONTRIBUTING.md."
+          exit 1
+
       # Opens or updates a version PR when changesets are pending; publishes
       # when that PR is merged and the changesets have been consumed.
       - name: Create version PR or publish
@@ -36,5 +81,21 @@ jobs:
           title: "chore: version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # setup-node's registry-url wrote an .npmrc reading NODE_AUTH_TOKEN
+          # and pointed NPM_CONFIG_USERCONFIG at it, so that is the variable
+          # npm actually authenticates with. NPM_TOKEN is the one
+          # changesets/action itself inspects to decide between token auth and
+          # its OIDC path; without it the step logs that it is using trusted
+          # publishing while npm is in fact using the token.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_CONFIG_PROVENANCE: true
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # Provenance attestations are only accepted from public source
+          # repositories — npm rejects the publish with 422 "Only public
+          # source repositories are supported when publishing with
+          # provenance" otherwise. Deriving the flag from the repository's
+          # visibility keeps the publish working while this repository is
+          # private and turns attestations on by itself if it is made public.
+          # It is deliberately not set in publishConfig: package.json wins
+          # over env and CLI config at publish time, so a value pinned there
+          # cannot be turned off from here.
+          NPM_CONFIG_PROVENANCE: ${{ github.event.repository.visibility == 'public' }}

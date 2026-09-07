@@ -127,9 +127,53 @@ methods and its event bus rather than reaching into its state.
 ## Releasing (maintainers)
 
 Merging to `master` opens a version pull request. Merging _that_ publishes to
-npm with provenance, using the `NPM_TOKEN` repository secret — which must be an
-npm _automation_ token; a granular token does not work with provenance. Nothing
-publishes from a local machine.
+npm, using the `NPM_TOKEN` repository secret. Nothing publishes from a local
+machine.
+
+`NPM_TOKEN` must be a **granular access token** with publish rights on
+`aura-pivot`, created at [npmjs.com/settings/~/tokens](https://www.npmjs.com/settings/~/tokens)
+with _Bypass 2FA_ enabled so a runner can use it. Classic and automation
+tokens are not an option: npm revoked every one of them on 9 December 2025 and
+no longer lets them be created. npm caps a write-capable granular token at 90
+days, so the secret has to be rotated on that cycle — an expired token shows
+up as `E401` on the publish step, not as anything wrong in this repository.
+
+### No provenance while this repository is private
+
+npm accepts provenance attestations only from public source repositories, and
+answers a private one with `422 Only public source repositories are supported
+when publishing with provenance`. The release workflow therefore derives
+`NPM_CONFIG_PROVENANCE` from the repository's visibility rather than pinning
+it: publishes work while the repository is private, and attestations turn
+themselves on the day it is made public.
+
+Do not move that flag back into `publishConfig`. `package.json` wins over env
+and CLI config at publish time, so a value pinned there cannot be turned off
+from the workflow — which is exactly how the first publish attempt was set up
+to fail.
+
+### Retiring the token (after the first publish)
+
+Trusted publishing (OIDC) removes the token and its 90-day rotation, and it
+works from a private repository — the only thing a private repository loses is
+the provenance attestation, which it cannot have anyway. What it cannot do is
+create a package: a trusted publisher is registered from a package's settings
+page, so a name that does not exist yet has nowhere to register one
+([npm/cli#8544](https://github.com/npm/cli/issues/8544)). That is why the
+first release of `aura-pivot` needs `NPM_TOKEN` at all.
+
+Once it has been published once, register this repository at
+`npmjs.com/package/aura-pivot/access` — organization `itsolutions-dev`,
+repository `AuraPivot`, workflow filename `release.yml` — and the `NPM_TOKEN`
+secret can be deleted. The workflow already prefers the token when it is
+present and falls back to OIDC when it is not, so the switch is a matter of
+removing the secret. Two conditions the setup depends on: GitHub-hosted
+runners only, and `repository.url` in `package.json` has to keep matching this
+repository exactly.
+
+The workflow checks credentials before it builds and fails with the reason,
+rather than spending a couple of minutes on a build and then exiting on
+`ENEEDAUTH`.
 
 `npm version` is not used in this repository: the `version` npm script is
 registered as npm's own `version` lifecycle hook and runs `changeset version`
