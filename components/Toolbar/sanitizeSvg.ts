@@ -39,7 +39,11 @@ const URL_ATTRIBUTES = new Set(['href', 'xlink:href']);
 
 const hasUnsafeScheme = (value: string): boolean => {
   const v = value.trim().toLowerCase();
-  return v.startsWith('javascript:') || v.startsWith('data:');
+  return (
+    v.startsWith('javascript:') ||
+    v.startsWith('data:') ||
+    v.startsWith('vbscript:')
+  );
 };
 
 export const sanitizeSvgMarkup = (markup: string): string | null => {
