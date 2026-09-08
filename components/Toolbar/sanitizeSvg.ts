@@ -15,7 +15,8 @@
  *   - `style` elements (CSS can load external content and, historically,
  *     execute expressions)
  *   - all `on*` event-handler attributes
- *   - `href` / `xlink:href` values with a `javascript:` or `data:` scheme
+ *   - `href` / `xlink:href` values with an active-content scheme
+ *     (`javascript:`, `data:`, `vbscript:`)
  *
  * Returns the serialized sanitized markup, or `null` when the input is not
  * parseable standalone SVG (callers should render nothing in that case).

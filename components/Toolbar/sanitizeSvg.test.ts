@@ -59,6 +59,14 @@ describe('sanitizeSvgMarkup', () => {
     expect(out).not.toMatch(/javascript:/i);
   });
 
+  test('strips vbscript: hrefs', () => {
+    const out = sanitizeSvgMarkup(
+      '<svg><a href="VBScript:MsgBox(1)"><text>hi</text></a></svg>',
+    );
+    expect(out).not.toMatch(/vbscript:/i);
+    expect(out).toContain('hi');
+  });
+
   test('returns null for non-svg markup', () => {
     expect(sanitizeSvgMarkup('<div>not svg</div>')).toBeNull();
   });
