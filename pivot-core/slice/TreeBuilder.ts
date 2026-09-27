@@ -80,6 +80,8 @@ export interface BuildTreeOptions {
   metadata: MetadataRow;
   expands?: { expandAll?: boolean; expandedMembers?: string[] };
   rootCaption?: string;
+  /** Caption of the member grouping null / undefined values. */
+  blankCaption?: string;
   formatValue?: (
     field: RichSliceField,
     value: string | number | null,
@@ -94,6 +96,7 @@ export const buildTree = ({
   metadata,
   expands = {},
   rootCaption = 'Total',
+  blankCaption = '(blank)',
   formatValue,
   locale,
 }: BuildTreeOptions): TreeNode => {
@@ -168,7 +171,7 @@ export const buildTree = ({
     bucketEntries.forEach(([bucketKey, bucket]) => {
       let caption;
       if (bucket.value === null || bucket.value === undefined) {
-        caption = '(vuoto)';
+        caption = blankCaption;
       } else if (typeof formatValue === 'function') {
         const formatted = formatValue(field, bucket.value, metadata);
         caption = formatted === undefined ? String(bucket.value) : formatted;

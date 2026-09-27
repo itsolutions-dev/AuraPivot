@@ -10,7 +10,6 @@
  */
 
 import type ExcelJS from 'exceljs';
-import type { MetadataRow } from '../types';
 import type { ComputedMatrix } from '../matrix/MatrixComputer';
 
 type ExcelJSModule = typeof ExcelJS;
@@ -64,14 +63,12 @@ interface ExportMatrixOptions {
   matrix: ComputedMatrix;
   filename?: string;
   sheetName?: string;
-  metadata?: MetadataRow;
 }
 
 export const exportMatrixToExcel = async ({
   matrix,
   filename = 'pivot.xlsx',
   sheetName = 'Pivot',
-  metadata = {},
 }: ExportMatrixOptions): Promise<void> => {
   const Excel = await loadExcelJS();
   const workbook = new Excel.Workbook();
@@ -122,9 +119,6 @@ export const exportMatrixToExcel = async ({
     });
     col.width = Math.min(40, maxLength + 2);
   });
-
-  // Avoid unused-param warning; metadata is reserved for future column typing.
-  void metadata;
 
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], {

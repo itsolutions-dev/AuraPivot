@@ -13,7 +13,8 @@ import {
   formatMeasureValue,
 } from '../aggregation/Aggregator';
 import { flattenTreeCompact, sortTreeSiblings } from '../slice/TreeBuilder';
-import { evaluateFormulaExpression } from './FormulaEvaluator';
+import { compileFormulaExpression } from './FormulaEvaluator';
+import type { FormulaEvalOptions } from './FormulaEvaluator';
 import type { DataRow, TreeNode, MatrixCell, MetadataRow } from '../types';
 import type { RichSliceField } from '../slice/TreeBuilder';
 
@@ -169,6 +170,25 @@ const compareNodes = (
   );
 };
 
+const measureKeyOf = (m: { uniqueName: string; aggregation: string }): string =>
+  `${m.uniqueName}:${m.aggregation}`;
+
+/** Sum of `field` over `indexes` (every row when omitted), skipping non-numbers. */
+const sumField = (
+  rows: DataRow[],
+  field: string,
+  indexes?: number[],
+): number => {
+  let total = 0;
+  const add = (row: DataRow | undefined) => {
+    const v = Number(row?.[field]);
+    if (Number.isFinite(v)) total += v;
+  };
+  if (indexes) indexes.forEach((i) => add(rows[i]));
+  else rows.forEach(add);
+  return total;
+};
+
 const intersectIndexes = (a: number[], b: number[]): number[] => {
   if (a.length === 0 || b.length === 0) return [];
   const [small, large] = a.length < b.length ? [a, b] : [b, a];
@@ -180,67 +200,138 @@ const intersectIndexes = (a: number[], b: number[]): number[] => {
   return out;
 };
 
-/**
- * Evaluates a calculated-field formula for a specific cell.
- * The formula may reference any measure with the syntax:
- *   sum("fieldName"), count("fieldName"), avg("fieldName"), min("fieldName"),
- *   max("fieldName"), distinctcount("fieldName")
- *
- * Bare field identifiers (without an aggregator wrapper — e.g. the chips
- * inserted by the Calculated Field dialog) are treated as `sum(fieldName)`
- * so the formula has data to compute against at this cell's intersection.
- *
- * Each call is replaced by the aggregated value already computed for the
- * intersecting row/col bucket, so the formula runs after all regular measures.
- *
- * @param {string} formula
- * @param {Function} resolver (aggregation, uniqueName) => number | null
- * @param {string[]} fieldNames known data-field uniqueNames used to detect bare references
- */
 const escapeRegExp = (s: string): string =>
   s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const evalFormula = (
+const AGGREGATOR_CALL =
+  /\b(sum|count|avg|min|max|distinctcount|runningsum|running)\s*\(\s*"([^"]+)"\s*\)/gi;
+
+/** Stands in for one measure reference inside a compiled formula. */
+const REF_PREFIX = '__aura_ref_';
+const REF_PATTERN = new RegExp(`${REF_PREFIX}(\\d+)`, 'g');
+
+interface FormulaRef {
+  agg: string;
+  field: string;
+  /** The reference as written in the formula, for error messages. */
+  source: string;
+}
+
+interface CompiledFormula {
+  formula: string;
+  refs: FormulaRef[];
+  evaluate: ((opts: FormulaEvalOptions) => unknown) | null;
+  /** Syntax error, reported on every cell of the field. */
+  error: string | null;
+  /** Whether a failure of this formula has been logged already. */
+  logged: boolean;
+}
+
+/**
+ * Compiles a calculated-field formula once per matrix. The formula may
+ * reference measures as `sum("field")`, `count(…)`, `avg(…)`, `min(…)`,
+ * `max(…)`, `distinctcount(…)`, `runningsum(…)` (alias `running`), or as a
+ * bare field name — a chip inserted by the Calculated Field dialog — which
+ * means `sum(field)`. Each reference becomes a placeholder identifier that
+ * the evaluator resolves per cell, so the per-cell work is one AST walk.
+ *
+ * @param fieldNames known data-field uniqueNames used to detect bare references
+ */
+const compileFormula = (
   formula: string,
-  resolver: (agg: string, fieldName: string) => number | null,
-  fieldNames: string[] = [],
-): { value: number | null; error: string | null } => {
-  try {
-    const resolveValue = (agg: string, fieldName: string): string => {
-      const val = resolver(agg, fieldName);
-      return val === null || val === undefined ? '0' : String(Number(val));
-    };
-    let patched = formula.replace(
-      /\b(sum|count|avg|min|max|distinctcount|runningsum|running)\s*\(\s*"([^"]+)"\s*\)/gi,
-      (_, agg, fieldName) => {
-        const aggLower = agg.toLowerCase();
-        const normalized = aggLower === 'running' ? 'runningsum' : aggLower;
-        return resolveValue(normalized, fieldName);
-      },
+  fieldNames: string[],
+): CompiledFormula => {
+  const refs: FormulaRef[] = [];
+  const placeholder = (agg: string, field: string, source: string): string => {
+    refs.push({ agg, field, source });
+    return `${REF_PREFIX}${refs.length - 1}`;
+  };
+  let expression = formula.replace(AGGREGATOR_CALL, (source, agg, field) => {
+    const aggLower = agg.toLowerCase();
+    return placeholder(
+      aggLower === 'running' ? 'runningsum' : aggLower,
+      field,
+      source,
     );
-    // Bare field references (chips) → default to sum(field). Longer names
-    // matched first so "revenueGross" doesn't get shortened to "revenue".
-    const sorted = [...fieldNames].sort((a, b) => b.length - a.length);
-    for (const name of sorted) {
-      const re = new RegExp(`\\b${escapeRegExp(name)}\\b`, 'g');
-      patched = patched.replace(re, () => resolveValue('sum', name));
-    }
-    // Safe AST evaluation — `^`, AND/OR keywords and IF/ABS/MIN/MAX are part
-    // of the evaluator grammar; no dynamic code generation involved.
-    const result = evaluateFormulaExpression(patched);
+  });
+  // Longer names first so "revenueGross" doesn't get shortened to "revenue".
+  const sorted = [...fieldNames].sort((a, b) => b.length - a.length);
+  for (const name of sorted) {
+    const re = new RegExp(`\\b${escapeRegExp(name)}\\b`, 'g');
+    expression = expression.replace(re, () => placeholder('sum', name, name));
+  }
+  // Error messages quote tokens; show the user what they wrote, not the
+  // placeholder it compiled to.
+  const describe = (message: string): string =>
+    message.replace(REF_PATTERN, (_, i) => refs[Number(i)].source);
+  try {
+    return {
+      formula,
+      refs,
+      evaluate: compileFormulaExpression(expression),
+      error: null,
+      logged: false,
+    };
+  } catch (ex) {
+    return {
+      formula,
+      refs,
+      evaluate: null,
+      error: describe((ex as Error)?.message || String(ex)),
+      logged: false,
+    };
+  }
+};
+
+const reportFormulaError = (compiled: CompiledFormula, error: string): void => {
+  if (compiled.logged) return;
+  compiled.logged = true;
+  console.error(`Error evaluating formula "${compiled.formula}":`, error);
+};
+
+/**
+ * Evaluates a compiled formula for one cell. Every reference is resolved
+ * before evaluation, in formula order — running sums advance on each read,
+ * so resolution must not depend on which IF branch is taken.
+ */
+const evalFormula = (
+  compiled: CompiledFormula,
+  resolver: (agg: string, fieldName: string) => number | null,
+): { value: number | null; error: string | null } => {
+  if (!compiled.evaluate) {
+    reportFormulaError(compiled, compiled.error as string);
+    return { value: null, error: compiled.error };
+  }
+  const values = compiled.refs.map(({ agg, field }) => {
+    const val = resolver(agg, field);
+    return val === null || val === undefined ? 0 : Number(val);
+  });
+  try {
+    const result = compiled.evaluate({
+      resolveIdentifier: (name) => {
+        if (name.startsWith(REF_PREFIX)) {
+          const value = values[Number(name.slice(REF_PREFIX.length))];
+          if (value !== undefined) return value;
+        }
+        throw new Error(`Unknown identifier '${name}' in formula`);
+      },
+    });
     if (typeof result === 'number' && Number.isFinite(result)) {
       return { value: result, error: null };
     }
-    if (typeof result === 'number' && !Number.isFinite(result)) {
-      if (Number.isNaN(result)) {
-        return { value: null, error: 'Invalid numeric result (NaN)' };
-      }
-      return { value: null, error: 'Division by zero' };
+    if (typeof result === 'number') {
+      return {
+        value: null,
+        error: Number.isNaN(result)
+          ? 'Invalid numeric result (NaN)'
+          : 'Division by zero',
+      };
     }
     return { value: null, error: null };
   } catch (ex) {
-    console.error('Error evaluating formula:', ex);
-    return { value: null, error: (ex as Error)?.message || String(ex) };
+    const error = (ex as Error)?.message || String(ex);
+    reportFormulaError(compiled, error);
+    return { value: null, error };
   }
 };
 
@@ -299,6 +390,35 @@ export const computeMatrix = ({
   const measuresOnCols = hasMeasuresOnColumns && effectiveMeasures.length > 0;
   const measuresOnRows = hasMeasuresOnRows && effectiveMeasures.length > 0;
 
+  const measureByKey = new Map<string, EnrichedMeasure>();
+  effectiveMeasures.forEach((m) => {
+    if (!measureByKey.has(measureKeyOf(m)))
+      measureByKey.set(measureKeyOf(m), m);
+  });
+  const defaultMeasureKey = effectiveMeasures[0]
+    ? measureKeyOf(effectiveMeasures[0])
+    : null;
+  // Which measure drives a cell: the axis that carries measures wins; with
+  // measures on neither axis it is the first one (single-measure mode).
+  const cellMeasure = (
+    rowLeaf: AxisLeaf,
+    colLeaf: AxisLeaf,
+  ): { measureKey: string | null; measure: EnrichedMeasure | undefined } => {
+    const measureKey =
+      rowLeaf.measureKey || colLeaf.measureKey || defaultMeasureKey;
+    return {
+      measureKey,
+      measure: measureKey ? measureByKey.get(measureKey) : undefined,
+    };
+  };
+
+  // Ratio aggregations divide a sum for numeric fields, a record count
+  // otherwise; `indexes` omitted means the whole dataset.
+  const ratioPart = (field: string, indexes?: number[]): number =>
+    metadata?.[field]?.type === 'number'
+      ? sumField(rows, field, indexes)
+      : (indexes ?? rows).length;
+
   // Expand column axis with measures (if requested).
   const colVisible = flattenTreeCompact(colRoot, {
     includeRoot: true,
@@ -325,25 +445,12 @@ export const computeMatrix = ({
 
   const cells = new Map<string, MatrixCell & { error?: string | null }>();
 
-  // Pre-compute ratio denominators (grand total across the whole dataset)
-  // for every measure using the 'ratioTotal' aggregation. For numeric
-  // fields the denominator is the sum of the field; for non-numeric
-  // fields it's the total record count.
+  // 'ratioTotal' divides by the grand total across the whole dataset.
   const ratioDenominators = new Map<string, number>();
   effectiveMeasures.forEach((m) => {
-    if (m.aggregation !== 'ratioTotal') return;
-    const fieldName = m.uniqueName;
-    const isNumeric = metadata?.[fieldName]?.type === 'number';
-    let den = 0;
-    if (isNumeric) {
-      for (const r of rows) {
-        const v = Number(r?.[fieldName]);
-        if (Number.isFinite(v)) den += v;
-      }
-    } else {
-      den = rows.length;
+    if (m.aggregation === 'ratioTotal') {
+      ratioDenominators.set(measureKeyOf(m), ratioPart(m.uniqueName));
     }
-    ratioDenominators.set(`${m.uniqueName}:${m.aggregation}`, den);
   });
 
   rowTraversal.forEach((rowLeaf) => {
@@ -353,21 +460,7 @@ export const computeMatrix = ({
         colLeaf.rowIndexes,
       );
 
-      // Which measure drives this cell?
-      //   - measures on columns : colLeaf.measureKey wins
-      //   - measures on rows    : rowLeaf.measureKey wins
-      //   - neither             : first measure (legacy single-measure mode)
-      const measureKey =
-        rowLeaf.measureKey ||
-        colLeaf.measureKey ||
-        (effectiveMeasures[0]
-          ? `${effectiveMeasures[0].uniqueName}:${effectiveMeasures[0].aggregation}`
-          : null);
-      const measure = measureKey
-        ? effectiveMeasures.find(
-            (m) => `${m.uniqueName}:${m.aggregation}` === measureKey,
-          ) || effectiveMeasures[0]
-        : null;
+      const { measureKey, measure } = cellMeasure(rowLeaf, colLeaf);
       if (!measure) return;
 
       // Calc fields are filled by the dedicated second pass below.
@@ -387,38 +480,15 @@ export const computeMatrix = ({
         measure.aggregation === 'ratioTotal' ||
         measure.aggregation === 'currentRatio'
       ) {
-        const fieldName = measure.uniqueName;
-        const isNumeric = metadata?.[fieldName]?.type === 'number';
-        let num = 0;
-        if (isNumeric) {
-          for (const idx of intersection) {
-            const v = Number(rows[idx]?.[fieldName]);
-            if (Number.isFinite(v)) num += v;
-          }
-        } else {
-          num = intersection.length;
-        }
-        if (measure.aggregation === 'currentRatio') {
-          // Denominator = the current row-context total, i.e. the
-          // measure aggregated over every record that belongs to this
-          // row leaf, ignoring the column split. Produces per-row
-          // normalized ratios: e.g. Sara row with 10 missed / 90
-          // answered yields 0.1 / 0.9.
-          let den = 0;
-          if (isNumeric) {
-            for (const idx of rowLeaf.rowIndexes) {
-              const v = Number(rows[idx]?.[fieldName]);
-              if (Number.isFinite(v)) den += v;
-            }
-          } else {
-            den = (rowLeaf.rowIndexes || []).length;
-          }
-          value = den > 0 ? num / den : 0;
-        } else {
-          const den =
-            (measureKey ? ratioDenominators.get(measureKey) : undefined) || 0;
-          value = den > 0 ? num / den : 0;
-        }
+        const num = ratioPart(measure.uniqueName, intersection);
+        // 'currentRatio' divides by the row-context total — the measure over
+        // every record of this row leaf, ignoring the column split — so each
+        // row is normalized on its own: 10 missed / 90 answered → 0.1 / 0.9.
+        const den =
+          measure.aggregation === 'currentRatio'
+            ? ratioPart(measure.uniqueName, rowLeaf.rowIndexes)
+            : ratioDenominators.get(measureKey as string) || 0;
+        value = den > 0 ? num / den : 0;
       } else if (intersection.length > 0) {
         if (measure.aggregation === 'count') {
           value = intersection.length;
@@ -469,24 +539,26 @@ export const computeMatrix = ({
     }
     const fieldNames = Array.from(fieldNameSet);
 
+    const calcByName = new Map<string, CalculatedField | EnrichedMeasure>();
+    allCalcFields.forEach((c) => {
+      if (!calcByName.has(c.uniqueName)) calcByName.set(c.uniqueName, c);
+    });
+    const compiledByName = new Map<string, CompiledFormula>();
+    const compiledFor = (name: string, formula: string): CompiledFormula => {
+      let compiled = compiledByName.get(name);
+      if (!compiled) {
+        compiled = compileFormula(formula, fieldNames);
+        compiledByName.set(name, compiled);
+      }
+      return compiled;
+    };
+
     rowTraversal.forEach((rowLeaf) => {
       colLeaves.forEach((colLeaf) => {
-        const measureKey =
-          rowLeaf.measureKey ||
-          colLeaf.measureKey ||
-          (effectiveMeasures[0]
-            ? `${effectiveMeasures[0].uniqueName}:${effectiveMeasures[0].aggregation}`
-            : null);
-        const measure = measureKey
-          ? effectiveMeasures.find(
-              (m) => `${m.uniqueName}:${m.aggregation}` === measureKey,
-            )
-          : null;
+        const { measureKey, measure } = cellMeasure(rowLeaf, colLeaf);
         if (!measure || measure.aggregation !== 'formula') return;
 
-        const cf = allCalcFields.find(
-          (c) => c.uniqueName === measure.uniqueName,
-        );
+        const cf = calcByName.get(measure.uniqueName);
         if (!cf || !cf.formula) return;
 
         const resolver = (agg: string, fieldName: string): number | null => {
@@ -530,7 +602,10 @@ export const computeMatrix = ({
           return applyAggregation(agg, nums);
         };
 
-        const { value, error } = evalFormula(cf.formula, resolver, fieldNames);
+        const { value, error } = evalFormula(
+          compiledFor(cf.uniqueName, cf.formula),
+          resolver,
+        );
         cells.set(`${rowLeaf.key}::${colLeaf.key}`, {
           rowKey: rowLeaf.key,
           colKey: colLeaf.key,

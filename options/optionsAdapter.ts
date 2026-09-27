@@ -11,13 +11,7 @@ import type {
 import type { InternalOptions } from '../pivot-core/PivotEngine';
 import type { FilterEntry } from '../pivot-core/slice/FilterEngine';
 
-/**
- * Apply an `options` schema object (and the separate `dataSource` rows) to a
- * PivotEngine instance. Grid expansion state (`slice.expands`) and the
- * column/row sort (`slice.sort`) are read from the engine and preserved —
- * they are driven by the grid, not by this prop.
- */
-export function optionsToEngine(
+function applyOptions(
   engine: PivotEngine,
   options: AuraPivotOptions | undefined,
   dataSource: DataRow[] | undefined,
@@ -145,6 +139,22 @@ export function optionsToEngine(
     toolbar: { ...(currentOpts.toolbar || {}), ...(o.toolbar || {}) },
     enableDrillThrough: o.layout?.enableDrillThrough,
   });
+}
+
+/**
+ * Apply an `options` schema object (and the separate `dataSource` rows) to a
+ * PivotEngine instance. Grid expansion state (`slice.expands`) and the
+ * column/row sort (`slice.sort`) are read from the engine and preserved —
+ * they are driven by the grid, not by this prop.
+ */
+export function optionsToEngine(
+  engine: PivotEngine,
+  options: AuraPivotOptions | undefined,
+  dataSource: DataRow[] | undefined,
+): void {
+  // One apply touches a dozen setters; batching makes listeners (matrix
+  // recompute, onOptionsChange) run once on the final state.
+  engine.batch(() => applyOptions(engine, options, dataSource));
 }
 
 /**

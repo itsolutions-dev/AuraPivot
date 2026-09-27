@@ -356,6 +356,19 @@ const evalNode = (node: AstNode, opts: FormulaEvalOptions): unknown => {
 };
 
 /**
+ * Parses a formula once and returns an evaluator for it, so a formula that
+ * runs for every cell of a matrix is tokenized and parsed a single time.
+ * Throws on syntax errors; the returned function throws on unknown
+ * identifiers.
+ */
+export const compileFormulaExpression = (
+  src: string,
+): ((opts?: FormulaEvalOptions) => unknown) => {
+  const ast = parse(src);
+  return (opts = {}) => evalNode(ast, opts);
+};
+
+/**
  * Parses and evaluates a formula expression. Throws on syntax errors and on
  * unknown identifiers or functions; the caller is expected to catch and
  * surface the message.
@@ -363,7 +376,7 @@ const evalNode = (node: AstNode, opts: FormulaEvalOptions): unknown => {
 export const evaluateFormulaExpression = (
   src: string,
   opts: FormulaEvalOptions = {},
-): unknown => evalNode(parse(src), opts);
+): unknown => compileFormulaExpression(src)(opts);
 
 /**
  * Syntax-only validation: parses the expression, tolerating bare identifiers
