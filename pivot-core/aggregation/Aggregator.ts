@@ -6,6 +6,7 @@
 
 import type { AggregationType } from '../types';
 import { getNumberFormat } from '../format/intlCache';
+import { hasOwn } from '../utils';
 
 const sum = (values: number[]): number =>
   values.reduce(
@@ -54,7 +55,7 @@ export const applyAggregation = (
   type: AggregationType | string,
   values: number[],
 ): number | null => {
-  const fn = AGGREGATIONS[type] || count;
+  const fn = hasOwn(AGGREGATIONS, type) ? AGGREGATIONS[type] : count;
   return fn(values);
 };
 

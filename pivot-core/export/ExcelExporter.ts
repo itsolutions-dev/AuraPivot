@@ -79,7 +79,10 @@ export const exportMatrixToExcel = async ({
   const { rowLeaves, colLeaves } = matrix;
 
   // Header row: first column is a label column, then one column per colLeaf.
-  const headerRow = ['', ...colLeaves.map((c) => c.caption || '')];
+  // Only strings and numbers reach exceljs: it types other values by shape,
+  // and `{ formula }` / `{ hyperlink }` objects from a persisted report would
+  // become live formula or link cells.
+  const headerRow = ['', ...colLeaves.map((c) => String(c.caption ?? ''))];
   const rowRef = sheet.addRow(headerRow);
   rowRef.eachCell((cell) => {
     cell.fill = HEADER_FILL;
@@ -89,7 +92,9 @@ export const exportMatrixToExcel = async ({
 
   rowLeaves.forEach((rowNode) => {
     const prefix = '  '.repeat(Math.max(0, rowNode.depth));
-    const rowData: (string | number | null)[] = [`${prefix}${rowNode.caption}`];
+    const rowData: (string | number)[] = [
+      `${prefix}${String(rowNode.caption ?? '')}`,
+    ];
     colLeaves.forEach((colNode) => {
       // Mirror the grid: group rows/cols kept alive by `totalsPosition: 'none'`
       // exist only to carry the expand/collapse control — no aggregate.
@@ -98,7 +103,8 @@ export const exportMatrixToExcel = async ({
         return;
       }
       const cell = matrix.cells.get(`${rowNode.key}::${colNode.key}`);
-      rowData.push(cell ? (cell.value ?? '') : '');
+      const value = cell?.value;
+      rowData.push(typeof value === 'number' ? value : String(value ?? ''));
     });
     const excelRow = sheet.addRow(rowData);
     if (rowNode.isTotal) {

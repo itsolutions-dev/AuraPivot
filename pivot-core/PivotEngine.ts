@@ -31,6 +31,9 @@ import type { FilterEntry } from './slice/FilterEngine';
 import { computeMatrix } from './matrix/MatrixComputer';
 import { exportMatrixToExcel } from './export/ExcelExporter';
 import { formatDateValue, formatSubpartValue } from './format/DateFormatter';
+import { sanitizeStyleValues } from './format/styleValues';
+import { hasOwn } from './utils';
+import { aggregationLabel, normalizeAggregation } from './aggregation/labels';
 
 // ---------------------------------------------------------------------------
 // Engine-internal type definitions
@@ -237,38 +240,6 @@ export interface ReportSnapshot {
 // ---------------------------------------------------------------------------
 // Module-level constants
 // ---------------------------------------------------------------------------
-
-/**
- * English labels for each aggregation. Used as a fallback when no
- * localization dictionary has been pushed to the engine. At runtime
- * `_resolveAggLabel` prefers the caller-supplied `aggregations` section
- * so captions follow the active UI language.
- */
-const AGG_LABEL: Record<string, string> = {
-  sum: 'Sum',
-  count: 'Count',
-  distinctcount: 'Distinct count',
-  avg: 'Average',
-  min: 'Minimum',
-  max: 'Maximum',
-  formula: 'Calculated',
-  ratioTotal: 'Ratio to total',
-  currentRatio: 'Current ratio',
-};
-
-// Maps the engine's internal aggregation keys onto the keys used inside
-// the react-pivot localization dictionaries (which use `average` instead
-// of `avg`).
-const AGG_LOCALE_KEY: Record<string, string> = {
-  sum: 'sum',
-  count: 'count',
-  distinctcount: 'distinctcount',
-  avg: 'average',
-  min: 'min',
-  max: 'max',
-  ratioTotal: 'ratioTotal',
-  currentRatio: 'currentRatio',
-};
 
 const isMeasuresField = (f: { uniqueName: string }): boolean =>
   f.uniqueName === 'Measures';
@@ -618,15 +589,6 @@ class PivotEngine {
     return this._localization?.grid?.blankMember || '(blank)';
   }
 
-  private _resolveAggLabel(agg: string): string {
-    const loc = this._localization?.aggregations;
-    if (loc) {
-      const key = AGG_LOCALE_KEY[agg];
-      if (key && loc[key]) return loc[key];
-    }
-    return AGG_LABEL[agg] || agg;
-  }
-
   setDateLocalization(localization: DateLocalization | null | undefined): void {
     this._dateLocalization = localization || null;
     if (this._rawDataset) this._loadDataset(false);
@@ -657,11 +619,14 @@ class PivotEngine {
       });
       return;
     }
-    const target = this._expandedMeta?.[uniqueName];
-    if (!target) return;
+    // Own keys only: a `uniqueName` of `__proto__` or `constructor` would
+    // otherwise resolve to a prototype and the assignment below would
+    // pollute every object in the page.
+    if (!hasOwn(this._expandedMeta, uniqueName)) return;
+    const target = this._expandedMeta[uniqueName];
     target.caption = caption && caption.trim() ? caption : uniqueName;
     // Mirror into the raw metadata too so re-expansion keeps the rename.
-    if (this._metadata?.[uniqueName]) {
+    if (hasOwn(this._metadata, uniqueName)) {
       this._metadata[uniqueName].caption = target.caption;
     }
     this._dirty = true;
@@ -931,7 +896,10 @@ class PivotEngine {
       ...s,
       rows: s.rows || [],
       columns: s.columns || [],
-      measures: s.measures || [],
+      measures: (s.measures || []).map((m) => ({
+        ...m,
+        aggregation: normalizeAggregation(m.aggregation),
+      })),
       expands: s.expands || { expandAll: true },
       filters: s.filters || [],
       sort: migrateSort(s.sort),
@@ -966,37 +934,34 @@ class PivotEngine {
       f['valuesByMeasure'] && typeof f['valuesByMeasure'] === 'object'
         ? (f['valuesByMeasure'] as Record<string, unknown>)
         : null;
+    // Style values reach Emotion as CSS text; see styleValues.ts.
+    const styles = (v: unknown): CellStyleFormat =>
+      v && typeof v === 'object'
+        ? sanitizeStyleValues(v as CellStyleFormat)
+        : {};
     this._format = {
-      values: {
-        ...this._format.values,
-        ...(incomingValues || {}),
-      },
+      values: { ...this._format.values, ...styles(incomingValues) },
       valuesByMeasure: incomingByMeasure
         ? Object.fromEntries(
             Object.entries(incomingByMeasure)
               .filter(([, v]) => v && typeof v === 'object')
-              .map(([k, v]) => [k, { ...(v as CellStyleFormat) }]),
+              .map(([k, v]) => [k, styles(v)]),
           )
         : { ...this._format.valuesByMeasure },
-      headers: {
-        ...this._format.headers,
-        ...((f['headers'] as Record<string, unknown>) || {}),
-      },
-      grandTotals: {
-        ...this._format.grandTotals,
-        ...((f['grandTotals'] as Record<string, unknown>) || {}),
-      },
-      dimensions: {
-        ...this._format.dimensions,
-        ...((f['dimensions'] as Record<string, unknown>) || {}),
-      },
+      headers: { ...this._format.headers, ...styles(f['headers']) },
+      grandTotals: { ...this._format.grandTotals, ...styles(f['grandTotals']) },
+      dimensions: { ...this._format.dimensions, ...styles(f['dimensions']) },
       layout: {
         ...this._format.layout,
         ...((f['layout'] as Record<string, unknown>) || {}),
       },
       conditional: Array.isArray(f['conditional'])
-        ? (f['conditional'] as unknown[]).map((r) => ({
-            ...(r as ConditionalRule),
+        ? (f['conditional'] as ConditionalRule[]).map((r) => ({
+            ...r,
+            style:
+              r?.style && typeof r.style === 'object'
+                ? sanitizeStyleValues(r.style)
+                : r?.style,
           }))
         : this._format.conditional,
       conditionalMode:
@@ -1143,7 +1108,7 @@ class PivotEngine {
         this._expandedMeta[m.uniqueName]?.caption ||
         m.uniqueName;
       const agg = m.aggregation || 'sum';
-      const aggLabel = this._resolveAggLabel(agg);
+      const aggLabel = aggregationLabel(this._localization, agg);
       const template =
         this._localization?.grid?.measureCaptionTemplate ||
         '{agg} Total of {field}';

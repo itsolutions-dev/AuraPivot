@@ -94,3 +94,38 @@ describe('blank members', () => {
     expect(blankCaption(engine)).toBe('(vuoto)');
   });
 });
+
+describe('aggregations', () => {
+  const rows = [
+    { region: 'North', agent: 'Ann' },
+    { region: 'North', agent: 'Ann' },
+    { region: 'North', agent: 'Bob' },
+  ];
+
+  test("the saved 'distinctCount' spelling computes a distinct count", () => {
+    const engine = new PivotEngine();
+    engine.setData(rows);
+    engine.setSlice({
+      measures: [{ uniqueName: 'agent', aggregation: 'distinctCount' }],
+    });
+    expect(engine.getSlice().measures[0].aggregation).toBe('distinctcount');
+    const m = engine.processMatrix();
+    const cell = m.cells.get(`${m.rowLeaves[0].key}::${m.colLeaves[0].key}`);
+    expect(cell?.value).toBe(2);
+  });
+
+  test('measure captions use the dictionary spelling of the aggregation', () => {
+    const engine = new PivotEngine();
+    engine.setLocalization({
+      aggregations: { distinctCount: 'Conteggio distinto' },
+      grid: { measureCaptionTemplate: '{agg} di {field}' },
+    });
+    engine.setData(rows);
+    engine.setSlice({
+      measures: [{ uniqueName: 'agent', aggregation: 'distinctcount' }],
+    });
+    expect(engine.processMatrix().measures[0].caption).toBe(
+      'Conteggio distinto di agent',
+    );
+  });
+});

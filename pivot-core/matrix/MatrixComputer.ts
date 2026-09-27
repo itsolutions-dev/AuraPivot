@@ -206,6 +206,21 @@ const escapeRegExp = (s: string): string =>
 const AGGREGATOR_CALL =
   /\b(sum|count|avg|min|max|distinctcount|runningsum|running)\s*\(\s*"([^"]+)"\s*\)/gi;
 
+const NUMERIC_NAME = /^\s*(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?\s*$/i;
+const KEYWORDS = new Set(['and', 'or', 'not']);
+const FUNCTION_NAMES = new Set([
+  'if',
+  'abs',
+  'min',
+  'max',
+  'sum',
+  'count',
+  'avg',
+  'distinctcount',
+  'runningsum',
+  'running',
+]);
+
 /** Stands in for one measure reference inside a compiled formula. */
 const REF_PREFIX = '__aura_ref_';
 const REF_PATTERN = new RegExp(`${REF_PREFIX}(\\d+)`, 'g');
@@ -257,7 +272,15 @@ const compileFormula = (
   // Longer names first so "revenueGross" doesn't get shortened to "revenue".
   const sorted = [...fieldNames].sort((a, b) => b.length - a.length);
   for (const name of sorted) {
-    const re = new RegExp(`\\b${escapeRegExp(name)}\\b`, 'g');
+    const lower = name.toLowerCase();
+    // A dataset key that is also formula syntax must not change what the
+    // formula means: skip empty and numeric names and the AND/OR/NOT
+    // keywords, and leave a function name alone where it is being called.
+    if (!name.trim() || NUMERIC_NAME.test(name) || KEYWORDS.has(lower)) {
+      continue;
+    }
+    const notCalled = FUNCTION_NAMES.has(lower) ? '(?!\\s*\\()' : '';
+    const re = new RegExp(`\\b${escapeRegExp(name)}\\b${notCalled}`, 'g');
     expression = expression.replace(re, () => placeholder('sum', name, name));
   }
   // Error messages quote tokens; show the user what they wrote, not the
