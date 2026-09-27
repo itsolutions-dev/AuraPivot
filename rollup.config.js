@@ -1,15 +1,32 @@
 import fs from "node:fs";
 import path from "node:path";
-import MagicString from "magic-string";
 import resolve from "@rollup/plugin-node-resolve";
-import commonjs from "@rollup/plugin-commonjs";
 import terser from "@rollup/plugin-terser";
 import babel from "@rollup/plugin-babel";
-import peerDepsExternal from "rollup-plugin-peer-deps-external";
 import dts from "rollup-plugin-dts";
 import pkg from "./package.json" with { type: "json" };
 
 const OUT_DIR = "dist";
+
+// Nothing from node_modules is bundled: dependencies and peer dependencies
+// (and their subpaths, e.g. `@mui/icons-material/Add`) are all left to the
+// consumer's bundler, which resolves and deduplicates them against its own
+// copies. exceljs (~900 KB) is additionally only reached through a dynamic
+// import() on the first export. Only relative imports are part of the build.
+const external = (id) => !id.startsWith(".") && !path.isAbsolute(id);
+
+// Relative imports are extensionless TypeScript; this is all the resolver is
+// needed for.
+const resolveSource = () =>
+  resolve({ extensions: [".js", ".jsx", ".ts", ".tsx", ".json"] });
+
+const transpile = () =>
+  babel({
+    exclude: "node_modules/**",
+    extensions: [".js", ".jsx", ".ts", ".tsx", ".mjs"],
+    babelHelpers: "bundled",
+    presets: ["@babel/preset-react", "@babel/preset-typescript"],
+  });
 
 const cleanOutDir = () => ({
   name: "clean-out-dir",
@@ -61,13 +78,7 @@ const intro = processShim + buildStamp;
 
 const jsConfig = {
   input: "index.ts",
-  // Nothing in `dependencies` is bundled. exceljs (~900 KB) is loaded by
-  // ExcelExporter through a dynamic import() on the first export; the other
-  // three are ordinary imports the consumer's bundler resolves and
-  // deduplicates against its own copy. Inlining them would ship a second
-  // react-virtuoso — with its own scroll observer — into apps that already
-  // use one.
-  external: ["exceljs", "react-virtuoso", /^@mui\/icons-material($|\/)/],
+  external,
   output: [
     {
       file: `${OUT_DIR}/index.cjs`,
@@ -88,33 +99,8 @@ const jsConfig = {
   ],
   plugins: [
     cleanOutDir(),
-    {
-      name: "strip-use-client",
-      transform(code) {
-        const m = /^['"]use client['"];?\r?\n?/m.exec(code);
-        if (!m) return null;
-        const s = new MagicString(code);
-        s.remove(m.index, m.index + m[0].length);
-        return { code: s.toString(), map: s.generateMap({ hires: true }) };
-      },
-    },
-    peerDepsExternal(),
-    resolve({
-      extensions: [".js", ".jsx", ".ts", ".tsx", ".json"],
-      // Honor the `browser` field in package.json so deps like exceljs
-      // resolve to their pre-built browser bundle instead of the Node
-      // entry that pulls in graceful-fs / fs / stream and crashes at
-      // load time in the browser.
-      browser: true,
-      preferBuiltins: false,
-    }),
-    commonjs(),
-    babel({
-      exclude: "node_modules/**",
-      extensions: [".js", ".jsx", ".ts", ".tsx", ".mjs"],
-      babelHelpers: "bundled",
-      presets: ["@babel/preset-react", "@babel/preset-typescript"],
-    }),
+    resolveSource(),
+    transpile(),
     finalizer,
     copyLocales(),
   ],
@@ -138,7 +124,7 @@ const dtsConfig = {
     { file: `${OUT_DIR}/index.d.ts`, format: "es" },
     { file: `${OUT_DIR}/index.d.cts`, format: "es" },
   ],
-  external: [/\.css$/, /^@mui\//, /^react/, "exceljs", "react-virtuoso"],
+  external,
   plugins: [dts()],
 };
 
@@ -153,16 +139,7 @@ const themeConfig = {
     },
     { file: `${OUT_DIR}/theme.esm.js`, format: "esm", sourcemap: true },
   ],
-  plugins: [
-    resolve({ extensions: [".js", ".jsx", ".ts", ".tsx", ".json"] }),
-    babel({
-      exclude: "node_modules/**",
-      extensions: [".js", ".jsx", ".ts", ".tsx", ".mjs"],
-      babelHelpers: "bundled",
-      presets: ["@babel/preset-react", "@babel/preset-typescript"],
-    }),
-    finalizer,
-  ],
+  plugins: [resolveSource(), transpile(), finalizer],
 };
 
 const themeDtsConfig = {
