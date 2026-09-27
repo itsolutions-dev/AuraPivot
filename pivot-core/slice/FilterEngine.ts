@@ -121,6 +121,16 @@ const compileFilter = (filter: FilterEntry): RowPredicate | null => {
   };
 };
 
+/** Whether a filter entry constrains anything (drives the "active" badges). */
+export const isFilterActive = (filter: FilterEntry): boolean =>
+  !!filter &&
+  !!filter.uniqueName &&
+  (nonEmptyList(filter.members) ||
+    nonEmptyList(filter.exclude) ||
+    !isBlank(filter.value) ||
+    hasRange(filter) ||
+    !!filter.search);
+
 export const applyFilters = (
   rows: DataRow[],
   filters: FilterEntry[] | null | undefined,

@@ -291,7 +291,9 @@ const DEFAULT_OPTIONS: InternalOptions = {
   },
 };
 
-const DEFAULT_VALUES_FORMAT: CellStyleFormat = {
+// Format defaults, exported so the Format dialog's Reset restores exactly
+// what a fresh engine starts with.
+export const DEFAULT_VALUES_FORMAT: CellStyleFormat = {
   fontFamily: 'inherit',
   fontSize: 13,
   fontWeight: 400,
@@ -309,7 +311,7 @@ const DEFAULT_VALUES_FORMAT: CellStyleFormat = {
   percentage: false,
 };
 
-const DEFAULT_HEADERS_FORMAT: CellStyleFormat = {
+export const DEFAULT_HEADERS_FORMAT: CellStyleFormat = {
   fontFamily: 'inherit',
   fontSize: 12,
   fontWeight: 600,
@@ -319,7 +321,7 @@ const DEFAULT_HEADERS_FORMAT: CellStyleFormat = {
   textAlign: 'left',
 };
 
-const DEFAULT_DIMENSIONS_FORMAT: CellStyleFormat = {
+export const DEFAULT_DIMENSIONS_FORMAT: CellStyleFormat = {
   fontFamily: 'inherit',
   fontSize: 13,
   fontWeight: 500,
@@ -329,7 +331,7 @@ const DEFAULT_DIMENSIONS_FORMAT: CellStyleFormat = {
   textAlign: 'left',
 };
 
-const DEFAULT_GRAND_TOTALS_FORMAT: CellStyleFormat = {
+export const DEFAULT_GRAND_TOTALS_FORMAT: CellStyleFormat = {
   fontFamily: 'inherit',
   fontSize: 13,
   fontWeight: 700,
@@ -339,7 +341,7 @@ const DEFAULT_GRAND_TOTALS_FORMAT: CellStyleFormat = {
   textAlign: 'left',
 };
 
-const DEFAULT_LAYOUT: LayoutFormat = {
+export const DEFAULT_LAYOUT: LayoutFormat = {
   totalsRowsPosition: 'before', // 'before' | 'after' | 'none'
   totalsRowsSticky: false, // pin grand-total row(s) during vertical scroll
   totalsColumnsPosition: 'before', // 'before' | 'after' | 'none'
