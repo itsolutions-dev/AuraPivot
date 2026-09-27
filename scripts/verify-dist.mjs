@@ -71,16 +71,17 @@ for (const subpath of [".", "./theme"]) {
   }
 }
 
-const STAMP_RE = /__AURA_PIVOT_BUILD__\s*=\s*\{version:"([^"]+)"/;
+// The package declares `sideEffects: false`: importing it must not touch
+// the host's globals (an earlier intro defined `globalThis.process`).
+const GLOBAL_WRITE_RE = /globalThis\.[\w$]+\s*=[^=]/;
 
 for (const name of [path.basename(cjsEntry), path.basename(esmEntry)]) {
   const p = path.join(outDir, name);
   if (!fs.existsSync(p)) continue;
   const code = fs.readFileSync(p, "utf8");
 
-  if (!STAMP_RE.test(code)) {
-    fail(`${p}: build stamp missing`);
-    continue;
+  if (GLOBAL_WRITE_RE.test(code)) {
+    fail(`${p}: writes to globalThis on import`);
   }
 
   // The lazy exceljs import must survive as a literal specifier so the

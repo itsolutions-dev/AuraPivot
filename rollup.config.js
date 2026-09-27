@@ -4,7 +4,6 @@ import resolve from "@rollup/plugin-node-resolve";
 import terser from "@rollup/plugin-terser";
 import babel from "@rollup/plugin-babel";
 import dts from "rollup-plugin-dts";
-import pkg from "./package.json" with { type: "json" };
 
 const OUT_DIR = "dist";
 
@@ -57,25 +56,6 @@ const finalizer = terser({
   format: { comments: false },
 });
 
-// Browser shim for `process` — exceljs/jszip/readable-stream reference
-// `process.env.NODE_DEBUG` etc. at runtime. Vite doesn't polyfill `process`
-// in the browser, so without this the bundle throws
-// `ReferenceError: process is not defined` on load. Assigned to globalThis
-// (not declared as a local `var`) so terser's top-level mangling can't
-// rename the binding and orphan downstream `process.*` references.
-const processShim =
-  'if(typeof globalThis.process==="undefined"){globalThis.process={env:{NODE_ENV:"production"},browser:true,version:"v20.0.0",versions:{node:"20.0.0"},platform:"browser",nextTick:function(cb){Promise.resolve().then(cb);}};}';
-
-// Machine-readable build stamp. Lives in the intro (real code, not a
-// comment) so terser cannot strip it; scripts/verify-dist.mjs asserts it
-// after every build, and it is inspectable at runtime via
-// globalThis.__AURA_PIVOT_BUILD__.
-const buildStamp = `globalThis.__AURA_PIVOT_BUILD__={version:${JSON.stringify(
-  pkg.version,
-)}};`;
-
-const intro = processShim + buildStamp;
-
 const jsConfig = {
   input: "index.ts",
   external,
@@ -88,13 +68,11 @@ const jsConfig = {
       // tooling (TS esModuleInterop, babel) is unaffected.
       exports: "named",
       sourcemap: true,
-      intro,
     },
     {
       file: `${OUT_DIR}/index.esm.js`,
       format: "esm",
       sourcemap: true,
-      intro,
     },
   ],
   plugins: [
