@@ -32,7 +32,9 @@ Excel export writes only strings and numbers.
 **Fixes.** The CommonJS entry renders (it handed an icon module wrapper to
 React as a component). The Format dialog's drill-through toggle takes
 effect, its tab labels are translated and Reset restores the real defaults.
-Sort menus and tooltips stay visible in fullscreen. One-member filters open
+Dialogs, menus, dropdowns, tooltips and the export message stay visible in
+fullscreen. The per-field filter dialog keeps an existing exclude, range or
+search predicate instead of deleting it on Apply. One-member filters open
 with their member selected. A reordered hidden measure stays hidden.
 Nineteen captions that were missing from the shipped dictionaries are added
 in English and Italian.

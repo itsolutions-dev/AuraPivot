@@ -18,6 +18,7 @@ import type {
   PivotOptions,
 } from '../../index';
 import en from '../../localization/en.json';
+import { justifyFor } from './layout';
 
 // vitest runs without injected globals, so RTL cannot self-register cleanup.
 afterEach(cleanup);
@@ -242,6 +243,32 @@ describe('drill-through', () => {
   });
 });
 
+describe('drill-through flag', () => {
+  const clickFirstValue = async () => {
+    const values = await screen.findAllByText(ONE_TWO_HUNDRED);
+    fireEvent.click(values[0]);
+  };
+
+  // Regression: setFormat merges layout, so dropping the key kept `false`.
+  test('comes back when the host drops layout.enableDrillThrough', async () => {
+    const view = renderPivot(makeOptions({}, { enableDrillThrough: false }));
+    await screen.findAllByText(ONE_TWO_HUNDRED);
+    view.rerender(
+      <VirtuosoMockContext.Provider value={virtuosoMock}>
+        <Pivot
+          options={makeOptions({}, {})}
+          dataSource={rows}
+          localization={dict}
+          width={800}
+          height={600}
+        />
+      </VirtuosoMockContext.Provider>,
+    );
+    await clickFirstValue();
+    expect(await screen.findByText('Detail data')).toBeDefined();
+  });
+});
+
 describe('active-filter badge', () => {
   /** The Region chip in the expanded dimension-filter header row. */
   const regionChip = async (container: HTMLElement) => {
@@ -298,5 +325,17 @@ describe('hidden measures', () => {
     expect(within(tooltip).getByText('Other measures')).toBeDefined();
     expect(within(tooltip).getByText('Units (Sum)')).toBeDefined();
     expect(within(tooltip).getByText('7')).toBeDefined();
+  });
+});
+
+describe('justifyFor', () => {
+  test('maps text-align onto flex, with a per-cell fallback', () => {
+    expect(justifyFor('right')).toBe('flex-end');
+    expect(justifyFor('end')).toBe('flex-end');
+    expect(justifyFor('left', 'flex-end')).toBe('flex-start');
+    expect(justifyFor('center')).toBe('center');
+    // Value cells align to the end unless told otherwise.
+    expect(justifyFor('justify', 'flex-end')).toBe('flex-end');
+    expect(justifyFor('justify')).toBe('flex-start');
   });
 });

@@ -64,10 +64,17 @@ describe('shipped dictionaries', () => {
  * in the shipped dictionary, or it can only ever render its inline English
  * fallback. The scan is textual: `const tX = section(t, 'name')` binds a
  * section, every `tX.key` after it in that file is a lookup, and so is a
- * direct `section(t, 'name').key`.
+ * direct `section(t, 'name').key`. Lookups through a computed key are only
+ * covered where the keys sit in a `labelKey` / `l10nKey` table.
  */
+/** Whether `key` names an entry of `node` or of any section nested in it. */
+const hasKeyDeep = (node: unknown, key: string): boolean =>
+  !!node &&
+  typeof node === 'object' &&
+  (key in node || Object.values(node).some((v) => hasKeyDeep(v, key)));
+
 describe('component caption lookups', () => {
-  const files = import.meta.glob('../components/**/*.tsx', {
+  const files = import.meta.glob('../components/**/*.{ts,tsx}', {
     query: '?raw',
     import: 'default',
     eager: true,
@@ -76,7 +83,7 @@ describe('component caption lookups', () => {
   test('resolve to keys present in en.json', () => {
     const missing: string[] = [];
     Object.entries(files).forEach(([file, source]) => {
-      if (file.endsWith('.test.tsx')) return;
+      if (/\.test\.tsx?$/.test(file)) return;
       const bindings = [
         ...source.matchAll(
           /const (\w+) = (?:useMemo\(\(\) => )?section\([^,]+,\s*'(\w+)'\)/g,
@@ -96,6 +103,16 @@ describe('component caption lookups', () => {
           }
         }
       });
+      // Key tables (`labelKey: 'x'`, `l10nKey: 'x'`) are read with a
+      // computed key; each must exist in a section the file binds, or in
+      // some section when the file receives its captions as a parameter.
+      const bound = bindings.map((b) => b[2]);
+      const pool = bound.length > 0 ? bound : Object.keys(en);
+      for (const [, key] of source.matchAll(/(?:labelKey|l10nKey): '(\w+)'/g)) {
+        if (!pool.some((name) => hasKeyDeep((en as Dict)[name], key))) {
+          missing.push(`${file}: ${key} (key table)`);
+        }
+      }
       // One-off lookups: section(t, 'name').key
       const inline = /section\([^,]+,\s*'(\w+)'\)\.(\w+)/g;
       for (const [, sectionName, key] of source.matchAll(inline)) {

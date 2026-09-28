@@ -12,13 +12,18 @@ import {
   Select,
   Stack,
 } from '@mui/material';
-import { distinctValuesFor } from '../../pivot-core/slice/FilterEngine';
+import {
+  applyFilters,
+  distinctValuesFor,
+  isFilterActive,
+} from '../../pivot-core/slice/FilterEngine';
+import type { FilterEntry } from '../../pivot-core/slice/FilterEngine';
+import type { DataRow } from '../../pivot-core/types';
 import { usePivot } from '../../context/PivotContext';
 import type {
   InternalSlice,
   InternalSliceField,
 } from '../../pivot-core/PivotEngine';
-import { usePortalContainer } from '../../hooks/usePortalContainer';
 import useEngineVersion from '../../hooks/useEngineVersion';
 import { measureCaption, section } from '../shared/l10n';
 import { withOpenSession } from '../shared/useOpenSession';
@@ -27,6 +32,7 @@ import MemberChecklist from '../shared/MemberChecklist';
 import SortDirectionToggle, {
   type SortToggleDirection,
 } from '../shared/SortDirectionToggle';
+import { measureKeyOf } from '../../pivot-core/matrix/MatrixComputer';
 
 /**
  * Quick-filter dialog reachable from the gear icon rendered beside every
@@ -109,6 +115,26 @@ const readSortPick = (
 // Component
 // ---------------------------------------------------------------------------
 
+/** The predicates of a filter entry that pick members: what this edits. */
+const memberPredicates = ({ members, exclude, value }: FilterEntry) => ({
+  members,
+  exclude,
+  value,
+});
+
+const withoutMemberPredicates = (
+  entry: FilterEntry | undefined,
+): Partial<FilterEntry> => {
+  if (!entry) return {};
+  const {
+    members: _members,
+    exclude: _exclude,
+    value: _value,
+    ...rest
+  } = entry;
+  return rest;
+};
+
 const DimensionFilterDialog = function DimensionFilterDialog({
   open,
   uniqueName,
@@ -116,7 +142,6 @@ const DimensionFilterDialog = function DimensionFilterDialog({
   onClose,
 }: DimensionFilterDialogProps): React.ReactElement {
   const { engine, localization: t, locale } = usePivot();
-  const portalContainer = usePortalContainer();
 
   const tDim = section(t, 'dimensionFilter');
   const tButtons = section(t, 'buttons');
@@ -136,7 +161,7 @@ const DimensionFilterDialog = function DimensionFilterDialog({
                 m.aggregation !== 'formula' && m.aggregation !== 'currentRatio',
             )
             .map((m) => ({
-              key: `${m.uniqueName}:${m.aggregation}`,
+              key: measureKeyOf(m),
               caption: measureCaption(engine, m, t),
             }))
         : [],
@@ -154,17 +179,21 @@ const DimensionFilterDialog = function DimensionFilterDialog({
 
   // Drafts seed from the slice on mount; the wrapper at the bottom remounts
   // this body on every open.
-  const [checked, setChecked] = useState<Set<string>>(() => {
+  // Checked = the members the field's member predicates let through, so an
+  // exclude or single-value filter set elsewhere opens as it filters.
+  const [seed] = useState<Set<string>>(() => {
     const existing = (slice.filters || []).find(
       (f) => f.uniqueName === uniqueName,
     );
-    // No filter OR an "allow everything" filter → check all values.
-    return new Set(
-      Array.isArray(existing?.members)
-        ? existing.members.map(String)
-        : distinct.map(String),
-    );
+    const passing = existing
+      ? applyFilters(
+          distinct.map((v) => ({ [uniqueName!]: v }) as DataRow),
+          [{ uniqueName: uniqueName!, ...memberPredicates(existing) }],
+        ).map((row) => row[uniqueName!])
+      : distinct;
+    return new Set(passing.map(String));
   });
+  const [checked, setChecked] = useState<Set<string>>(seed);
   const [sortPick, setSortPick] = useState<SortPick>(() =>
     readSortPick(slice, uniqueName),
   );
@@ -211,20 +240,25 @@ const DimensionFilterDialog = function DimensionFilterDialog({
     const filters = (current.filters || []).filter(
       (f) => f.uniqueName !== uniqueName,
     );
+    const previous = (current.filters || []).find(
+      (f) => f.uniqueName === uniqueName,
+    );
+    const unchanged =
+      checked.size === seed.size && [...seed].every((v) => checked.has(v));
     const allSelected =
       distinct.length > 0 && distinct.every((v) => checked.has(String(v)));
-
-    if (!allSelected) {
-      // Keep previous predicates (e.g. range/search) if present.
-      const previous = (current.filters || []).find(
-        (f) => f.uniqueName === uniqueName,
-      );
-      filters.push({
-        ...(previous || {}),
-        uniqueName: uniqueName!,
-        members: Array.from(checked),
-      });
-    }
+    // This dialog edits which members pass; any range / search predicate
+    // on the field stays. An untouched selection keeps its predicate as it
+    // was (an exclude list stays an exclude list).
+    const next: FilterEntry =
+      unchanged && previous
+        ? previous
+        : {
+            ...withoutMemberPredicates(previous),
+            uniqueName: uniqueName!,
+            ...(allSelected ? {} : { members: Array.from(checked) }),
+          };
+    if (isFilterActive(next)) filters.push(next);
 
     engine.setSlice({
       ...current,
@@ -245,13 +279,7 @@ const DimensionFilterDialog = function DimensionFilterDialog({
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      fullWidth
-      maxWidth="xs"
-      container={portalContainer}
-    >
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
       <DialogHeader
         title={caption || uniqueName}
         subtitle={tDim.subtitle || 'Select the values to include in the pivot.'}

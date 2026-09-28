@@ -89,6 +89,43 @@ describe('DimensionFilterDialog', () => {
     expect(engine.getSlice().filters).toEqual([]);
   });
 
+  // Bug fix: the checklist was seeded from `members` only, and Apply with
+  // everything checked deleted the whole entry, predicates set elsewhere
+  // included.
+  test('an exclude filter opens unchecked and survives an untouched Apply', () => {
+    const { engine } = setup({
+      filters: [{ uniqueName: 'region', exclude: ['South'] }],
+    });
+    expect(checkbox('South').checked).toBe(false);
+    expect(checkbox('North').checked).toBe(true);
+    fireEvent.click(screen.getByText('Apply'));
+    expect(engine.getSlice().filters).toEqual([
+      { uniqueName: 'region', exclude: ['South'] },
+    ]);
+  });
+
+  test('a changed selection replaces the member predicates only', () => {
+    const { engine } = setup({
+      filters: [{ uniqueName: 'region', exclude: ['South'], search: 'o' }],
+    });
+    fireEvent.click(checkbox('East'));
+    fireEvent.click(screen.getByText('Apply'));
+    expect(engine.getSlice().filters).toEqual([
+      { uniqueName: 'region', search: 'o', members: ['North'] },
+    ]);
+  });
+
+  test('checking everything keeps a range / search predicate', () => {
+    const { engine } = setup({
+      filters: [{ uniqueName: 'region', members: ['North'], search: 'o' }],
+    });
+    fireEvent.click(checkbox(/Select all/));
+    fireEvent.click(screen.getByText('Apply'));
+    expect(engine.getSlice().filters).toEqual([
+      { uniqueName: 'region', search: 'o' },
+    ]);
+  });
+
   test('"Select all" reflects the values the search leaves visible', () => {
     setup({ filters: [{ uniqueName: 'region', members: ['East'] }] });
     fireEvent.change(screen.getByPlaceholderText('Search…'), {

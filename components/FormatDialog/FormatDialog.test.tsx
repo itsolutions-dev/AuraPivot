@@ -142,6 +142,27 @@ describe('tabs', () => {
   });
 });
 
+describe('section editor', () => {
+  // A string size is a valid engine value; the slider used to receive it
+  // as-is and throw, taking the whole pivot down.
+  test('a CSS-length font size opens without crashing', async () => {
+    renderPivot({
+      options: {
+        ...baseOptions,
+        format: {
+          headers: { fontSize: '14px' },
+          values: { fontSize: '1.2em' },
+        },
+      },
+    });
+    const dialog = await openFormatDialog();
+    openTab(dialog, en.formatDialog.tabs.headers);
+    expect(within(dialog).getByText(/\(14px\)/)).toBeDefined();
+    openTab(dialog, en.formatDialog.tabs.values);
+    expect(within(dialog).getByText(/\(1\.2em\)/)).toBeDefined();
+  });
+});
+
 describe('values tab', () => {
   test('applying a values format reaches the engine and onOptionsChange', async () => {
     const onOptionsChange = vi.fn();

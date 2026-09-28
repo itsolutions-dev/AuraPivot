@@ -94,6 +94,15 @@ export interface ComputedMatrix {
 }
 
 /**
+ * The key of a measure in cell and axis-leaf keys: `<uniqueName>:<aggregation>`.
+ * Anything matching a cell to its measure has to build it the same way.
+ */
+export const measureKeyOf = (m: {
+  uniqueName: string;
+  aggregation: string;
+}): string => `${m.uniqueName}:${m.aggregation}`;
+
+/**
  * Expands a list of axis nodes with per-measure copies. Each produced leaf
  * keeps `.nodeKey` pointing at the original tree node (needed for
  * expand/collapse toggling) while `.key` becomes an axis-unique composite
@@ -121,7 +130,7 @@ const buildAxisLeaves = (
   const out: AxisLeaf[] = [];
   visible.forEach((leaf) => {
     measures.forEach((measure, mIdx) => {
-      const measureKey = `${measure.uniqueName}:${measure.aggregation}`;
+      const measureKey = measureKeyOf(measure);
       const measureCaption = measure.caption || measure.uniqueName;
       const isGrandTotalLeaf = leaf.isTotal && leaf.depth === -1;
       const totalCaption =
@@ -169,9 +178,6 @@ const compareNodes = (
     ) * dir
   );
 };
-
-const measureKeyOf = (m: { uniqueName: string; aggregation: string }): string =>
-  `${m.uniqueName}:${m.aggregation}`;
 
 /** Sum of `field` over `indexes` (every row when omitted), skipping non-numbers. */
 const sumField = (

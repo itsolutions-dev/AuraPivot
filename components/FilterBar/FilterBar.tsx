@@ -15,7 +15,6 @@ import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import ClearIcon from '@mui/icons-material/Clear';
 import CloseIcon from '@mui/icons-material/Close';
 import { usePivot } from '../../context/PivotContext';
-import { usePortalContainer } from '../../hooks/usePortalContainer';
 import useEngineVersion from '../../hooks/useEngineVersion';
 import type { FilterEntry } from '../../pivot-core/slice/FilterEngine';
 import {
@@ -90,13 +89,23 @@ interface FilterEditorProps {
 // Utility functions
 // ---------------------------------------------------------------------------
 
+const modesFor = (type: string): ModeOption[] =>
+  MODES_BY_TYPE[type] || MODES_BY_TYPE.string;
+
+const offers = (type: string, mode: FilterMode): boolean =>
+  modesFor(type).some((m) => m.value === mode);
+
 const inferInitialMode = (filter: FilterEntry, type: string): FilterMode => {
   if (filter.range) return 'range';
-  // A whitelist of any length opens as one: single mode edits `value`, so a
-  // one-member list (what DimensionFilterDialog writes when one value is
-  // kept) would show nothing selected there and Apply would drop it.
-  if (Array.isArray(filter.members) && filter.members.length > 0)
-    return 'multi';
+  // A whitelist opens as one where the type has a multi mode: single mode
+  // edits `value`, so a one-member list (what DimensionFilterDialog writes
+  // when one value is kept) would show nothing selected there and Apply
+  // would drop it. Types without one (dates) open a single member in single
+  // mode, which the editor seeds from it.
+  if (Array.isArray(filter.members) && filter.members.length > 0) {
+    if (offers(type, 'multi')) return 'multi';
+    if (filter.members.length === 1 && offers(type, 'single')) return 'single';
+  }
   if (
     filter.value !== undefined &&
     filter.value !== null &&
@@ -104,8 +113,7 @@ const inferInitialMode = (filter: FilterEntry, type: string): FilterMode => {
   ) {
     return 'single';
   }
-  const modes = MODES_BY_TYPE[type] || MODES_BY_TYPE.string;
-  return modes[0]?.value || 'multi';
+  return modesFor(type)[0]?.value || 'multi';
 };
 
 const filterSummary = (filter: FilterEntry, t: unknown): string => {
@@ -128,6 +136,12 @@ const filterSummary = (filter: FilterEntry, t: unknown): string => {
   ) {
     return `= ${filter.value}`;
   }
+  // Exclude lists and searches come from options or the dimension dialog;
+  // FilterBar does not edit them but must not call them "All".
+  if (Array.isArray(filter.exclude) && filter.exclude.length > 0) {
+    return `≠ ${filter.exclude.length === 1 ? filter.exclude[0] : `${filter.exclude.length} ${tb.values || 'values'}`}`;
+  }
+  if (filter.search) return `“${filter.search}”`;
   return tb.all || 'All';
 };
 
@@ -161,7 +175,8 @@ const FilterEditor = function FilterEditor({
     Array.isArray(filter?.members) ? filter.members.map(String) : [],
   );
   const [value, setValue] = useState<string>(() => {
-    return filter.value != null ? String(filter.value) : '';
+    if (filter.value != null) return String(filter.value);
+    return filter.members?.length === 1 ? String(filter.members[0]) : '';
   });
   const [range, setRange] = useState<{ min: string; max: string }>(() => {
     const r = filter.range;
@@ -208,7 +223,7 @@ const FilterEditor = function FilterEditor({
     onApply({ uniqueName: filter.uniqueName } as FilterEntry);
   };
 
-  const availableModes = MODES_BY_TYPE[type] || MODES_BY_TYPE.string;
+  const availableModes = modesFor(type);
   const isDateLike = type === 'date' || type === 'time';
 
   const getModeLabel = (modeVal: string, fallback: string): string => {
@@ -361,7 +376,6 @@ const filterKeys = (filters: FilterEntry[]): string[] => {
 
 const FilterBar = function FilterBar(): React.ReactElement | null {
   const { engine, localization: t } = usePivot();
-  const portalContainer = usePortalContainer();
   // The engine mutates in place, so its slice is re-read whenever the shared
   // subscription counter moves (see useEngineVersion) rather than mirrored
   // into local state from an effect.
@@ -456,7 +470,6 @@ const FilterBar = function FilterBar(): React.ReactElement | null {
         anchorEl={anchorEl}
         onClose={closeEditor}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-        container={portalContainer}
       >
         {activeFilter && (
           <FilterEditor

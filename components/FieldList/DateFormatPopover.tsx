@@ -9,7 +9,6 @@ import {
   Popover,
   TextField,
 } from '@mui/material';
-import { usePortalContainer } from '../../hooks/usePortalContainer';
 import { section } from '../shared/l10n';
 
 interface DateFormatEntry {
@@ -96,7 +95,6 @@ export const DateFormatPopover = function DateFormatPopover({
   onClose,
   t,
 }: DateFormatPopoverProps): React.ReactElement {
-  const portalContainer = usePortalContainer();
   const tFL = section(t, 'fieldsList');
   const isSubpart = !!(subpart && SUBPART_PRESETS[subpart]);
   const subpartPresets = isSubpart ? SUBPART_PRESETS[subpart!] : null;
@@ -121,7 +119,6 @@ export const DateFormatPopover = function DateFormatPopover({
       onClose={onClose}
       anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-      container={portalContainer}
     >
       <Box sx={{ p: 2, width: 280 }}>
         <Typography variant="caption" sx={{ fontWeight: 600, opacity: 0.75 }}>

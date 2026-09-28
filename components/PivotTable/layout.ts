@@ -21,8 +21,19 @@ export const headerBg = (theme: Theme): string | undefined =>
   );
 
 /** Flex justification matching a text alignment. */
-export const justifyFor = (align: string): string =>
-  align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start';
+/**
+ * Flex justification matching a CSS text-align. Values without a flex
+ * equivalent (`justify`) fall back to the side the cell's text aligns to by
+ * default: the start for labels, the end for numbers.
+ */
+export const justifyFor = (
+  align: string,
+  fallback: 'flex-start' | 'flex-end' = 'flex-start',
+): string => {
+  if (align === 'right' || align === 'end') return 'flex-end';
+  if (align === 'left' || align === 'start') return 'flex-start';
+  return align === 'center' ? 'center' : fallback;
+};
 
 /** An axis key without its "||M:<measure>" variant suffix. */
 export const baseKey = (key: string): string => String(key).split('||M:')[0];

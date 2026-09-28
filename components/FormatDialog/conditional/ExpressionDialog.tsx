@@ -16,7 +16,6 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { usePivot } from '../../../context/PivotContext';
-import { usePortalContainer } from '../../../hooks/usePortalContainer';
 import { newId } from '../../../utils/ids';
 import DialogHeader from '../../shared/DialogHeader';
 import { section } from '../../shared/l10n';
@@ -53,7 +52,6 @@ const ExpressionDialogBody = function ExpressionDialogBody({
   const { localization: t } = usePivot();
   const tF = section(t, 'formatDialog');
   const tB = section(t, 'buttons');
-  const portalContainer = usePortalContainer();
   // Seeded once per open (see withOpenSession below). `value` only changes
   // through this dialog's own Apply, which also closes it.
   const [draft, setDraft] = useState<Expression>(
@@ -104,15 +102,10 @@ const ExpressionDialogBody = function ExpressionDialogBody({
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      fullWidth
-      maxWidth="md"
-      container={portalContainer}
-    >
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
       <DialogHeader
-        title={tF.expression || 'Expression'}
+        // `expressionTitle`: the key earlier versions read (custom dictionaries).
+        title={tF.expression || tF['expressionTitle'] || 'Expression'}
         subtitle={
           tF.expressionSubtitle ||
           'Combine clauses on dimensions and measures. The expression is evaluated per cell; the rule fires when it returns true.'

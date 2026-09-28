@@ -29,7 +29,6 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import TuneIcon from '@mui/icons-material/Tune';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { usePivot } from '../../context/PivotContext';
-import { usePortalContainer } from '../../hooks/usePortalContainer';
 import useEngineVersion from '../../hooks/useEngineVersion';
 import CalculatedFieldDialog from '../CalculatedFieldDialog/CalculatedFieldDialog';
 import DialogHeader from '../shared/DialogHeader';
@@ -100,7 +99,6 @@ const FieldListBody = function FieldListBody({
   measuresAxis,
 }: FieldListProps): React.ReactElement {
   const { engine, localization: t } = usePivot();
-  const portalContainer = usePortalContainer();
   // Every draft below is seeded once, on mount: withOpenSession remounts
   // this body each time the dialog opens, so there is no reset effect and
   // an engine event can never overwrite an edit the user has not applied.
@@ -590,13 +588,7 @@ const FieldListBody = function FieldListBody({
 
   return (
     <>
-      <Dialog
-        open={open}
-        onClose={onClose}
-        fullWidth
-        maxWidth="md"
-        container={portalContainer}
-      >
+      <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
         <DialogHeader
           title={tFL.title || 'Fields'}
           subtitle={tFL.subtitle || 'Drag and drop fields to arrange them'}
@@ -911,7 +903,6 @@ const FieldListBody = function FieldListBody({
         onClose={closeCaptionEditor}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        container={portalContainer}
       >
         <Box sx={{ p: 2, width: 280 }}>
           <Typography

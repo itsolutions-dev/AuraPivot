@@ -15,7 +15,6 @@ import {
   Typography,
 } from '@mui/material';
 import { usePivot } from '../../context/PivotContext';
-import { usePortalContainer } from '../../hooks/usePortalContainer';
 import { withIds } from '../../utils/ids';
 import DialogHeader from '../shared/DialogHeader';
 import { measureCaption, section } from '../shared/l10n';
@@ -31,6 +30,7 @@ import type {
   MeasureEntry,
   SectionValues,
 } from './types';
+import { measureKeyOf } from '../../pivot-core/matrix/MatrixComputer';
 
 /**
  * Format dialog: edits the engine's format state across six tabs.
@@ -100,7 +100,6 @@ const FormatDialogBody = function FormatDialogBody({
   const tTabs = section(tF, 'tabs');
   const tB = section(t, 'buttons');
   const tTb = section(t, 'toolbar');
-  const portalContainer = usePortalContainer();
   const [tab, setTab] = useState<TabKey>('layout');
 
   // The drafts seed once, on mount; withOpenSession below remounts the body
@@ -132,7 +131,7 @@ const FormatDialogBody = function FormatDialogBody({
     (m) => ({
       uniqueName: m.uniqueName,
       aggregation: m.aggregation,
-      measureKey: `${m.uniqueName}:${m.aggregation}`,
+      measureKey: measureKeyOf(m),
       caption: measureCaption(engine, m, t),
       hidden: !!m.hidden,
     }),
@@ -204,13 +203,7 @@ const FormatDialogBody = function FormatDialogBody({
     valuesTarget !== '__default__' && !!valuesByMeasure[valuesTarget];
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      fullWidth
-      maxWidth="md"
-      container={portalContainer}
-    >
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
       <DialogHeader
         title={tTb.format || 'Format'}
         subtitle={
@@ -231,7 +224,18 @@ const FormatDialogBody = function FormatDialogBody({
         })}
       >
         {TABS.map(([key, fallback]) => (
-          <Tab key={key} value={key} label={tTabs[key] || fallback} />
+          <Tab
+            key={key}
+            value={key}
+            label={
+              tTabs[key] ||
+              // Flat keys earlier versions read, still honoured for custom
+              // dictionaries; the shipped ones nest them under `tabs`.
+              tF[`tabs.${key}`] ||
+              tF[`tabs${key[0].toUpperCase()}${key.slice(1)}`] ||
+              fallback
+            }
+          />
         ))}
       </Tabs>
       <DialogContent sx={{ px: 3, py: 3 }}>

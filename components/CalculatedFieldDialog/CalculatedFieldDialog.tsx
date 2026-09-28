@@ -13,7 +13,6 @@ import {
   Tooltip,
 } from '@mui/material';
 import { usePivot } from '../../context/PivotContext';
-import { usePortalContainer } from '../../hooks/usePortalContainer';
 import useEngineVersion from '../../hooks/useEngineVersion';
 import { parseFormulaExpression } from '../../pivot-core/matrix/FormulaEvaluator';
 import { measureCaption, section } from '../shared/l10n';
@@ -264,7 +263,6 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
   editField, // null → create mode, object → edit mode
 }: CalculatedFieldDialogProps): React.ReactElement {
   const { engine, localization: t } = usePivot();
-  const portalContainer = usePortalContainer();
 
   const tCalc = section(t, 'calculatedField');
   const tButtons = section(t, 'buttons');
@@ -794,13 +792,7 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      fullWidth
-      maxWidth="md"
-      container={portalContainer}
-    >
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
       <DialogHeader
         title={
           editField

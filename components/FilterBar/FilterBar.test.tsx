@@ -21,11 +21,12 @@ const dataset = [
   {
     region: { type: 'string', caption: 'Region' },
     revenue: { type: 'number', caption: 'Revenue' },
+    day: { type: 'date', caption: 'Day' },
   },
-  { region: 'North', revenue: 1200 },
-  { region: 'South', revenue: 980 },
-  { region: 'East', revenue: 300 },
-  { region: 'West', revenue: 50 },
+  { region: 'North', revenue: 1200, day: '2024-03-15' },
+  { region: 'South', revenue: 980, day: '2024-03-16' },
+  { region: 'East', revenue: 300, day: '2024-03-16' },
+  { region: 'West', revenue: 50, day: '2024-03-17' },
 ];
 
 const renderBar = (filter: FilterEntry) => {
@@ -125,6 +126,24 @@ describe('FilterBar members editor', () => {
   });
 });
 
+describe('FilterBar modes by field type', () => {
+  // Dates have no multi mode: a one-member list opened there showed no
+  // mode selected and a checklist the toolbar does not offer.
+  test('a one-member filter on a date field opens as that single date', () => {
+    renderBar({ uniqueName: 'day', members: ['2024-03-16'] });
+    fireEvent.click(screen.getByText('Day'));
+    const editor = screen.getByRole('presentation');
+    expect(
+      within(editor)
+        .getByRole('button', { name: 'Single date' })
+        .getAttribute('aria-pressed'),
+    ).toBe('true');
+    expect(
+      (editor.querySelector('input[type="date"]') as HTMLInputElement).value,
+    ).toBe('2024-03-16');
+  });
+});
+
 describe('FilterBar chips', () => {
   const chip = () => screen.getByText('Region').closest('.MuiChip-root');
 
@@ -139,5 +158,13 @@ describe('FilterBar chips', () => {
     cleanup();
     renderBar({ uniqueName: 'region', search: 'or' });
     expect(chip()?.classList.contains('MuiChip-colorSecondary')).toBe(true);
+  });
+
+  test('exclude and search filters are summarized, not shown as "All"', () => {
+    renderBar({ uniqueName: 'region', exclude: ['South'] });
+    expect(chip()?.textContent).toContain('≠ South');
+    cleanup();
+    renderBar({ uniqueName: 'region', search: 'or' });
+    expect(chip()?.textContent).toContain('“or”');
   });
 });

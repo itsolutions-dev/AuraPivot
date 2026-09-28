@@ -145,7 +145,8 @@ export const ClauseEditor = function ClauseEditor({
             patch({ value: e.target.value })
           }
           sx={{ width: 200 }}
-          label={tF.value || 'Value'}
+          // `exprValue`: the key earlier versions read (custom dictionaries).
+          label={tF.value || tF['exprValue'] || 'Value'}
         />
       ) : (
         <>

@@ -25,7 +25,6 @@ import SearchIcon from '@mui/icons-material/Search';
 import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
 import { usePivot } from '../../context/PivotContext';
-import { usePortalContainer } from '../../hooks/usePortalContainer';
 import useEngineVersion from '../../hooks/useEngineVersion';
 import {
   getDateTimeFormat,
@@ -215,7 +214,6 @@ const DrillThroughDialog = function DrillThroughDialog({
   breadcrumbs,
 }: DrillThroughDialogProps): React.ReactElement {
   const { engine, localization: t, locale } = usePivot();
-  const portalContainer = usePortalContainer();
   // Start blank on every open: the wrapper at the bottom remounts this body.
   const [filterText, setFilterText] = useState<string>('');
   const [sortBy, setSortBy] = useState<string | null>(null);
@@ -391,7 +389,6 @@ const DrillThroughDialog = function DrillThroughDialog({
       onClose={onClose}
       fullWidth
       maxWidth={false}
-      container={portalContainer}
       slotProps={{
         paper: {
           sx: (theme: Theme) => ({

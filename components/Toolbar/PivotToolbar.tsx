@@ -24,7 +24,6 @@ import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import GridOnIcon from '@mui/icons-material/GridOn';
 import { usePivot } from '../../context/PivotContext';
-import { usePortalContainer } from '../../hooks/usePortalContainer';
 import { section } from '../shared/l10n';
 import { sanitizeSvg } from './sanitizeSvg';
 
@@ -195,7 +194,6 @@ const ToolbarButton = function ToolbarButton({
   tab,
 }: ToolbarButtonProps): React.ReactElement {
   const [anchor, setAnchor] = React.useState<HTMLElement | null>(null);
-  const portalContainer = usePortalContainer();
   const hasMenu = Array.isArray(tab.menu) && tab.menu.length > 0;
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -208,11 +206,7 @@ const ToolbarButton = function ToolbarButton({
 
   return (
     <>
-      <Tooltip
-        title={tab.title || ''}
-        disableInteractive
-        slotProps={{ popper: { container: portalContainer } }}
-      >
+      <Tooltip title={tab.title || ''} disableInteractive>
         {tab.title && !tab.iconOnly ? (
           <Button
             color="primary"
@@ -235,7 +229,6 @@ const ToolbarButton = function ToolbarButton({
           anchorEl={anchor}
           open={Boolean(anchor)}
           onClose={() => setAnchor(null)}
-          container={portalContainer}
         >
           {tab.menu!.map((item) => (
             <MenuItem

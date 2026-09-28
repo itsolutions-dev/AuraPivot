@@ -128,16 +128,20 @@ function applyOptions(
     grandTotals: o.format?.grandTotals,
     conditional: o.format?.conditional,
     conditionalMode: o.format?.conditionalMode,
-    layout: { ...(o.layout || {}) },
+    // setFormat merges layout, so a flag the host drops would otherwise keep
+    // its last value; drill-through is written on every apply (unset = on).
+    layout: {
+      ...(o.layout || {}),
+      enableDrillThrough: o.layout?.enableDrillThrough !== false,
+    },
   });
 
-  // ---- engine options: toolbar visibility + mirrored enableDrillThrough ----
+  // ---- engine options: toolbar visibility ----
   // `engine.setOptions` shallow-merges, so a partial `toolbar` would wipe the
   // engine's other toolbar flags — merge over the current toolbar instead.
   const currentOpts: InternalOptions = engine.getOptions() || {};
   engine.setOptions({
     toolbar: { ...(currentOpts.toolbar || {}), ...(o.toolbar || {}) },
-    enableDrillThrough: o.layout?.enableDrillThrough,
   });
 }
 

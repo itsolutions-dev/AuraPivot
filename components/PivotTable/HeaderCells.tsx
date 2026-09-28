@@ -3,7 +3,6 @@ import React from 'react';
 import { Box, IconButton, Tooltip } from '@mui/material';
 import SettingsIcon from '@mui/icons-material/Settings';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
-import usePortalContainer from '../../hooks/usePortalContainer';
 import type { CellStyle } from '../../pivot-core/format/CellFormatter';
 import type { Theme } from '@mui/material/styles';
 import type { InternalSlice } from '../../pivot-core/PivotEngine';
@@ -213,7 +212,6 @@ export const SortIndicator = function SortIndicator({
   tooltip,
   variant,
 }: SortIndicatorProps) {
-  const portalContainer = usePortalContainer();
   const iconSx = (theme: Theme) => ({
     fontSize: theme.typography[variant].fontSize,
     flexShrink: 0,
@@ -230,12 +228,7 @@ export const SortIndicator = function SortIndicator({
         : null;
   if (!Icon) return null;
   return (
-    <Tooltip
-      title={tooltip}
-      disableInteractive
-      arrow
-      slotProps={{ popper: { container: portalContainer } }}
-    >
+    <Tooltip title={tooltip} disableInteractive arrow>
       <Icon sx={(theme) => ({ ...iconSx(theme), color: 'primary.main' })} />
     </Tooltip>
   );

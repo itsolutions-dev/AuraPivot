@@ -8,13 +8,8 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import type { EnrichedMeasure } from '../../pivot-core/matrix/MatrixComputer';
 import type PivotEngine from '../../pivot-core/PivotEngine';
+import type { SortMeasureRef } from '../../pivot-core/PivotEngine';
 import type { SortToggleDirection } from '../shared/SortDirectionToggle';
-
-/** Measure reference used by the sort pickers. */
-export interface MeasureRef {
-  uniqueName: string;
-  aggregation: string;
-}
 
 /**
  * One sortable axis. A column-header click sorts the rows by that column
@@ -35,7 +30,7 @@ export interface SortAxis {
     engine: PivotEngine,
     key: string | null,
     direction: string | null,
-    measure: MeasureRef | null,
+    measure: SortMeasureRef | null,
   ) => void;
   AscIcon: typeof ArrowUpwardIcon;
   DescIcon: typeof ArrowUpwardIcon;

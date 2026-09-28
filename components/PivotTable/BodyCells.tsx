@@ -10,7 +10,6 @@ import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
 import UnfoldLessIcon from '@mui/icons-material/UnfoldLess';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
 import { usePivot } from '../../context/PivotContext';
-import usePortalContainer from '../../hooks/usePortalContainer';
 import type { CellStyle } from '../../pivot-core/format/CellFormatter';
 import type { Theme } from '@mui/material/styles';
 import type { SystemStyleObject } from '@mui/system';
@@ -225,12 +224,7 @@ export const BodyLabelCell = function BodyLabelCell({
 };
 
 /** Slots that restyle a Tooltip as a bordered paper card. */
-const cardTooltipSlotProps = (
-  container: HTMLElement | null | undefined,
-  borderColor: string,
-  maxWidth: number,
-) => ({
-  popper: { container },
+const cardTooltipSlotProps = (borderColor: string, maxWidth: number) => ({
   tooltip: {
     sx: {
       bgcolor: 'background.paper',
@@ -369,7 +363,6 @@ export const BodyValueCell = function BodyValueCell({
   error,
   errorLabel,
 }: BodyValueCellProps) {
-  const portalContainer = usePortalContainer();
   const ruleBg = style?.backgroundColor;
   const ruleColor = style?.color;
   const shadeAmt = SHADE_AMOUNT[Math.max(0, Math.min(3, shade || 0))];
@@ -446,7 +439,7 @@ export const BodyValueCell = function BodyValueCell({
             alignItems: 'center',
             gap: '4px',
             width: '100%',
-            justifyContent: justifyFor(style?.textAlign || 'right'),
+            justifyContent: justifyFor(style?.textAlign || 'right', 'flex-end'),
           }}
         >
           <span>{children}</span>
@@ -470,7 +463,7 @@ export const BodyValueCell = function BodyValueCell({
         placement="top"
         enterDelay={150}
         leaveDelay={50}
-        slotProps={cardTooltipSlotProps(portalContainer, 'error.main', 360)}
+        slotProps={cardTooltipSlotProps('error.main', 360)}
         title={
           <Box>
             <TooltipHeading color="error.main">{errorLabel}</TooltipHeading>
@@ -494,7 +487,7 @@ export const BodyValueCell = function BodyValueCell({
       placement="top"
       enterDelay={250}
       leaveDelay={50}
-      slotProps={cardTooltipSlotProps(portalContainer, 'divider', 320)}
+      slotProps={cardTooltipSlotProps('divider', 320)}
       title={
         <HiddenMeasuresList
           label={hiddenMeasuresLabel}

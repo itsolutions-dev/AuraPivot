@@ -3,7 +3,6 @@ import { ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import { usePivot } from '../../context/PivotContext';
-import usePortalContainer from '../../hooks/usePortalContainer';
 import { section } from './l10n';
 
 export type SortToggleDirection = 'asc' | 'desc';
@@ -36,7 +35,6 @@ const SortDirectionToggle = ({
   DescIcon = ArrowDownwardIcon,
 }: SortDirectionToggleProps): React.ReactElement => {
   const { localization } = usePivot();
-  const portalContainer = usePortalContainer();
   const tGrid = section(localization, 'grid');
   const options = [
     {
@@ -58,13 +56,7 @@ const SortDirectionToggle = ({
       onChange={(_, v: SortToggleDirection | null) => v && onChange(v)}
     >
       {options.map(({ value: dir, label, Icon }) => (
-        <Tooltip
-          key={dir}
-          title={label}
-          disableInteractive
-          arrow
-          slotProps={{ popper: { container: portalContainer } }}
-        >
+        <Tooltip key={dir} title={label} disableInteractive arrow>
           <ToggleButton
             value={dir}
             aria-label={label}

@@ -19,17 +19,15 @@ import {
 import type { FormatObject } from '../../pivot-core/format/CellFormatter';
 import type { AxisLeaf } from '../../pivot-core/matrix/MatrixComputer';
 import type { TreeNode } from '../../pivot-core/types';
-import type { InternalSlice } from '../../pivot-core/PivotEngine';
+import type {
+  InternalSlice,
+  SortMeasureRef,
+} from '../../pivot-core/PivotEngine';
 import DimensionFilterDialog from '../DimensionFilterDialog/DimensionFilterDialog';
 import DrillThroughDialog from '../DrillThroughDialog/DrillThroughDialog';
 import { measureCaption, section } from '../shared/l10n';
 import { SORT_AXES } from './sortAxes';
-import type {
-  LeafSort,
-  MeasureRef,
-  SortAxis,
-  SortPickerState,
-} from './sortAxes';
+import type { LeafSort, SortAxis, SortPickerState } from './sortAxes';
 import {
   CELL_MIN_WIDTH,
   CHEVRON_COL_WIDTH,
@@ -48,6 +46,7 @@ import type { HiddenMeasureItem } from './BodyCells';
 import { useStickyGrandTotalColumns } from './useStickyGrandTotalColumns';
 import { buildDrillThrough } from './drillThrough';
 import type { DrillThroughData } from './drillThrough';
+import { measureKeyOf } from '../../pivot-core/matrix/MatrixComputer';
 
 /**
  * Compact-mode virtualized pivot grid. Renders:
@@ -115,7 +114,7 @@ const PivotTable = function PivotTable() {
     const s = new Set<string>();
     (slice.measures || []).forEach((m) => {
       if (m?.hidden && m.uniqueName) {
-        s.add(`${m.uniqueName}:${m.aggregation}`);
+        s.add(measureKeyOf(m));
       }
     });
     return s;
@@ -133,8 +132,7 @@ const PivotTable = function PivotTable() {
     // no information — drop it from the visible leaves.
     const visibleMeasures = (matrix?.measures || []).filter(
       (m) =>
-        m.aggregation !== 'formula' &&
-        !hiddenMeasures.has(`${m.uniqueName}:${m.aggregation}`),
+        m.aggregation !== 'formula' && !hiddenMeasures.has(measureKeyOf(m)),
     );
     const onlyCurrentRatio =
       visibleMeasures.length === 1 &&
@@ -267,9 +265,12 @@ const PivotTable = function PivotTable() {
   // them so numbers line up against their header.
   const dataAlign = format?.values?.textAlign || 'right';
   const density = resolveDensity(format?.layout?.density as string | undefined);
-  // Both the Format dialog toggle and the options prop's
-  // layout.enableDrillThrough land in format.layout; unset means on.
-  const drillThroughEnabled = format?.layout?.enableDrillThrough !== false;
+  // The options prop and the Format dialog toggle both write
+  // format.layout.enableDrillThrough; `engine.setOptions` / `setReport` can
+  // still switch it off through the engine options.
+  const drillThroughEnabled =
+    format?.layout?.enableDrillThrough !== false &&
+    options?.enableDrillThrough !== false;
 
   // Direction and hover text of a leaf's sort arrow. The tooltip names the
   // measure too when the sort was keyed on one from the picker.
@@ -283,7 +284,7 @@ const PivotTable = function PivotTable() {
         direction === 'asc'
           ? tGrid.sortAsc || 'Ascending'
           : tGrid.sortDesc || 'Descending';
-      const ref = sort[axis.measureField] as Partial<MeasureRef> | null;
+      const ref = sort[axis.measureField] as SortMeasureRef | null;
       const m = ref
         ? (matrix?.measures || []).find(
             (mm) =>
@@ -329,9 +330,7 @@ const PivotTable = function PivotTable() {
       }
       // Clicks cycle desc → asc → off. A sort keyed on a measure picked
       // earlier is replaced, starting over at desc.
-      const measure = current?.[
-        axis.measureField
-      ] as Partial<MeasureRef> | null;
+      const measure = current?.[axis.measureField] as SortMeasureRef | null;
       let next: string | null = 'desc';
       if (
         current?.[axis.keyField] === leaf.key &&
@@ -448,7 +447,7 @@ const PivotTable = function PivotTable() {
       return (slice.measures || [])
         .filter((m) => m?.hidden)
         .map((m) => {
-          const measureKey = `${m.uniqueName}:${m.aggregation}`;
+          const measureKey = measureKeyOf(m);
           return {
             uniqueName: m.uniqueName,
             caption: measureCaption(engine, m, localization),
@@ -915,12 +914,13 @@ const PivotTable = function PivotTable() {
             const cell = matrix.cells.get(`${rowNode.key}::${col.key}`);
             const colSticky = stickyColStyle(col, ci, false);
             const measureKey = cell?.measureKey || col.measureKey || null;
+            // Resolved once per cell; conditional rules call the getter once
+            // per operand.
+            const byMeasure = cellsByBase.get(
+              cellBaseKey(rowNode.key, col.key),
+            );
             const getMeasureValue = (target: string | null | undefined) => {
-              if (!target) return null;
-              const byMeasure = cellsByBase.get(
-                cellBaseKey(rowNode.key, col.key),
-              );
-              if (!byMeasure) return null;
+              if (!target || !byMeasure) return null;
               if (String(target).includes(':')) {
                 return byMeasure.has(target) ? byMeasure.get(target)! : null;
               }

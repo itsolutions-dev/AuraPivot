@@ -247,6 +247,13 @@ interface SectionEditorProps {
   showAlignment?: boolean;
 }
 
+/** A font size in px, when it is a bare number or a px length. */
+const toPx = (size: unknown): number | null => {
+  if (typeof size === 'number') return Number.isFinite(size) ? size : null;
+  const m = /^\s*(\d+(?:\.\d+)?)\s*(?:px)?\s*$/i.exec(String(size ?? ''));
+  return m ? Number(m[1]) : null;
+};
+
 export const SectionEditor = function SectionEditor({
   // Renamed so it does not shadow the `section` l10n helper.
   section: values,
@@ -257,7 +264,11 @@ export const SectionEditor = function SectionEditor({
   const tF = section(usePivot().localization, 'formatDialog');
   const patch = (upd: Partial<SectionValues>) =>
     setSection({ ...values, ...upd });
-  const fontSize = values.fontSize || 13;
+  // The engine keeps any CSS length ('14px', '1.2em'); the slider works in
+  // px, so a non-px size shows as written and the thumb at the default.
+  const sizePx = toPx(values.fontSize);
+  const fontSize = sizePx ?? 13;
+  const sizeLabel = sizePx != null ? `${sizePx}px` : String(values.fontSize);
   return (
     <Stack sx={{ gap: 3, pt: 1.5 }}>
       <Stack sx={{ gap: 1.25 }}>
@@ -280,7 +291,7 @@ export const SectionEditor = function SectionEditor({
             </Select>
           </LabeledField>
           <LabeledField
-            label={`${tF.fontSize || 'Size'} (${fontSize}px)`}
+            label={`${tF.fontSize || 'Size'} (${sizeLabel})`}
             width={160}
           >
             <Slider
