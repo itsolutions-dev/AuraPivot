@@ -13,6 +13,12 @@ interface SortDirectionToggleProps {
   onChange: (direction: SortToggleDirection) => void;
   /** Tighter buttons for use inside a menu header. */
   dense?: boolean;
+  /**
+   * Arrow icons: vertical by default; a sort that reorders columns uses
+   * sideways ones.
+   */
+  AscIcon?: typeof ArrowUpwardIcon;
+  DescIcon?: typeof ArrowUpwardIcon;
 }
 
 const DENSE_SX = {
@@ -26,6 +32,8 @@ const SortDirectionToggle = ({
   value,
   onChange,
   dense = false,
+  AscIcon = ArrowUpwardIcon,
+  DescIcon = ArrowDownwardIcon,
 }: SortDirectionToggleProps): React.ReactElement => {
   const { localization } = usePivot();
   const portalContainer = usePortalContainer();
@@ -34,12 +42,12 @@ const SortDirectionToggle = ({
     {
       value: 'asc',
       label: tGrid.sortAsc || 'Ascending',
-      Icon: ArrowUpwardIcon,
+      Icon: AscIcon,
     },
     {
       value: 'desc',
       label: tGrid.sortDesc || 'Descending',
-      Icon: ArrowDownwardIcon,
+      Icon: DescIcon,
     },
   ] as const;
   return (
