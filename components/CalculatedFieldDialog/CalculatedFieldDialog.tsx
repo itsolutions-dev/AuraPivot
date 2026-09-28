@@ -821,6 +821,9 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
             }}
             size="small"
             fullWidth
+            // Focus belongs inside a dialog the user just opened (WAI-ARIA
+            // dialog pattern); the rule targets autofocus on page load.
+            // eslint-disable-next-line jsx-a11y/no-autofocus
             autoFocus
           />
 

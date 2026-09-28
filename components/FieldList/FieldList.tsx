@@ -1660,6 +1660,9 @@ const FieldListBody = function FieldListBody({
           <TextField
             size="small"
             fullWidth
+            // The rename popover exists to take this input; focus moves into
+            // it on open, as in a dialog.
+            // eslint-disable-next-line jsx-a11y/no-autofocus
             autoFocus
             value={captionEditor.value}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>

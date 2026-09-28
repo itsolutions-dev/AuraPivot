@@ -19,15 +19,15 @@ export default defineConfig({
       ],
       exclude: ['**/*.test.{ts,tsx}', '**/*.d.ts'],
       // Thresholds are a ratchet: they record what is covered today so a
-      // change cannot quietly reduce it. Phases 2 and 3 raise them toward
-      // the targets in the spec (pivot-core 95, global 90).
-      // Measured 2026-09-01: lines 47.95%, functions 38.36%, branches
-      // 33.51%, statements 45.7% (global, from `npm run test:coverage`).
+      // change cannot quietly reduce it. Raise them toward the targets in
+      // the spec (pivot-core 95, global 90) as coverage grows.
+      // Measured 2026-09-28: lines 78.33%, functions 77.9%, branches
+      // 63.87%, statements 75.89% (global, from `npm run test:coverage`).
       thresholds: {
-        lines: 47,
-        functions: 38,
-        branches: 33,
-        statements: 45,
+        lines: 78,
+        functions: 77,
+        branches: 63,
+        statements: 75,
       },
     },
   },
