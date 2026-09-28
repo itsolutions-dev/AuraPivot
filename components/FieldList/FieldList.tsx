@@ -5,7 +5,6 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle,
   IconButton,
   Chip,
   Typography,
@@ -25,7 +24,7 @@ import {
   InputLabel,
   OutlinedInput,
 } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
+import type { SxProps, Theme } from '@mui/material/styles';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
 import EditIcon from '@mui/icons-material/Edit';
@@ -44,73 +43,68 @@ import { usePivot } from '../../context/PivotContext';
 import { usePortalContainer } from '../../hooks/usePortalContainer';
 import useEngineVersion from '../../hooks/useEngineVersion';
 import CalculatedFieldDialog from '../CalculatedFieldDialog/CalculatedFieldDialog';
-import type { InternalSlice } from '../../pivot-core/PivotEngine';
+import DialogHeader from '../shared/DialogHeader';
+import { aggregationLabel, section } from '../shared/l10n';
+import { withOpenSession } from '../shared/useOpenSession';
+import { MEASURE_AGGREGATIONS } from '../../pivot-core/aggregation/labels';
+import { hasOwn } from '../../pivot-core/utils';
+import type PivotEngine from '../../pivot-core/PivotEngine';
+import type {
+  InternalCalculatedField,
+  InternalSlice,
+  InternalSliceField,
+} from '../../pivot-core/PivotEngine';
 
 /**
- * Drag-and-drop configuration panel for rows, columns, measures and filters.
- * The UI is modeled after the auraPivot field list dialog but is built on
- * MUI primitives
- * and dark-mode palette automatically.
+ * Field list dialog: drag fields between the filters, rows, columns and
+ * values zones, and set per-field captions, date formats and drill-through
+ * columns. Built on MUI primitives, so it follows the host theme, dark mode
+ * included.
  *
- * Drag-and-drop is implemented with the native HTML5 DnD API to avoid pulling
- * in a heavyweight dnd library.
+ * Drag-and-drop uses the native HTML5 API rather than a dnd library.
  */
 
 // ---------------------------------------------------------------------------
 // Internal types
 // ---------------------------------------------------------------------------
 
-interface InternalSliceField {
-  uniqueName: string;
-  sort?: string;
+type ZoneId = 'rows' | 'columns' | 'measures' | 'filters';
+
+/**
+ * An entry of any drop zone. The editor handles the four zones uniformly,
+ * so the measure-only properties are optional here.
+ */
+type ZoneField = InternalSliceField & {
   aggregation?: string;
   hidden?: boolean;
   availableAggregations?: string[];
-  fieldSort?: Record<string, unknown>;
-  [key: string]: unknown;
-}
+};
 
-/** Local mutable slice shape used by the drag-and-drop editor.
- * Kept separate from PivotEngine's InternalSlice because the DnD logic
- * treats all zone arrays uniformly as InternalSliceField[]. */
+/** The draft slice, with every zone as ZoneField[]. */
 interface LocalSlice {
-  rows?: InternalSliceField[];
-  columns?: InternalSliceField[];
-  measures?: InternalSliceField[];
-  filters?: InternalSliceField[];
+  rows?: ZoneField[];
+  columns?: ZoneField[];
+  measures?: ZoneField[];
+  filters?: ZoneField[];
   [key: string]: unknown;
 }
 
-interface AvailableField {
-  uniqueName: string;
-  caption?: string;
-  isCalculated?: boolean;
-  type?: string;
-  availableAggregations?: string[];
-}
+type AvailableField = ReturnType<PivotEngine['getAvailableFields']>[number];
 
-interface CalculatedField {
-  uniqueName: string;
-  caption?: string;
-  formula?: string;
-}
-
+/** A palette entry; a date field groups its hierarchy parts as children. */
 interface FieldTreeNode extends AvailableField {
   isDateParent?: boolean;
-  isDatePart?: boolean;
+  /** Header for the remaining parts of a date field that sits in a zone. */
   parentUsed?: boolean;
-  partKey?: string;
   partCaption?: string;
   subpart?: string;
   children?: FieldTreeNode[];
 }
 
-interface DragPayload {
-  source: string;
-  uniqueName: string;
-  idx?: number;
-  aggregation?: string;
-}
+/** Where a drag started: a zone chip (at `idx`) or the "All fields" palette. */
+type DragPayload =
+  | { source: 'all'; uniqueName: string }
+  | { source: ZoneId; uniqueName: string; idx: number };
 
 interface DateFormatEntry {
   value: string;
@@ -132,63 +126,15 @@ export interface FieldListProps {
 // Constants
 // ---------------------------------------------------------------------------
 
-const AGGREGATION_LABELS_FALLBACK: Record<string, string> = {
-  sum: 'Sum',
-  count: 'Count',
-  distinctCount: 'Distinct count',
-  avg: 'Average',
-  min: 'Min',
-  max: 'Max',
-  ratioTotal: 'Ratio to total',
-  currentRatio: 'Current ratio',
-};
-
-/**
- * The localization schema stores aggregation entries as objects
- * (`{ caption, totalCaption, grandTotalCaption }`) and uses camelCase keys
- * (`distinctCount`, `average`). Map our internal keys onto that schema and
- * unwrap the caption so React never receives an object as a child.
- * Distinct from PivotEngine's AGG_LOCALE_KEY, which maps the same concept
- * for engine-side captions and spells distinctcount in the engine's own
- * lower-case form.
- */
-const AGG_DICT_KEY: Record<string, string> = {
-  sum: 'sum',
-  count: 'count',
-  distinctCount: 'distinctCount',
-  avg: 'average',
-  min: 'min',
-  max: 'max',
-  ratioTotal: 'ratioTotal',
-  currentRatio: 'currentRatio',
-};
-
-const resolveAggregationLabel = (
-  t: Record<string, unknown>,
-  aggregation: string,
-): string => {
-  const localeKey = AGG_DICT_KEY[aggregation] || aggregation;
-  const tagg =
-    (t as Record<string, Record<string, unknown>>)?.aggregations ?? {};
-  const entry = tagg[aggregation] ?? tagg[localeKey];
-  if (entry && typeof entry === 'object') {
-    return (
-      (entry as Record<string, string>).caption ||
-      AGGREGATION_LABELS_FALLBACK[aggregation] ||
-      aggregation
-    );
-  }
-  return (
-    (entry as string) || AGGREGATION_LABELS_FALLBACK[aggregation] || aggregation
-  );
-};
-
-const ZONES: { id: string; labelKey: string }[] = [
+const ZONES: { id: ZoneId; labelKey: string }[] = [
   { id: 'filters', labelKey: 'filters' },
   { id: 'rows', labelKey: 'rows' },
   { id: 'columns', labelKey: 'columns' },
   { id: 'measures', labelKey: 'values' },
 ];
+
+const isZoneId = (value: unknown): value is ZoneId =>
+  ZONES.some((z) => z.id === value);
 
 /**
  * Stable React key for a slice entry. The measures zone may hold the same
@@ -196,29 +142,45 @@ const ZONES: { id: string; labelKey: string }[] = [
  * part of the identity — never the array index, since every zone is
  * drag-reorderable.
  */
-const chipKey = (item: InternalSliceField): string =>
+const chipKey = (item: ZoneField): string =>
   item.aggregation ? `${item.uniqueName}:${item.aggregation}` : item.uniqueName;
 
+// ---------------------------------------------------------------------------
+// Drag payload
+// ---------------------------------------------------------------------------
+
 /**
- * Parses a drag payload. Existing chips send a JSON blob with source zone +
- * index; items coming from the "all fields" list send a plain uniqueName for
- * backward compatibility (a bare uniqueName is not JSON, so the parse failure
- * is the expected path for those — not an error worth logging).
+ * Private drag type, so a text drag from another page or app is never read
+ * as a field. It is not a trust boundary — any page can set any type — so
+ * `readDragPayload` checks the shape and the drop handlers check the
+ * payload against the current slice.
  */
-const parseDragPayload = (raw: string): DragPayload | null => {
-  if (!raw) return null;
+const DRAG_TYPE = 'application/x-aurapivot-field';
+
+const startDrag = (e: React.DragEvent, payload: DragPayload) => {
+  e.dataTransfer.setData(DRAG_TYPE, JSON.stringify(payload));
+  e.dataTransfer.effectAllowed = 'move';
+};
+
+/**
+ * The payload of a drag this dialog started, or null for anything else:
+ * the source must be the palette or a zone, and a zone source needs a
+ * non-negative integer index.
+ */
+const readDragPayload = (e: React.DragEvent): DragPayload | null => {
+  let raw: unknown;
   try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (
-      parsed &&
-      typeof parsed === 'object' &&
-      (parsed as Record<string, unknown>).uniqueName
-    )
-      return parsed as DragPayload;
+    raw = JSON.parse(e.dataTransfer.getData(DRAG_TYPE));
   } catch {
-    // fall through: plain-uniqueName payload from the "all fields" list.
+    return null;
   }
-  return { source: 'all', uniqueName: raw };
+  if (!raw || typeof raw !== 'object') return null;
+  const { source, uniqueName, idx } = raw as Record<string, unknown>;
+  if (typeof uniqueName !== 'string') return null;
+  if (source === 'all') return { source, uniqueName };
+  if (!isZoneId(source) || typeof idx !== 'number') return null;
+  if (!Number.isInteger(idx) || idx < 0) return null;
+  return { source, uniqueName, idx };
 };
 
 // ---------------------------------------------------------------------------
@@ -300,19 +262,14 @@ const DateFormatPopover = function DateFormatPopover({
   t,
 }: DateFormatPopoverProps): React.ReactElement {
   const portalContainer = usePortalContainer();
-  // dynamic boundary: localization is Record<string,unknown>
-  const tFL = (t as Record<string, Record<string, unknown>>)?.fieldsList ?? {};
+  const tFL = section(t, 'fieldsList');
   const isSubpart = !!(subpart && SUBPART_PRESETS[subpart]);
   const subpartPresets = isSubpart ? SUBPART_PRESETS[subpart!] : null;
   const subpartLabel = (p: { value: string; fallback: string }): string =>
-    (
-      tFL.subpartFormats as Record<string, Record<string, string>> | undefined
-    )?.[subpart!]?.[p.value] || p.fallback;
+    section(section(tFL, 'subpartFormats'), subpart!)[p.value] || p.fallback;
 
   const dateLabel = (p: DateFormatEntry): string =>
-    (tFL.dateFormats as Record<string, string> | undefined)?.[
-      p.labelKey || ''
-    ] || p.fallback;
+    section(tFL, 'dateFormats')[p.labelKey || ''] || p.fallback;
 
   // For the free date formatter: any non-preset value = custom pattern.
   const datePresetValues = new Set(
@@ -333,7 +290,7 @@ const DateFormatPopover = function DateFormatPopover({
     >
       <Box sx={{ p: 2, width: 280 }}>
         <Typography variant="caption" sx={{ fontWeight: 600, opacity: 0.75 }}>
-          {(tFL.dateFormat as string | undefined) || 'Date format'}
+          {tFL.dateFormat || 'Date format'}
         </Typography>
         {isSubpart ? (
           <Select
@@ -382,7 +339,7 @@ const DateFormatPopover = function DateFormatPopover({
                 sx={{ mt: 1 }}
                 placeholder="dd/MM/yyyy HH:mm"
                 helperText={
-                  (tFL.dateFormatHelp as string | undefined) ||
+                  tFL.dateFormatHelp ||
                   'Tokens: yyyy yy MMMM MMM MM M dd d EEEE EEE HH H mm m ss s'
                 }
               />
@@ -517,16 +474,17 @@ const NumericField = function NumericField({
 // ---------------------------------------------------------------------------
 
 interface DropZoneProps {
-  zone: string;
-  items: InternalSliceField[];
+  zone: ZoneId;
+  /** The whole zone array, Measures anchor included. */
+  items: ZoneField[];
   label: string;
   dropHint: string;
   onDrop: (
-    zone: string,
+    zone: ZoneId,
     payload: DragPayload,
     targetIdx: number | null,
   ) => void;
-  renderItem: (item: InternalSliceField, idx: number) => React.ReactNode;
+  renderItem: (item: ZoneField, idx: number) => React.ReactNode;
 }
 
 const DropZone = function DropZone({
@@ -539,6 +497,20 @@ const DropZone = function DropZone({
 }: DropZoneProps): React.ReactElement {
   const [over, setOver] = useState<boolean>(false);
 
+  // `targetIdx` is the chip dropped on (insert before it), or null for the
+  // zone background (append).
+  const drop = (e: React.DragEvent, targetIdx: number | null) => {
+    e.preventDefault();
+    setOver(false);
+    const payload = readDragPayload(e);
+    if (payload) onDrop(zone, payload, targetIdx);
+  };
+
+  // The Measures anchor gets no chip (the "Show totals" toggle places it)
+  // but keeps its slot, so chip indices match the zone array the slice
+  // edits address.
+  const isEmpty = items.every((item) => item.uniqueName === 'Measures');
+
   return (
     <Box
       onDragOver={(e: React.DragEvent<HTMLDivElement>) => {
@@ -547,12 +519,7 @@ const DropZone = function DropZone({
         setOver(true);
       }}
       onDragLeave={() => setOver(false)}
-      onDrop={(e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        setOver(false);
-        const payload = parseDragPayload(e.dataTransfer.getData('text/plain'));
-        if (payload) onDrop(zone, payload, null);
-      }}
+      onDrop={(e: React.DragEvent<HTMLDivElement>) => drop(e, null)}
       sx={(theme) => ({
         borderRadius: 2,
         border: `1px dashed ${
@@ -573,7 +540,7 @@ const DropZone = function DropZone({
         {label}
       </Typography>
       <Stack direction="row" sx={{ gap: 0, flexWrap: 'wrap', mt: 0.75 }}>
-        {items.length === 0 && (
+        {isEmpty && (
           <Typography
             variant="body2"
             sx={{ opacity: 0.5, fontStyle: 'italic' }}
@@ -581,55 +548,159 @@ const DropZone = function DropZone({
             {dropHint}
           </Typography>
         )}
-        {items.map((item, idx) => {
-          // Each chip is both a drag source (to move to another zone) and a
-          // drop target (to reorder / insert at a specific position).
-          const dragProps = {
-            draggable: true as const,
-            onDragStart: (e: React.DragEvent<HTMLDivElement>) => {
-              e.stopPropagation();
-              e.dataTransfer.setData(
-                'text/plain',
-                JSON.stringify({
+        {items.map((item, idx) =>
+          item.uniqueName === 'Measures' ? null : (
+            // Each chip is both a drag source (to move to another zone) and
+            // a drop target (to reorder / insert at a specific position).
+            <Box
+              key={chipKey(item)}
+              draggable
+              onDragStart={(e: React.DragEvent<HTMLDivElement>) => {
+                e.stopPropagation();
+                startDrag(e, {
                   source: zone,
                   uniqueName: item.uniqueName,
                   idx,
-                }),
-              );
-              e.dataTransfer.effectAllowed = 'move';
-            },
-            onDragOver: (e: React.DragEvent<HTMLDivElement>) => {
-              e.preventDefault();
-              e.stopPropagation();
-              e.dataTransfer.dropEffect = 'move';
-            },
-            onDrop: (e: React.DragEvent<HTMLDivElement>) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setOver(false);
-              const payload = parseDragPayload(
-                e.dataTransfer.getData('text/plain'),
-              );
-              if (payload) onDrop(zone, payload, idx);
-            },
-          };
-          return (
-            <Box
-              key={chipKey(item)}
+                });
+              }}
+              onDragOver={(e: React.DragEvent<HTMLDivElement>) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.dataTransfer.dropEffect = 'move';
+              }}
+              onDrop={(e: React.DragEvent<HTMLDivElement>) => {
+                e.stopPropagation();
+                drop(e, idx);
+              }}
               sx={{
                 cursor: 'grab',
                 mr: '4px',
                 mt: '4px',
                 '&:active': { cursor: 'grabbing' },
               }}
-              {...dragProps}
             >
               {renderItem(item, idx)}
             </Box>
-          );
-        })}
+          ),
+        )}
       </Stack>
     </Box>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Rows of the "All fields" palette
+// ---------------------------------------------------------------------------
+
+interface RowActionProps {
+  /** Tooltip; MUI also makes it the button's accessible name. */
+  title?: string;
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  color?: string;
+  children: React.ReactNode;
+}
+
+/**
+ * Compact icon button on a palette row or a chip. The click stops at the
+ * button, so it never reaches the draggable row or chip around it.
+ */
+const RowAction = function RowAction({
+  title,
+  onClick,
+  color,
+  children,
+}: RowActionProps): React.ReactElement {
+  const button = (
+    <IconButton
+      size="small"
+      onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+        e.stopPropagation();
+        onClick(e);
+      }}
+      sx={(theme) => ({
+        p: '2px',
+        '& svg': { fontSize: theme.typography.fontSize },
+        color,
+      })}
+    >
+      {children}
+    </IconButton>
+  );
+  return title ? <Tooltip title={title}>{button}</Tooltip> : button;
+};
+
+interface PaletteRowProps {
+  uniqueName: string;
+  /** Already on rows, columns or filters: listed, but not draggable again. */
+  used: boolean;
+  /** Defaults to `!used`. A row that cannot be dragged is dimmed. */
+  draggable?: boolean;
+  /** Controls placed before the drag handle. */
+  leading?: React.ReactNode;
+  dropProps?: Pick<
+    React.HTMLAttributes<HTMLDivElement>,
+    'onDragOver' | 'onDrop'
+  >;
+  sx?: SxProps<Theme>;
+  children: React.ReactNode;
+}
+
+/** One "All fields" row, a drag source for the zones. */
+const PaletteRow = function PaletteRow({
+  uniqueName,
+  used,
+  draggable = !used,
+  leading,
+  dropProps,
+  sx,
+  children,
+}: PaletteRowProps): React.ReactElement {
+  const tFL = section(usePivot().localization, 'fieldsList');
+  return (
+    <Tooltip
+      title={
+        used
+          ? tFL.fieldUsedTooltip ||
+            'Field already used — remove it from rows/columns/filters to drag it elsewhere'
+          : ''
+      }
+      disableHoverListener={!used}
+      disableFocusListener={!used}
+    >
+      <Box
+        draggable={draggable}
+        onDragStart={
+          draggable
+            ? (e: React.DragEvent<HTMLDivElement>) =>
+                startDrag(e, { source: 'all', uniqueName })
+            : undefined
+        }
+        {...dropProps}
+        style={{ alignItems: 'center' }}
+        sx={[
+          (theme) => ({
+            display: 'flex',
+            gap: 0.5,
+            cursor: draggable ? 'grab' : 'default',
+            py: 0.5,
+            borderRadius: 1.5,
+            backgroundColor: theme.palette.action.hover,
+            border: '1px solid transparent',
+            opacity: draggable ? 1 : 0.55,
+            '&:hover': { backgroundColor: theme.palette.action.selected },
+          }),
+          ...(Array.isArray(sx) ? sx : [sx]),
+        ]}
+      >
+        {leading}
+        {draggable ? (
+          <DragIndicatorIcon fontSize="small" sx={{ opacity: 0.5 }} />
+        ) : (
+          <Box sx={{ width: 20 }} />
+        )}
+        {children}
+      </Box>
+    </Tooltip>
   );
 };
 
@@ -652,14 +723,25 @@ const ensureMeasuresAnchor = (
   return { ...s, columns: [...(s.columns || []), { uniqueName: 'Measures' }] };
 };
 
+const without = (
+  list: ZoneField[] | undefined,
+  uniqueName: string,
+): ZoneField[] => (list || []).filter((f) => f.uniqueName !== uniqueName);
+
 /** Drop a field from every zone of the local draft slice. */
 const stripFromSlice = (s: LocalSlice, uniqueName: string): LocalSlice => ({
   ...s,
-  rows: (s.rows || []).filter((f) => f.uniqueName !== uniqueName),
-  columns: (s.columns || []).filter((f) => f.uniqueName !== uniqueName),
-  measures: (s.measures || []).filter((f) => f.uniqueName !== uniqueName),
-  filters: (s.filters || []).filter((f) => f.uniqueName !== uniqueName),
+  rows: without(s.rows, uniqueName),
+  columns: without(s.columns, uniqueName),
+  measures: without(s.measures, uniqueName),
+  filters: without(s.filters, uniqueName),
 });
+
+const NO_CAPTION_EDIT = {
+  anchor: null as HTMLElement | null,
+  uniqueName: null as string | null,
+  value: '',
+};
 
 const FieldListBody = function FieldListBody({
   open,
@@ -668,9 +750,9 @@ const FieldListBody = function FieldListBody({
 }: FieldListProps): React.ReactElement {
   const { engine, localization: t } = usePivot();
   const portalContainer = usePortalContainer();
-  // Every draft below is seeded once, on mount: the wrapper remounts this
-  // body each time the dialog opens, so there is no reset effect and an
-  // engine event can never overwrite an edit the user has not applied yet.
+  // Every draft below is seeded once, on mount: withOpenSession remounts
+  // this body each time the dialog opens, so there is no reset effect and
+  // an engine event can never overwrite an edit the user has not applied.
   const [slice, setSliceState] = useState<LocalSlice>(() =>
     ensureMeasuresAnchor(
       engine.getSlice() as unknown as LocalSlice,
@@ -679,7 +761,7 @@ const FieldListBody = function FieldListBody({
   );
   const [calcDialog, setCalcDialog] = useState<{
     open: boolean;
-    editField: CalculatedField | null;
+    editField: InternalCalculatedField | null;
   }>({
     open: false,
     editField: null,
@@ -689,11 +771,13 @@ const FieldListBody = function FieldListBody({
   // commits them to the engine immediately, so they are read back rather
   // than drafted.
   const engineVersion = useEngineVersion(engine);
-  const calcFields = useMemo<CalculatedField[]>(
+  const calcFields = useMemo<InternalCalculatedField[]>(
     () => engine.getCalculatedFields(),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [engine, engineVersion],
   );
+  const calcField = (uniqueName: string) =>
+    calcFields.find((c) => c.uniqueName === uniqueName);
 
   // Local draft of per-date-field formats. Committed to the engine on Apply.
   const [dateFormats, setDateFormats] = useState<Record<string, string>>(() =>
@@ -705,7 +789,7 @@ const FieldListBody = function FieldListBody({
     engine.getFieldOrder(),
   );
   const [drillThroughFields, setDrillThroughFields] = useState<
-    Record<string, boolean | undefined>
+    Record<string, boolean>
   >(() => engine.getDrillThroughConfig().fields);
   const [frozenCount, setFrozenCount] = useState<number>(
     () => engine.getDrillThroughConfig().frozenCount,
@@ -721,64 +805,48 @@ const FieldListBody = function FieldListBody({
     uniqueName: null,
     subpart: null,
   });
-  const [captionEditor, setCaptionEditor] = useState<{
-    anchor: HTMLElement | null;
-    uniqueName: string | null;
-    value: string;
-  }>({
-    anchor: null,
-    uniqueName: null,
-    value: '',
-  });
+  const [captionEditor, setCaptionEditor] = useState(NO_CAPTION_EDIT);
 
-  // dynamic boundary: localization is Record<string,unknown>
-  const tFL = (t as Record<string, Record<string, string>>)?.fieldsList ?? {};
-  const tButtons = (t as Record<string, Record<string, string>>)?.buttons ?? {};
+  const tFL = section(t, 'fieldsList');
+  const tButtons = section(t, 'buttons');
 
-  const openCaptionEditor = (target: HTMLElement, uniqueName: string) => {
-    const meta = engine.getMetadata()[uniqueName];
-    const calc = calcFields.find((c) => c.uniqueName === uniqueName);
-    const current = meta?.caption || calc?.caption || uniqueName;
-    setCaptionEditor({ anchor: target, uniqueName, value: current });
-  };
+  const captionFor = (uniqueName: string): string =>
+    engine.getMetadata()[uniqueName]?.caption ||
+    calcField(uniqueName)?.caption ||
+    uniqueName;
+
+  const openCaptionEditor = (target: HTMLElement, uniqueName: string) =>
+    setCaptionEditor({
+      anchor: target,
+      uniqueName,
+      value: captionFor(uniqueName),
+    });
+
+  const closeCaptionEditor = () => setCaptionEditor(NO_CAPTION_EDIT);
 
   const saveCaption = () => {
     if (!captionEditor.uniqueName) return;
     engine.setFieldCaption(captionEditor.uniqueName, captionEditor.value);
-    setCaptionEditor({ anchor: null, uniqueName: null, value: '' });
+    closeCaptionEditor();
   };
 
-  // Filter-slot fields are intentionally NOT removed from the available list:
-  // a user may want the same dimension both as a page-level filter AND as a
-  // row/column/measure. Rows/columns/measures, on the other hand, are mutually
-  // exclusive because a field can only occupy one of those slots at a time.
-  //
-  // The "Valori" axis-anchor field (uniqueName === 'Measures') is hidden from
-  // the available list and from the row/column chips: its placement is now
-  // controlled by the "Mostra i totali" toggle below.
-  // A field stays in the palette until every one of its supported
-  // aggregations has been placed in the measures zone — so the user can drag
-  // the same field multiple times to get a Sum, an Avg, a Count … side by
-  // side. Rows / columns still consume the field exclusively.
-  const DEFAULT_NUMERIC_AGGS = [
-    'sum',
-    'count',
-    'distinctCount',
-    'avg',
-    'min',
-    'max',
-    'ratioTotal',
-    'currentRatio',
-  ];
-  const allowedAggsFor = (uniqueName: string): string[] => {
-    if (calcFields.some((c) => c.uniqueName === uniqueName)) return ['formula'];
+  // A drop payload is outside data, so it may only name a field the dialog
+  // could have shown.
+  const isKnownField = (uniqueName: string): boolean =>
+    hasOwn(engine.getMetadata(), uniqueName) || !!calcField(uniqueName);
+
+  // The aggregations a field dragged into Values can take.
+  const allowedAggsFor = (uniqueName: string): readonly string[] => {
+    if (calcField(uniqueName)) return ['formula'];
+    // A raw metadata row may restrict a field's aggregations; the engine's
+    // metadata type does not declare the property.
     const meta = (
       engine.getMetadata() as Record<
         string,
         { availableAggregations?: string[] }
       >
     )[uniqueName];
-    return meta?.availableAggregations || DEFAULT_NUMERIC_AGGS;
+    return meta?.availableAggregations || MEASURE_AGGREGATIONS;
   };
 
   // Set of uniqueNames currently used as a dimension (rows / columns / filters).
@@ -793,8 +861,12 @@ const FieldListBody = function FieldListBody({
     return set;
   }, [slice]);
 
+  // A field used as a measure stays listed until each of its aggregations is
+  // placed, so the user can drag it again for a Sum, an Avg, a Count … side
+  // by side. The Measures axis anchor is never listed: the "Show totals"
+  // toggle places it.
   const availableFields = useMemo<AvailableField[]>(() => {
-    const all = engine.getAvailableFields() as AvailableField[];
+    const all = engine.getAvailableFields();
     const measureAggs = new Map<string, Set<string>>();
     (slice.measures || []).forEach((m) => {
       if (!measureAggs.has(m.uniqueName))
@@ -818,13 +890,8 @@ const FieldListBody = function FieldListBody({
   // sub-part is independently draggable, so the user can put e.g. Year+Month
   // on rows and get two nested dimensions in the pivot layout.
   const fieldsTree = useMemo<FieldTreeNode[]>(() => {
-    const meta = engine.getMetadata() as Record<
-      string,
-      { type?: string; caption?: string; subpart?: string }
-    >;
-    const partsLoc =
-      (t as Record<string, Record<string, Record<string, string>>>)?.dates
-        ?.hierarchyParts || {};
+    const meta = engine.getMetadata();
+    const partsLoc = section(section(t, 'dates'), 'hierarchyParts');
     const partLabel = (p: string): string => partsLoc[p.toLowerCase()] || p;
 
     const childrenByParent = new Map<string, FieldTreeNode[]>();
@@ -838,13 +905,11 @@ const FieldListBody = function FieldListBody({
         const subpart = meta[f.uniqueName]?.subpart || m[2].toLowerCase();
         childrenByParent.get(m[1])!.push({
           ...f,
-          isDatePart: true,
-          partKey: m[2],
           partCaption: partLabel(m[2]),
           subpart,
         });
       } else {
-        leftover.push(f as FieldTreeNode);
+        leftover.push(f);
       }
     });
 
@@ -868,6 +933,7 @@ const FieldListBody = function FieldListBody({
       nodes.push({
         uniqueName: parent,
         caption: meta[parent]?.caption || parent,
+        type: 'date',
         isDateParent: true,
         parentUsed: true,
         children,
@@ -898,232 +964,140 @@ const FieldListBody = function FieldListBody({
     });
   };
 
-  // Derive the current "Mostra i totali" axis from the slice. The Measures
-  // anchor lives on either rows or columns; default to columns when missing.
-  const currentMeasuresAxis = useMemo<'rows' | 'columns'>(() => {
-    if ((slice.rows || []).some((f) => f.uniqueName === 'Measures'))
-      return 'rows';
-    return 'columns';
-  }, [slice]);
+  // The "Show totals" axis is wherever the Measures anchor sits.
+  const currentMeasuresAxis: 'rows' | 'columns' = (slice.rows || []).some(
+    (f) => f.uniqueName === 'Measures',
+  )
+    ? 'rows'
+    : 'columns';
 
   const handleMeasuresAxisChange = (
     _e: React.MouseEvent,
-    value: string | null,
+    value: 'rows' | 'columns' | null,
   ) => {
     if (!value || value === currentMeasuresAxis) return;
-    const next = { ...slice };
-    next.rows = (next.rows || []).filter((f) => f.uniqueName !== 'Measures');
-    next.columns = (next.columns || []).filter(
-      (f) => f.uniqueName !== 'Measures',
+    setSliceState(
+      ensureMeasuresAnchor(stripFromSlice(slice, 'Measures'), value),
     );
-    const anchor: InternalSliceField = { uniqueName: 'Measures' };
-    if (value === 'rows') {
-      next.rows = [...next.rows, anchor];
-    } else {
-      next.columns = [...next.columns, anchor];
-    }
-    setSliceState(next);
-  };
-
-  const handleDragStart = (
-    e: React.DragEvent<HTMLDivElement>,
-    uniqueName: string,
-  ) => {
-    e.dataTransfer.setData(
-      'text/plain',
-      JSON.stringify({ source: 'all', uniqueName }),
-    );
-    e.dataTransfer.effectAllowed = 'move';
   };
 
   /**
-   * Handles every drop inside the configuration grid. Payload shape:
-   *   { source: 'all' | 'rows' | 'columns' | 'measures' | 'filters',
-   *     uniqueName: string,
-   *     idx?: number,              // index in `source` zone (chip moves)
-   *     aggregation?: string }     // preserved when moving a measure around
-   *
-   * `targetIdx` is the index of the chip the payload was dropped ON (insert
-   * before) or `null` when dropped on the zone background (append).
+   * Applies a drop on `zone`. `targetIdx` is the chip the payload was
+   * dropped on (insert before it), or null for the zone background (append).
    */
   const addFieldToZone = (
-    zone: string,
+    zone: ZoneId,
     payload: DragPayload,
     targetIdx: number | null,
   ) => {
-    const { source, uniqueName, idx: sourceIdx } = payload;
-    // The "Valori" anchor is no longer drag-and-droppable from the field list:
-    // its axis is governed exclusively by the "Mostra i totali" toggle.
+    const { source, uniqueName } = payload;
+    const sourceIdx = payload.source === 'all' ? null : payload.idx;
+    // The Measures anchor's axis is set by the "Show totals" toggle alone.
     if (uniqueName === 'Measures') return;
+    // Act only on a known palette field or, for a chip move, on the chip
+    // that really sits at that index: anything else did not come from here.
+    const moving: ZoneField | undefined =
+      payload.source === 'all'
+        ? { uniqueName }
+        : slice[payload.source]?.[payload.idx];
+    if (moving?.uniqueName !== uniqueName) return;
+    if (source === 'all' && !isKnownField(uniqueName)) return;
 
-    // --- Pre-validate measure capacity --------------------------------
-    // When dropping into measures from a non-measures source, pick the
-    // first aggregation not yet consumed by another measure entry of the
-    // same field. If all supported aggregations are in use, abort before
-    // mutating any slice zone.
-    let chosenAgg: string | null = null;
+    // When dropping into measures from elsewhere, pick the first
+    // aggregation no other measure entry of the same field uses yet. With
+    // all of them in use, the drop does nothing.
+    let chosenAgg: string | undefined;
     if (zone === 'measures' && source !== 'measures') {
-      const allowed = allowedAggsFor(uniqueName);
       const usedAgg = new Set(
         (slice.measures || [])
           .filter((m) => m.uniqueName === uniqueName)
           .map((m) => m.aggregation),
       );
-      chosenAgg = allowed.find((a) => !usedAgg.has(a)) ?? null;
+      chosenAgg = allowedAggsFor(uniqueName).find((a) => !usedAgg.has(a));
       if (!chosenAgg) return;
     }
 
-    const next = { ...slice } as LocalSlice &
-      Record<string, InternalSliceField[]>;
-    const pop = (
-      list: InternalSliceField[] | undefined,
-      name: string,
-    ): InternalSliceField[] =>
-      (list || []).filter((f) => f.uniqueName !== name);
-    const popAt = (
-      list: InternalSliceField[] | undefined,
-      i: number,
-    ): InternalSliceField[] => (list || []).filter((_, j) => j !== i);
-
-    // Pull the source entry out of its current zone (if any) so we can
-    // re-use its aggregation / metadata when re-inserting.
-    let moving: InternalSliceField = { uniqueName };
-    if (source && source !== 'all' && next[source]) {
-      const arr: InternalSliceField[] =
-        (next[source] as InternalSliceField[]) || [];
-      const entry = arr[sourceIdx ?? -1];
-      if (entry && entry.uniqueName === uniqueName) moving = { ...entry };
-      next[source] = popAt(arr, sourceIdx ?? -1);
+    const next: LocalSlice = { ...slice };
+    if (source !== 'all') {
+      next[source] = (next[source] || []).filter((_, i) => i !== sourceIdx);
     }
-
-    // Build the entry to insert based on the target zone.
-    let entry: InternalSliceField = moving;
-    if (zone === 'measures') {
-      // On measures → measures reorder preserve the source aggregation.
-      // Otherwise use the pre-picked chosenAgg (guaranteed unique per field).
-      entry = {
-        uniqueName,
-        aggregation:
-          source === 'measures'
-            ? moving.aggregation ||
-              (calcFields.some((c) => c.uniqueName === uniqueName)
-                ? 'formula'
-                : 'sum')
-            : chosenAgg!,
-      };
-    } else if (zone === 'filters') {
-      // Preserve any existing predicate: if the chip came from filters itself,
-      // `moving` already carries it (popAt removed it). Otherwise look it up
-      // in the current filters list (cross-zone drag of a field that also
-      // happened to be a page-level filter).
-      if (source === 'filters') {
-        entry = moving;
-      } else {
-        const existing = (next.filters || []).find(
-          (f) => f.uniqueName === uniqueName,
-        );
-        entry = existing || { uniqueName };
-      }
-    } else {
-      entry = { uniqueName };
-    }
-
-    if (zone === 'filters') {
-      // Filters never strip from rows/cols/measures and never duplicate.
-      const current = (next.filters || []).filter(
-        (f) => f.uniqueName !== uniqueName,
-      );
-      let insertAt = targetIdx == null ? current.length : targetIdx;
-      if (
-        source === 'filters' &&
-        sourceIdx != null &&
-        targetIdx != null &&
-        sourceIdx < targetIdx
-      ) {
-        // Compensate for the removal offset when moving downward in the same list.
-        insertAt = Math.max(0, targetIdx - 1);
-      }
-      current.splice(insertAt, 0, entry);
-      next.filters = current;
-    } else if (zone === 'measures') {
-      // Measures accept multiple entries of the same field (one per
-      // aggregation). Strip only from rows/cols when the field arrives
-      // from the palette or a cross-zone move. Keep siblings in measures.
-      if (
-        source === 'all' ||
-        source === 'filters' ||
-        source === 'rows' ||
-        source === 'columns'
-      ) {
-        next.rows = pop(next.rows, uniqueName);
-        next.columns = pop(next.columns, uniqueName);
-      }
-      const current = [...(next.measures || [])];
-      let insertAt = targetIdx == null ? current.length : targetIdx;
-      if (
-        source === 'measures' &&
-        sourceIdx != null &&
-        targetIdx != null &&
-        sourceIdx < targetIdx
-      ) {
-        insertAt = Math.max(0, targetIdx - 1);
-      }
-      current.splice(insertAt, 0, entry);
-      next.measures = current;
-    } else {
-      // Rows / columns: the field is a dimension here, so strip every
-      // measure entry of the same field (the user is moving it out of the
-      // measures zone entirely).
-      if (source === 'all' || source === 'filters') {
-        next.rows = pop(next.rows, uniqueName);
-        next.columns = pop(next.columns, uniqueName);
-        next.measures = pop(next.measures, uniqueName);
-      } else if (source !== zone) {
-        next.rows = pop(next.rows, uniqueName);
-        next.columns = pop(next.columns, uniqueName);
-        next.measures = pop(next.measures, uniqueName);
-      }
-      const current = [...((next[zone] as InternalSliceField[]) || [])];
-      const dedup = current.filter((f) => f.uniqueName !== uniqueName);
-      let insertAt = targetIdx == null ? dedup.length : targetIdx;
+    const insertInto = (list: ZoneField[], entry: ZoneField): ZoneField[] => {
+      let at = targetIdx ?? list.length;
+      // Moving down within one zone: taking the chip out shifted the
+      // target up by one.
       if (
         source === zone &&
         sourceIdx != null &&
         targetIdx != null &&
         sourceIdx < targetIdx
       ) {
-        insertAt = Math.max(0, targetIdx - 1);
+        at = targetIdx - 1;
       }
-      dedup.splice(insertAt, 0, entry);
-      next[zone] = dedup;
+      const out = [...list];
+      out.splice(at, 0, entry);
+      return out;
+    };
+
+    if (zone === 'filters') {
+      // Filters never strip from rows/cols/measures and never duplicate.
+      // A moved filter chip keeps its predicate, and so does a field dragged
+      // in from another zone that already is a filter.
+      const existing =
+        source === 'filters'
+          ? moving
+          : (next.filters || []).find((f) => f.uniqueName === uniqueName);
+      next.filters = insertInto(
+        without(next.filters, uniqueName),
+        existing || { uniqueName },
+      );
+    } else if (zone === 'measures') {
+      // Measures accept one entry per aggregation of the same field, so
+      // siblings stay; a field arriving from elsewhere leaves rows / cols.
+      if (source !== 'measures') {
+        next.rows = without(next.rows, uniqueName);
+        next.columns = without(next.columns, uniqueName);
+      }
+      next.measures = insertInto(
+        next.measures || [],
+        // A reorder keeps the chip as it is (aggregation, hidden flag).
+        source === 'measures'
+          ? {
+              ...moving,
+              aggregation:
+                moving.aggregation ||
+                (calcField(uniqueName) ? 'formula' : 'sum'),
+            }
+          : { uniqueName, aggregation: chosenAgg },
+      );
+    } else {
+      // Rows / columns: the field is a dimension here, so it leaves the
+      // other axis and every measure entry.
+      if (source !== zone) {
+        next.rows = without(next.rows, uniqueName);
+        next.columns = without(next.columns, uniqueName);
+        next.measures = without(next.measures, uniqueName);
+      }
+      next[zone] = insertInto(without(next[zone], uniqueName), { uniqueName });
     }
     setSliceState(next);
   };
 
-  const removeFromZone = (zone: string, idx: number) => {
-    const next = { ...slice } as LocalSlice &
-      Record<string, InternalSliceField[]>;
-    next[zone] = ((next[zone] as InternalSliceField[]) || []).filter(
-      (_, i) => i !== idx,
-    );
-    setSliceState(next);
-  };
+  const removeFromZone = (zone: ZoneId, idx: number) =>
+    setSliceState({
+      ...slice,
+      [zone]: (slice[zone] || []).filter((_, i) => i !== idx),
+    });
 
-  const changeAggregation = (idx: number, aggregation: string) => {
-    const next = { ...slice };
-    next.measures = (next.measures || []).map((m, i) =>
-      i === idx ? { ...m, aggregation } : m,
-    );
-    setSliceState(next);
-  };
-
-  const toggleMeasureHidden = (idx: number) => {
-    const next = { ...slice };
-    next.measures = (next.measures || []).map((m, i) =>
-      i === idx ? { ...m, hidden: !m.hidden } : m,
-    );
-    setSliceState(next);
-  };
+  const updateMeasure = (
+    idx: number,
+    patch: { aggregation?: string; hidden?: boolean },
+  ) =>
+    setSliceState({
+      ...slice,
+      measures: (slice.measures || []).map((m, i) =>
+        i === idx ? { ...m, ...patch } : m,
+      ),
+    });
 
   const visibleMeasureCount = (slice.measures || []).filter(
     (m) => !m.hidden,
@@ -1134,11 +1108,8 @@ const FieldListBody = function FieldListBody({
   const handleApply = () => {
     engine.setDateFormats(dateFormats);
     engine.setFieldOrder(fieldOrder);
-    engine.setDrillThroughConfig({
-      fields: drillThroughFields as Record<string, boolean>,
-      frozenCount,
-    });
-    // LocalSlice keeps every zone as InternalSliceField[] for uniform DnD, so
+    engine.setDrillThroughConfig({ fields: drillThroughFields, frozenCount });
+    // LocalSlice keeps every zone as ZoneField[] for uniform DnD, so
     // measures lack the engine's required `aggregation` at the type level;
     // the zone handlers always set it before Apply.
     engine.setSlice(slice as Partial<InternalSlice>);
@@ -1154,15 +1125,33 @@ const FieldListBody = function FieldListBody({
     targetUniqueName: string | null,
   ) => {
     if (!uniqueName || uniqueName === targetUniqueName) return;
+    if (!isKnownField(uniqueName)) return;
     const currentOrder = fieldsTree.map((n) => n.uniqueName);
-    const without = currentOrder.filter((n) => n !== uniqueName);
+    const order = currentOrder.filter((n) => n !== uniqueName);
     let insertAt = targetUniqueName
-      ? without.indexOf(targetUniqueName)
-      : without.length;
-    if (insertAt < 0) insertAt = without.length;
-    without.splice(insertAt, 0, uniqueName);
-    setFieldOrder(without);
+      ? order.indexOf(targetUniqueName)
+      : order.length;
+    if (insertAt < 0) insertAt = order.length;
+    order.splice(insertAt, 0, uniqueName);
+    setFieldOrder(order);
   };
+
+  // Palette rows, and the list background, are drop targets for reordering
+  // the list itself: insert before `target`, or append for null.
+  const reorderDropProps = (target: string | null) => ({
+    onDragOver: (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    },
+    onDrop: (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const payload = readDragPayload(e);
+      if (payload?.source === 'all') {
+        reorderFieldList(payload.uniqueName, target);
+      }
+    },
+  });
 
   const toggleDrillThroughField = (uniqueName: string) => {
     setDrillThroughFields((prev) => {
@@ -1192,202 +1181,149 @@ const FieldListBody = function FieldListBody({
     });
   };
 
-  const captionFor = (uniqueName: string): string => {
-    if (uniqueName === 'Measures') {
-      return tFL.values || 'Values';
-    }
-    const meta = (engine.getMetadata() as Record<string, { caption?: string }>)[
-      uniqueName
-    ];
-    if (meta?.caption) return meta.caption;
-    const calc = calcFields.find((c) => c.uniqueName === uniqueName);
-    if (calc?.caption) return calc.caption;
-    return uniqueName;
+  const calculatedIcon = (
+    <Tooltip title={tFL.calculatedFieldTooltip || 'Calculated field'}>
+      <CalculateIcon fontSize="small" sx={{ color: 'primary.main' }} />
+    </Tooltip>
+  );
+
+  const renameAction = (uniqueName: string) => (
+    <RowAction
+      title={tFL.renameField || 'Rename field'}
+      onClick={(e) => openCaptionEditor(e.currentTarget, uniqueName)}
+    >
+      <EditIcon fontSize="inherit" />
+    </RowAction>
+  );
+
+  const dateFormatAction = (uniqueName: string, subpart: string | null) => (
+    <RowAction
+      title={tFL.dateFormat || 'Date format'}
+      onClick={(e) =>
+        setFormatEditor({ anchor: e.currentTarget, uniqueName, subpart })
+      }
+    >
+      <TuneIcon fontSize="inherit" />
+    </RowAction>
+  );
+
+  const drillThroughToggle = (uniqueName: string) => (
+    <Tooltip title={tFL.showInDrillThrough || 'Show in drill-through'}>
+      <Checkbox
+        size="small"
+        checked={isDrillThroughOn(uniqueName)}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+          e.stopPropagation();
+          toggleDrillThroughField(uniqueName);
+        }}
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        sx={{ p: '2px' }}
+      />
+    </Tooltip>
+  );
+
+  // Shared by a calculated field's measure chip and its palette row.
+  const calcFieldActions = (calc: InternalCalculatedField) => (
+    <>
+      <RowAction
+        title={tButtons.edit || 'Edit'}
+        onClick={() => setCalcDialog({ open: true, editField: calc })}
+      >
+        <EditIcon fontSize="inherit" />
+      </RowAction>
+      <RowAction
+        title={tButtons.delete || 'Delete'}
+        color="error.main"
+        onClick={() => {
+          // Deleting commits at once, like the nested dialog's edits. The
+          // engine strips the field from its own slice; the draft must
+          // follow, or Apply would write the dangling reference back.
+          engine.removeCalculatedField(calc.uniqueName);
+          setSliceState((prev) => stripFromSlice(prev, calc.uniqueName));
+        }}
+      >
+        <DeleteOutlineIcon fontSize="inherit" />
+      </RowAction>
+    </>
+  );
+
+  const measureChip = (item: ZoneField, idx: number): React.ReactElement => {
+    const isHidden = !!item.hidden;
+    const calc = calcField(item.uniqueName);
+    const allowed: readonly string[] = calc
+      ? ['formula']
+      : item.availableAggregations || MEASURE_AGGREGATIONS;
+    // A field can appear multiple times in measures — one entry per
+    // aggregation — so hide from this chip's dropdown the aggregations
+    // that sibling chips of the same field have already consumed.
+    const usedBySiblings = new Set(
+      (slice.measures || [])
+        .filter((m, i) => m.uniqueName === item.uniqueName && i !== idx)
+        .map((m) => m.aggregation),
+    );
+    const selectable = allowed.filter(
+      (a) => a === item.aggregation || !usedBySiblings.has(a),
+    );
+    return (
+      <Chip
+        onDelete={() => removeFromZone('measures', idx)}
+        deleteIcon={<DeleteOutlineIcon />}
+        sx={{
+          borderRadius: 2,
+          height: 'auto',
+          py: 0.5,
+          opacity: isHidden ? 0.55 : 1,
+          textDecoration: isHidden ? 'line-through' : 'none',
+        }}
+        label={
+          <Stack direction="row" sx={{ alignItems: 'center' }} spacing={0.5}>
+            <RowAction
+              title={
+                isHidden
+                  ? tFL.showMeasure || 'Show measure'
+                  : tFL.hideMeasure || 'Hide measure'
+              }
+              onClick={() => updateMeasure(idx, { hidden: !isHidden })}
+            >
+              {isHidden ? (
+                <VisibilityOffIcon fontSize="inherit" />
+              ) : (
+                <VisibilityIcon fontSize="inherit" />
+              )}
+            </RowAction>
+            {calc && calculatedIcon}
+            <Typography
+              variant="caption"
+              sx={(theme) => ({
+                fontWeight: theme.typography.caption.fontWeight,
+              })}
+            >
+              {captionFor(item.uniqueName)}
+            </Typography>
+            <Select
+              value={item.aggregation || ''}
+              onChange={(e) =>
+                updateMeasure(idx, { aggregation: String(e.target.value) })
+              }
+              variant="standard"
+              disableUnderline
+              sx={(theme) => ({
+                fontSize: theme.typography.fontSize,
+                '& .MuiSelect-select': { py: 0 },
+              })}
+            >
+              {selectable.map((a) => (
+                <MenuItem key={a} value={a} dense>
+                  {aggregationLabel(t, a)}
+                </MenuItem>
+              ))}
+            </Select>
+            {calc && calcFieldActions(calc)}
+          </Stack>
+        }
+      />
+    );
   };
-
-  const renderFieldChip = (zone: string) =>
-    function FieldChip(
-      item: InternalSliceField,
-      idx: number,
-    ): React.ReactElement {
-      return (
-        <Chip
-          key={chipKey(item)}
-          icon={
-            item.uniqueName === 'Measures' ? (
-              <FunctionsIcon fontSize="small" />
-            ) : undefined
-          }
-          label={captionFor(item.uniqueName)}
-          size="small"
-          onDelete={() => removeFromZone(zone, idx)}
-          deleteIcon={<DeleteOutlineIcon />}
-          sx={{
-            borderRadius: 2,
-            ...(item.uniqueName === 'Measures' && {
-              backgroundColor: (theme) => theme.palette.primary.main + '22',
-              border: (theme) => `1px solid ${theme.palette.primary.main}66`,
-            }),
-          }}
-        />
-      );
-    };
-
-  const renderMeasureChip = (zone: string) =>
-    function MeasureChip(
-      item: InternalSliceField,
-      idx: number,
-    ): React.ReactElement {
-      const isHidden = !!item.hidden;
-      const calcField = calcFields.find(
-        (c) => c.uniqueName === item.uniqueName,
-      );
-      const isCalculated = !!calcField;
-      const allowed = isCalculated
-        ? ['formula']
-        : item.availableAggregations || [
-            'sum',
-            'count',
-            'distinctCount',
-            'avg',
-            'min',
-            'max',
-            'ratioTotal',
-            'currentRatio',
-          ];
-      // A field can appear multiple times in measures — one entry per
-      // aggregation — so hide from this chip's dropdown the aggregations
-      // that sibling chips of the same field have already consumed.
-      const usedBySiblings = new Set(
-        (slice.measures || [])
-          .filter((m, i) => m.uniqueName === item.uniqueName && i !== idx)
-          .map((m) => m.aggregation),
-      );
-      const selectable = allowed.filter(
-        (a) => a === item.aggregation || !usedBySiblings.has(a),
-      );
-      return (
-        <Chip
-          key={chipKey(item)}
-          onDelete={() => removeFromZone(zone, idx)}
-          deleteIcon={<DeleteOutlineIcon />}
-          sx={{
-            borderRadius: 2,
-            height: 'auto',
-            py: 0.5,
-            opacity: isHidden ? 0.55 : 1,
-            textDecoration: isHidden ? 'line-through' : 'none',
-          }}
-          label={
-            <Stack direction="row" sx={{ alignItems: 'center' }} spacing={0.5}>
-              <Tooltip
-                title={
-                  isHidden
-                    ? tFL.showMeasure || 'Show measure'
-                    : tFL.hideMeasure || 'Hide measure'
-                }
-              >
-                <IconButton
-                  size="small"
-                  onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                    e.stopPropagation();
-                    toggleMeasureHidden(idx);
-                  }}
-                  sx={(theme) => ({
-                    p: '2px',
-                    '& svg': { fontSize: theme.typography.fontSize },
-                  })}
-                >
-                  {isHidden ? (
-                    <VisibilityOffIcon fontSize="inherit" />
-                  ) : (
-                    <VisibilityIcon fontSize="inherit" />
-                  )}
-                </IconButton>
-              </Tooltip>
-              {isCalculated && (
-                <Tooltip
-                  title={tFL.calculatedFieldTooltip || 'Calculated field'}
-                >
-                  <CalculateIcon
-                    fontSize="small"
-                    sx={{ color: 'primary.main' }}
-                  />
-                </Tooltip>
-              )}
-              <Typography
-                variant="caption"
-                sx={(theme) => ({
-                  fontWeight: theme.typography.caption.fontWeight,
-                })}
-              >
-                {captionFor(item.uniqueName)}
-              </Typography>
-              <Select
-                value={item.aggregation || ''}
-                onChange={(e) => changeAggregation(idx, String(e.target.value))}
-                variant="standard"
-                disableUnderline
-                sx={(theme) => ({
-                  fontSize: theme.typography.fontSize,
-                  '& .MuiSelect-select': { py: 0 },
-                })}
-              >
-                {selectable.map((a) => (
-                  <MenuItem key={a} value={a} dense>
-                    {resolveAggregationLabel(t, a)}
-                  </MenuItem>
-                ))}
-              </Select>
-              {isCalculated && (
-                <>
-                  <Tooltip title={tButtons.edit || 'Edit'}>
-                    <IconButton
-                      size="small"
-                      onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                        e.stopPropagation();
-                        setCalcDialog({
-                          open: true,
-                          editField: calcField!,
-                        });
-                      }}
-                      sx={(theme) => ({
-                        p: '2px',
-                        '& svg': { fontSize: theme.typography.fontSize },
-                      })}
-                    >
-                      <EditIcon fontSize="inherit" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title={tButtons.delete || 'Delete'}>
-                    <IconButton
-                      size="small"
-                      onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                        e.stopPropagation();
-                        // The engine also strips the field from its own
-                        // slice — mirror that into the draft so Apply does
-                        // not resurrect it.
-                        engine.removeCalculatedField(item.uniqueName);
-                        setSliceState((prev) =>
-                          stripFromSlice(prev, item.uniqueName),
-                        );
-                      }}
-                      sx={(theme) => ({
-                        p: '2px',
-                        '& svg': { fontSize: theme.typography.fontSize },
-                        color: 'error.main',
-                      })}
-                    >
-                      <DeleteOutlineIcon fontSize="inherit" />
-                    </IconButton>
-                  </Tooltip>
-                </>
-              )}
-            </Stack>
-          }
-        />
-      );
-    };
 
   return (
     <>
@@ -1398,18 +1334,11 @@ const FieldListBody = function FieldListBody({
         maxWidth="md"
         container={portalContainer}
       >
-        <DialogTitle sx={{ pr: 6 }}>
-          {tFL.title || 'Fields'}
-          <Typography variant="caption" component="div" sx={{ opacity: 0.7 }}>
-            {tFL.subtitle || 'Drag and drop fields to arrange them'}
-          </Typography>
-          <IconButton
-            onClick={onClose}
-            sx={{ position: 'absolute', top: 8, right: 8 }}
-          >
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>
+        <DialogHeader
+          title={tFL.title || 'Fields'}
+          subtitle={tFL.subtitle || 'Drag and drop fields to arrange them'}
+          onClose={onClose}
+        />
         <DialogContent dividers>
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 2 }}>
             <Box style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -1445,23 +1374,7 @@ const FieldListBody = function FieldListBody({
                 </Tooltip>
               </Box>
               <Box
-                onDragOver={(e: React.DragEvent<HTMLDivElement>) => {
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = 'move';
-                }}
-                onDrop={(e: React.DragEvent<HTMLDivElement>) => {
-                  e.preventDefault();
-                  const payload = parseDragPayload(
-                    e.dataTransfer.getData('text/plain'),
-                  );
-                  if (
-                    payload &&
-                    payload.source === 'all' &&
-                    payload.uniqueName
-                  ) {
-                    reorderFieldList(payload.uniqueName, null);
-                  }
-                }}
+                {...reorderDropProps(null)}
                 sx={(theme) => ({
                   mt: 0.75,
                   border: `1px solid ${theme.palette.divider}`,
@@ -1480,511 +1393,108 @@ const FieldListBody = function FieldListBody({
                 )}
                 <Stack sx={{ gap: 0 }}>
                   {fieldsTree.map((f) => {
+                    const used = usedAsDimensionSet.has(f.uniqueName);
                     if (f.isDateParent) {
                       const isExpanded = expandedDates.has(f.uniqueName);
-                      const isUsedAsDim = usedAsDimensionSet.has(f.uniqueName);
-                      const draggable = !f.parentUsed && !isUsedAsDim;
-                      const dimmed = f.parentUsed || isUsedAsDim;
+                      const draggable = !f.parentUsed && !used;
                       return (
                         <Box key={f.uniqueName} sx={{ mt: '4px' }}>
-                          <Tooltip
-                            title={
-                              isUsedAsDim
-                                ? tFL.fieldUsedTooltip ||
-                                  'Field already used — remove it from rows/columns/filters to drag it elsewhere'
-                                : ''
-                            }
-                            disableHoverListener={!isUsedAsDim}
-                            disableFocusListener={!isUsedAsDim}
-                          >
-                            <Box
-                              draggable={draggable}
-                              onDragStart={
-                                draggable
-                                  ? (e: React.DragEvent<HTMLDivElement>) =>
-                                      handleDragStart(e, f.uniqueName)
-                                  : undefined
-                              }
-                              onDragOver={(
-                                e: React.DragEvent<HTMLDivElement>,
-                              ) => {
-                                e.preventDefault();
-                                e.dataTransfer.dropEffect = 'move';
-                              }}
-                              onDrop={(e: React.DragEvent<HTMLDivElement>) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                const payload = parseDragPayload(
-                                  e.dataTransfer.getData('text/plain'),
-                                );
-                                if (
-                                  payload &&
-                                  payload.source === 'all' &&
-                                  payload.uniqueName
-                                ) {
-                                  reorderFieldList(
-                                    payload.uniqueName,
-                                    f.uniqueName,
-                                  );
-                                }
-                              }}
-                              style={{ alignItems: 'center' }}
-                              sx={(theme) => ({
-                                display: 'flex',
-                                gap: 0.5,
-                                cursor: draggable ? 'grab' : 'default',
-                                px: 1,
-                                py: 0.5,
-                                borderRadius: 1.5,
-                                backgroundColor: dimmed
-                                  ? 'transparent'
-                                  : theme.palette.action.hover,
-                                border: '1px solid transparent',
-                                '&:hover': {
-                                  backgroundColor: dimmed
-                                    ? theme.palette.action.hover
-                                    : theme.palette.action.selected,
-                                },
-                                opacity: dimmed ? 0.55 : 1,
-                                margin: theme.spacing(0.5, 0, 0.5, 2),
-                              })}
-                            >
-                              <IconButton
-                                size="small"
-                                onClick={(
-                                  e: React.MouseEvent<HTMLButtonElement>,
-                                ) => {
-                                  e.stopPropagation();
-                                  toggleDateExpanded(f.uniqueName);
-                                }}
-                                sx={(theme) => ({
-                                  p: '2px',
-                                  '& svg': {
-                                    fontSize: theme.typography.fontSize,
-                                  },
-                                })}
+                          <PaletteRow
+                            uniqueName={f.uniqueName}
+                            used={used}
+                            draggable={draggable}
+                            leading={
+                              <RowAction
+                                onClick={() => toggleDateExpanded(f.uniqueName)}
                               >
                                 {isExpanded ? (
                                   <ExpandMoreIcon fontSize="inherit" />
                                 ) : (
                                   <ChevronRightIcon fontSize="inherit" />
                                 )}
-                              </IconButton>
-                              {draggable ? (
-                                <DragIndicatorIcon
-                                  fontSize="small"
-                                  sx={{ opacity: 0.5 }}
-                                />
-                              ) : (
-                                <Box sx={{ width: 20 }} />
-                              )}
-                              <CalendarMonthIcon
-                                fontSize="small"
-                                sx={{ color: 'primary.main', opacity: 0.7 }}
-                              />
-                              <Typography variant="body2" sx={{ flex: 1 }}>
-                                {f.caption}
-                              </Typography>
-                              <Tooltip
-                                title={tFL.renameField || 'Rename field'}
-                              >
-                                <IconButton
-                                  size="small"
-                                  onClick={(
-                                    e: React.MouseEvent<HTMLButtonElement>,
-                                  ) => {
-                                    e.stopPropagation();
-                                    openCaptionEditor(
-                                      e.currentTarget,
-                                      f.uniqueName,
-                                    );
-                                  }}
-                                  sx={(theme) => ({
-                                    p: '2px',
-                                    '& svg': {
-                                      fontSize: theme.typography.fontSize,
-                                    },
-                                  })}
-                                >
-                                  <EditIcon fontSize="inherit" />
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip title={tFL.dateFormat || 'Date format'}>
-                                <IconButton
-                                  size="small"
-                                  onClick={(
-                                    e: React.MouseEvent<HTMLButtonElement>,
-                                  ) => {
-                                    e.stopPropagation();
-                                    setFormatEditor({
-                                      anchor: e.currentTarget,
-                                      uniqueName: f.uniqueName,
-                                      subpart: null,
-                                    });
-                                  }}
-                                  sx={(theme) => ({
-                                    p: '2px',
-                                    '& svg': {
-                                      fontSize: theme.typography.fontSize,
-                                    },
-                                  })}
-                                >
-                                  <TuneIcon fontSize="inherit" />
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip
-                                title={
-                                  tFL.showInDrillThrough ||
-                                  'Show in drill-through'
-                                }
-                              >
-                                <Checkbox
-                                  size="small"
-                                  checked={isDrillThroughOn(f.uniqueName)}
-                                  onChange={(
-                                    e: React.ChangeEvent<HTMLInputElement>,
-                                  ) => {
-                                    e.stopPropagation();
-                                    toggleDrillThroughField(f.uniqueName);
-                                  }}
-                                  onClick={(e: React.MouseEvent) =>
-                                    e.stopPropagation()
-                                  }
-                                  sx={{ p: '2px' }}
-                                />
-                              </Tooltip>
-                            </Box>
-                          </Tooltip>
-                          {isExpanded &&
-                            (f.children || []).map((c) => {
-                              const childUsed = usedAsDimensionSet.has(
-                                c.uniqueName,
-                              );
-                              const childDraggable = !childUsed;
-                              return (
-                                <Tooltip
-                                  key={c.uniqueName}
-                                  title={
-                                    childUsed
-                                      ? tFL.fieldUsedTooltip ||
-                                        'Field already used — remove it from rows/columns/filters to drag it elsewhere'
-                                      : ''
-                                  }
-                                  disableHoverListener={!childUsed}
-                                  disableFocusListener={!childUsed}
-                                >
-                                  <Box
-                                    draggable={childDraggable}
-                                    onDragStart={
-                                      childDraggable
-                                        ? (
-                                            e: React.DragEvent<HTMLDivElement>,
-                                          ) => handleDragStart(e, c.uniqueName)
-                                        : undefined
-                                    }
-                                    style={{ alignItems: 'center' }}
-                                    sx={(theme) => ({
-                                      display: 'flex',
-                                      gap: 0.5,
-                                      cursor: childDraggable
-                                        ? 'grab'
-                                        : 'default',
-                                      pl: 4,
-                                      pr: 1,
-                                      py: 0.5,
-                                      mt: '4px',
-                                      borderRadius: 1.5,
-                                      backgroundColor:
-                                        theme.palette.action.hover,
-                                      border: '1px solid transparent',
-                                      opacity: childUsed ? 0.55 : 1,
-                                      '&:hover': {
-                                        backgroundColor:
-                                          theme.palette.action.selected,
-                                      },
-                                    })}
-                                  >
-                                    {childDraggable ? (
-                                      <DragIndicatorIcon
-                                        fontSize="small"
-                                        sx={{ opacity: 0.5 }}
-                                      />
-                                    ) : (
-                                      <Box sx={{ width: 20 }} />
-                                    )}
-                                    <Typography
-                                      variant="body2"
-                                      sx={{ flex: 1 }}
-                                    >
-                                      {c.partCaption}
-                                    </Typography>
-                                    <Tooltip
-                                      title={tFL.renameField || 'Rename field'}
-                                    >
-                                      <IconButton
-                                        size="small"
-                                        onClick={(
-                                          e: React.MouseEvent<HTMLButtonElement>,
-                                        ) => {
-                                          e.stopPropagation();
-                                          openCaptionEditor(
-                                            e.currentTarget,
-                                            c.uniqueName,
-                                          );
-                                        }}
-                                        sx={(theme) => ({
-                                          p: '2px',
-                                          '& svg': {
-                                            fontSize: theme.typography.fontSize,
-                                          },
-                                        })}
-                                      >
-                                        <EditIcon fontSize="inherit" />
-                                      </IconButton>
-                                    </Tooltip>
-                                    {SUBPART_CONFIGURABLE.has(
-                                      c.subpart || '',
-                                    ) && (
-                                      <Tooltip
-                                        title={tFL.dateFormat || 'Date format'}
-                                      >
-                                        <IconButton
-                                          size="small"
-                                          onClick={(
-                                            e: React.MouseEvent<HTMLButtonElement>,
-                                          ) => {
-                                            e.stopPropagation();
-                                            setFormatEditor({
-                                              anchor: e.currentTarget,
-                                              uniqueName: c.uniqueName,
-                                              subpart: c.subpart || null,
-                                            });
-                                          }}
-                                          sx={(theme) => ({
-                                            p: '2px',
-                                            '& svg': {
-                                              fontSize:
-                                                theme.typography.fontSize,
-                                            },
-                                          })}
-                                        >
-                                          <TuneIcon fontSize="inherit" />
-                                        </IconButton>
-                                      </Tooltip>
-                                    )}
-                                  </Box>
-                                </Tooltip>
-                              );
+                              </RowAction>
+                            }
+                            dropProps={reorderDropProps(f.uniqueName)}
+                            sx={(theme) => ({
+                              px: 1,
+                              margin: theme.spacing(0.5, 0, 0.5, 2),
+                              ...(!draggable && {
+                                backgroundColor: 'transparent',
+                                '&:hover': {
+                                  backgroundColor: theme.palette.action.hover,
+                                },
+                              }),
                             })}
+                          >
+                            <CalendarMonthIcon
+                              fontSize="small"
+                              sx={{ color: 'primary.main', opacity: 0.7 }}
+                            />
+                            <Typography variant="body2" sx={{ flex: 1 }}>
+                              {f.caption}
+                            </Typography>
+                            {renameAction(f.uniqueName)}
+                            {dateFormatAction(f.uniqueName, null)}
+                            {drillThroughToggle(f.uniqueName)}
+                          </PaletteRow>
+                          {isExpanded &&
+                            (f.children || []).map((c) => (
+                              <PaletteRow
+                                key={c.uniqueName}
+                                uniqueName={c.uniqueName}
+                                used={usedAsDimensionSet.has(c.uniqueName)}
+                                sx={{ pl: 4, pr: 1, mt: '4px' }}
+                              >
+                                <Typography variant="body2" sx={{ flex: 1 }}>
+                                  {c.partCaption}
+                                </Typography>
+                                {renameAction(c.uniqueName)}
+                                {SUBPART_CONFIGURABLE.has(c.subpart || '') &&
+                                  dateFormatAction(
+                                    c.uniqueName,
+                                    c.subpart || null,
+                                  )}
+                              </PaletteRow>
+                            ))}
                         </Box>
                       );
                     }
-                    const isUsedAsDim = usedAsDimensionSet.has(f.uniqueName);
-                    const draggable = !isUsedAsDim;
+                    const calc = f.isCalculated
+                      ? calcField(f.uniqueName)
+                      : undefined;
                     return (
-                      <Tooltip
+                      <PaletteRow
                         key={f.uniqueName}
-                        title={
-                          isUsedAsDim
-                            ? tFL.fieldUsedTooltip ||
-                              'Field already used — remove it from rows/columns/filters to drag it elsewhere'
-                            : ''
-                        }
-                        disableHoverListener={!isUsedAsDim}
-                        disableFocusListener={!isUsedAsDim}
-                      >
-                        <Box
-                          draggable={draggable}
-                          onDragStart={
-                            draggable
-                              ? (e: React.DragEvent<HTMLDivElement>) =>
-                                  handleDragStart(e, f.uniqueName)
-                              : undefined
-                          }
-                          onDragOver={(e: React.DragEvent<HTMLDivElement>) => {
-                            e.preventDefault();
-                            e.dataTransfer.dropEffect = 'move';
-                          }}
-                          onDrop={(e: React.DragEvent<HTMLDivElement>) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            const payload = parseDragPayload(
-                              e.dataTransfer.getData('text/plain'),
-                            );
-                            if (
-                              payload &&
-                              payload.source === 'all' &&
-                              payload.uniqueName
-                            ) {
-                              reorderFieldList(
-                                payload.uniqueName,
-                                f.uniqueName,
-                              );
-                            }
-                          }}
-                          style={{ alignItems: 'center' }}
-                          sx={(theme) => ({
-                            display: 'flex',
-                            gap: 0.5,
-                            cursor: draggable ? 'grab' : 'default',
+                        uniqueName={f.uniqueName}
+                        used={used}
+                        dropProps={reorderDropProps(f.uniqueName)}
+                        sx={(theme) => {
+                          const accent =
+                            theme.palette.tertiary?.main ||
+                            theme.palette.primary.main;
+                          return {
                             px: 1,
-                            py: 0.5,
                             mt: '4px',
-                            borderRadius: 1.5,
-                            backgroundColor: f.isCalculated
-                              ? (theme.palette.tertiary?.main ||
-                                  theme.palette.primary.main) + '18'
-                              : theme.palette.action.hover,
-                            border: f.isCalculated
-                              ? `1px solid ${
-                                  theme.palette.tertiary?.main ||
-                                  theme.palette.primary.main
-                                }40`
-                              : '1px solid transparent',
-                            opacity: isUsedAsDim ? 0.55 : 1,
-                            '&:hover': {
-                              backgroundColor: theme.palette.action.selected,
-                            },
-                          })}
-                        >
-                          {draggable ? (
-                            <DragIndicatorIcon
-                              fontSize="small"
-                              sx={{ opacity: 0.5 }}
-                            />
-                          ) : (
-                            <Box sx={{ width: 20 }} />
-                          )}
-                          {f.uniqueName === 'Measures' && (
-                            <Tooltip
-                              title={
-                                tFL.measuresAxisTooltip ||
-                                'Special aggregation field — drag to Rows or Columns to choose the values axis'
-                              }
-                            >
-                              <FunctionsIcon
-                                fontSize="small"
-                                sx={{ color: 'primary.main' }}
-                              />
-                            </Tooltip>
-                          )}
-                          {f.isCalculated && (
-                            <Tooltip
-                              title={
-                                tFL.calculatedFieldTooltip || 'Calculated field'
-                              }
-                            >
-                              <CalculateIcon
-                                fontSize="small"
-                                sx={{ color: 'primary.main' }}
-                              />
-                            </Tooltip>
-                          )}
-                          <Typography variant="body2" sx={{ flex: 1 }}>
-                            {f.caption}
-                          </Typography>
-                          {!f.isCalculated && f.uniqueName !== 'Measures' && (
-                            <Tooltip title={tFL.renameField || 'Rename field'}>
-                              <IconButton
-                                size="small"
-                                onClick={(
-                                  e: React.MouseEvent<HTMLButtonElement>,
-                                ) => {
-                                  e.stopPropagation();
-                                  openCaptionEditor(
-                                    e.currentTarget,
-                                    f.uniqueName,
-                                  );
-                                }}
-                                sx={(theme) => ({
-                                  p: '2px',
-                                  '& svg': {
-                                    fontSize: theme.typography.fontSize,
-                                  },
-                                })}
-                              >
-                                <EditIcon fontSize="inherit" />
-                              </IconButton>
-                            </Tooltip>
-                          )}
-                          {!f.isCalculated && f.uniqueName !== 'Measures' && (
-                            <Tooltip
-                              title={
-                                tFL.showInDrillThrough ||
-                                'Show in drill-through'
-                              }
-                            >
-                              <Checkbox
-                                size="small"
-                                checked={isDrillThroughOn(f.uniqueName)}
-                                onChange={(
-                                  e: React.ChangeEvent<HTMLInputElement>,
-                                ) => {
-                                  e.stopPropagation();
-                                  toggleDrillThroughField(f.uniqueName);
-                                }}
-                                onClick={(e: React.MouseEvent) =>
-                                  e.stopPropagation()
-                                }
-                                sx={{ p: '2px' }}
-                              />
-                            </Tooltip>
-                          )}
-                          {f.isCalculated && (
-                            <>
-                              <Tooltip title={tButtons.edit || 'Edit'}>
-                                <IconButton
-                                  size="small"
-                                  onClick={(
-                                    e: React.MouseEvent<HTMLButtonElement>,
-                                  ) => {
-                                    e.stopPropagation();
-                                    setCalcDialog({
-                                      open: true,
-                                      editField:
-                                        calcFields.find(
-                                          (c) => c.uniqueName === f.uniqueName,
-                                        ) || (f as CalculatedField),
-                                    });
-                                  }}
-                                  sx={(theme) => ({
-                                    p: '2px',
-                                    '& svg': {
-                                      fontSize: theme.typography.fontSize,
-                                    },
-                                  })}
-                                >
-                                  <EditIcon fontSize="inherit" />
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip title={tButtons.delete || 'Delete'}>
-                                <IconButton
-                                  size="small"
-                                  onClick={(
-                                    e: React.MouseEvent<HTMLButtonElement>,
-                                  ) => {
-                                    e.stopPropagation();
-                                    (
-                                      engine.removeCalculatedField as (
-                                        un: string,
-                                      ) => void
-                                    )(f.uniqueName);
-                                  }}
-                                  sx={(theme) => ({
-                                    p: '2px',
-                                    '& svg': {
-                                      fontSize: theme.typography.fontSize,
-                                    },
-                                    color: 'error.main',
-                                  })}
-                                >
-                                  <DeleteOutlineIcon fontSize="inherit" />
-                                </IconButton>
-                              </Tooltip>
-                            </>
-                          )}
-                        </Box>
-                      </Tooltip>
+                            ...(f.isCalculated && {
+                              backgroundColor: accent + '18',
+                              border: `1px solid ${accent}40`,
+                            }),
+                          };
+                        }}
+                      >
+                        {f.isCalculated && calculatedIcon}
+                        <Typography variant="body2" sx={{ flex: 1 }}>
+                          {f.caption}
+                        </Typography>
+                        {f.isCalculated ? (
+                          calc && calcFieldActions(calc)
+                        ) : (
+                          <>
+                            {renameAction(f.uniqueName)}
+                            {drillThroughToggle(f.uniqueName)}
+                          </>
+                        )}
+                      </PaletteRow>
                     );
                   })}
                 </Stack>
@@ -2063,28 +1573,29 @@ const FieldListBody = function FieldListBody({
                 </ToggleButtonGroup>
               </Box>
               <Stack sx={{ gap: 1.25 }}>
-                {ZONES.map((zone) => {
-                  const items = (
-                    (slice[zone.id] as InternalSliceField[]) || []
-                  ).filter((f) => f.uniqueName !== 'Measures');
-                  const label =
-                    tFL[zone.id === 'measures' ? 'values' : zone.id] || zone.id;
-                  return (
-                    <DropZone
-                      key={zone.id}
-                      zone={zone.id}
-                      items={items}
-                      label={label}
-                      dropHint={tFL.dropField || 'Drop field here'}
-                      onDrop={addFieldToZone}
-                      renderItem={
-                        zone.id === 'measures'
-                          ? renderMeasureChip(zone.id)
-                          : renderFieldChip(zone.id)
-                      }
-                    />
-                  );
-                })}
+                {ZONES.map((zone) => (
+                  <DropZone
+                    key={zone.id}
+                    zone={zone.id}
+                    items={slice[zone.id] || []}
+                    label={tFL[zone.labelKey] || zone.id}
+                    dropHint={tFL.dropField || 'Drop field here'}
+                    onDrop={addFieldToZone}
+                    renderItem={(item, idx) =>
+                      zone.id === 'measures' ? (
+                        measureChip(item, idx)
+                      ) : (
+                        <Chip
+                          label={captionFor(item.uniqueName)}
+                          size="small"
+                          onDelete={() => removeFromZone(zone.id, idx)}
+                          deleteIcon={<DeleteOutlineIcon />}
+                          sx={{ borderRadius: 2 }}
+                        />
+                      )
+                    }
+                  />
+                ))}
               </Stack>
             </Box>
           </Box>
@@ -2119,10 +1630,8 @@ const FieldListBody = function FieldListBody({
         uniqueName={formatEditor.uniqueName}
         subpart={formatEditor.subpart}
         value={
-          formatEditor.uniqueName
-            ? dateFormats[formatEditor.uniqueName] ||
-              defaultFormatFor(formatEditor.subpart)
-            : defaultFormatFor(formatEditor.subpart)
+          (formatEditor.uniqueName && dateFormats[formatEditor.uniqueName]) ||
+          defaultFormatFor(formatEditor.subpart)
         }
         onChange={(fmt) =>
           formatEditor.uniqueName &&
@@ -2136,9 +1645,7 @@ const FieldListBody = function FieldListBody({
       <Popover
         open={!!captionEditor.anchor && !!captionEditor.uniqueName}
         anchorEl={captionEditor.anchor}
-        onClose={() =>
-          setCaptionEditor({ anchor: null, uniqueName: null, value: '' })
-        }
+        onClose={closeCaptionEditor}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         container={portalContainer}
@@ -2160,28 +1667,14 @@ const FieldListBody = function FieldListBody({
             }
             onKeyDown={(e: React.KeyboardEvent) => {
               if (e.key === 'Enter') saveCaption();
-              if (e.key === 'Escape')
-                setCaptionEditor({
-                  anchor: null,
-                  uniqueName: null,
-                  value: '',
-                });
+              if (e.key === 'Escape') closeCaptionEditor();
             }}
           />
           <Stack
             direction="row"
             sx={{ justifyContent: 'flex-end', gap: 1, mt: 1 }}
           >
-            <Button
-              size="small"
-              onClick={() =>
-                setCaptionEditor({
-                  anchor: null,
-                  uniqueName: null,
-                  value: '',
-                })
-              }
-            >
+            <Button size="small" onClick={closeCaptionEditor}>
               {tButtons.cancel || 'Cancel'}
             </Button>
             <Button size="small" variant="contained" onClick={saveCaption}>
@@ -2194,22 +1687,4 @@ const FieldListBody = function FieldListBody({
   );
 };
 
-/**
- * Thin wrapper that gives the body a new key on every open, so all of its
- * drafts re-seed from the engine without a reset effect.
- */
-const FieldList = function FieldList(
-  props: FieldListProps,
-): React.ReactElement {
-  const [session, setSession] = useState(0);
-  const [wasOpen, setWasOpen] = useState(props.open);
-  if (props.open !== wasOpen) {
-    // Adjusting state during render (React's documented alternative to an
-    // effect): no extra commit, the body mounts already seeded.
-    setWasOpen(props.open);
-    if (props.open) setSession((n) => n + 1);
-  }
-  return <FieldListBody key={session} {...props} />;
-};
-
-export default FieldList;
+export default withOpenSession(FieldListBody);
