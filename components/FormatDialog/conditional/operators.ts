@@ -1,6 +1,7 @@
 // The comparison operators offered by rules and expression clauses, and how
 // a stored measure reference resolves to one of the slice's measures.
 
+import { hasOwn } from '../../../pivot-core/utils';
 import { section } from '../../shared/l10n';
 import type { MeasureEntry } from '../types';
 
@@ -37,11 +38,16 @@ export const NUM_OPS = ['gt', 'gte', 'lt', 'lte', 'eq', 'neq', 'between'];
 /** A rule can also delegate its condition to an expression. */
 export const RULE_OPS = [...NUM_OPS, 'expression'];
 
+/** The definition of a stored operator key; a persisted rule may carry any. */
+export const operatorDef = (op: string | undefined): OperatorDef | undefined =>
+  op && hasOwn(OPERATORS, op) ? OPERATORS[op] : undefined;
+
 export const operatorLabel = (
   tF: Record<string, string>,
   op: string,
 ): string => {
-  const def = OPERATORS[op];
+  const def = operatorDef(op);
+  if (!def) return String(op);
   const caption = def.l10nKey ? tF[def.l10nKey] : section(tF, 'operators')[op];
   return caption || def.fallback;
 };

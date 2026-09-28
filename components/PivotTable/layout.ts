@@ -5,6 +5,7 @@
 import { darken, lighten } from '@mui/material/styles';
 import type { Theme } from '@mui/material/styles';
 import type { AxisLeaf } from '../../pivot-core/matrix/MatrixComputer';
+import { hasOwn } from '../../pivot-core/utils';
 
 // Theme palettes built from a full color object carry numeric shades
 // (100..900) at runtime, but MUI's PaletteColor type only declares
@@ -92,7 +93,9 @@ const DENSITY = {
 };
 export type DensityConfig = (typeof DENSITY)[keyof typeof DENSITY];
 export const resolveDensity = (key?: string | null): DensityConfig =>
-  DENSITY[key as keyof typeof DENSITY] || DENSITY.Standard;
+  key && hasOwn(DENSITY, key)
+    ? DENSITY[key as keyof typeof DENSITY]
+    : DENSITY.Standard;
 
 // Scale a CSS fontSize value ("13px" | "0.9rem" | 13) by a numeric rate.
 // Returns a CSS string with the original unit (defaults to px) or undefined

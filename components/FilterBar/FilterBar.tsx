@@ -15,6 +15,7 @@ import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import ClearIcon from '@mui/icons-material/Clear';
 import CloseIcon from '@mui/icons-material/Close';
 import { usePivot } from '../../context/PivotContext';
+import { hasOwn } from '../../pivot-core/utils';
 import useEngineVersion from '../../hooks/useEngineVersion';
 import type { FilterEntry } from '../../pivot-core/slice/FilterEngine';
 import {
@@ -90,7 +91,7 @@ interface FilterEditorProps {
 // ---------------------------------------------------------------------------
 
 const modesFor = (type: string): ModeOption[] =>
-  MODES_BY_TYPE[type] || MODES_BY_TYPE.string;
+  hasOwn(MODES_BY_TYPE, type) ? MODES_BY_TYPE[type] : MODES_BY_TYPE.string;
 
 const offers = (type: string, mode: FilterMode): boolean =>
   modesFor(type).some((m) => m.value === mode);

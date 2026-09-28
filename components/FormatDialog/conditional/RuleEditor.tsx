@@ -35,11 +35,11 @@ import type {
 } from '../types';
 import { ExpressionDialog } from './ExpressionDialog';
 import {
-  OPERATORS,
   RULE_OPS,
   findMeasure,
   operatorLabel,
   refersTo,
+  operatorDef,
 } from './operators';
 
 // ---------------------------------------------------------------------------
@@ -208,7 +208,7 @@ export const RuleEditor = function RuleEditor({
   const measureLabel = rule.measure
     ? findMeasure(measures, rule.measure)?.caption || rule.measure
     : tF.allMeasures || 'All measures';
-  const opSym = OPERATORS[rule.operator || 'gt']?.symbol;
+  const opSym = operatorDef(rule.operator || 'gt')?.symbol;
   const formatOperand = (
     kind: string | undefined,
     val: unknown,
