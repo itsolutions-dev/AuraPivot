@@ -11,10 +11,10 @@ cd AuraPivot
 npm install
 ```
 
-**Node 20 or later** is required for development. The `engines` field says
-`>=18` because that is what the _published package_ needs at runtime; the build
-itself uses the `with { type: "json" }` import attribute, which Node 18 does
-not support. Installing on 18 works. Building on 18 does not.
+**Node 22.19 or later** (or 24) is required for development: Babel 8,
+ESLint 10, Vitest 5 and size-limit 14 all dropped Node 20, which reached end of
+life in April 2026. The `engines` field says `>=18` because that is what the
+_published package_ needs at runtime, not what the toolchain needs.
 
 ## Seeing your change
 
@@ -62,7 +62,7 @@ npm run build          # includes the dist assertions
 npm run size           # bundle-size budget
 ```
 
-CI runs all of these plus a Node 20/22/24 × React 18/19 matrix. The peer range
+CI runs all of these plus a Node 22/24 × React 18/19 matrix. The peer range
 is `>=18`, so a React 19-only API is a bug even if your editor does not flag it.
 
 ## Tests

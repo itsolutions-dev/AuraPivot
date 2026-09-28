@@ -1,5 +1,6 @@
-import React, {
+import {
   forwardRef,
+  useCallback,
   useImperativeHandle,
   useEffect,
   useMemo,
@@ -64,10 +65,9 @@ interface SnackState {
 }
 
 /**
- * Vendor-prefixed Fullscreen API. The prefixed names are real on older Safari
- * and IE; widening the standard DOM types (rather than reaching for `any`)
- * keeps the call sites checked and documents why they exist. Prefixed
- * implementations return nothing, hence `Promise<void> | undefined`.
+ * The webkit-prefixed Fullscreen API, still the only one on Safari before
+ * 16.4. Prefixed implementations return nothing, hence
+ * `Promise<void> | undefined`.
  */
 type FullscreenRequest = (
   options?: FullscreenOptions,
@@ -76,15 +76,15 @@ type FullscreenExit = () => Promise<void> | undefined;
 
 type FullscreenElement = HTMLElement & {
   webkitRequestFullscreen?: FullscreenRequest;
-  msRequestFullscreen?: FullscreenRequest;
 };
 
 type FullscreenDocument = Document & {
   webkitFullscreenElement?: Element | null;
-  msFullscreenElement?: Element | null;
   webkitExitFullscreen?: FullscreenExit;
-  msExitFullscreen?: FullscreenExit;
 };
+
+const fullscreenElementOf = (doc: FullscreenDocument): Element | null =>
+  doc.fullscreenElement || doc.webkitFullscreenElement || null;
 
 /** Localization sections are `Record<string, unknown>` — narrow to a caption. */
 const caption = (value: unknown): string | undefined =>
@@ -109,8 +109,8 @@ const errorMessage = (err: unknown, fallback: string): string => {
  * Props:
  *   - options:        the configuration schema (toolbar / layout / data /
  *                     format). Applied seed-on-change: re-applied only when
- *                     the object reference changes. See Library/docs/
- *                     options-guide.en.md for the full schema.
+ *                     the object reference changes. See
+ *                     docs/options-guide.en.md for the full schema.
  *   - dataSource:     a plain array of row objects (data only — the schema
  *                     for those rows lives in options.data.fields).
  *   - onOptionsChange(nextOptions): fired after every in-component edit with
@@ -172,56 +172,40 @@ const Pivot = forwardRef<AuraPivotRef, AuraPivotProps>(
       return () => engine.off('formatChange', onFormat);
     }, [engine]);
 
-    const handleToggleFullscreen = () => {
+    // Toolbar handlers are memoized: their identity keys the toolbar's tab
+    // list, and a new list re-runs the host's beforeToolbarCreated.
+    const handleToggleFullscreen = useCallback(() => {
       const el: FullscreenElement | null = rootRef.current;
       if (!el) return;
-      const doc: FullscreenDocument | null =
-        typeof document !== 'undefined' ? document : null;
-      const fsEl =
-        doc?.fullscreenElement ||
-        doc?.webkitFullscreenElement ||
-        doc?.msFullscreenElement;
-      if (!fsEl) {
+      const doc: FullscreenDocument = el.ownerDocument;
+      if (!fullscreenElementOf(doc)) {
         const req: FullscreenRequest | undefined =
-          el.requestFullscreen ||
-          el.webkitRequestFullscreen ||
-          el.msRequestFullscreen;
-        if (req) {
-          const p = req.call(el);
-          if (p && typeof p.catch === 'function') {
-            p.catch((err: unknown) =>
-              setSnack({
-                severity: 'error',
-                message: errorMessage(err, 'Fullscreen error'),
-              }),
-            );
-          }
-        }
+          el.requestFullscreen || el.webkitRequestFullscreen;
+        req?.call(el)?.catch((err: unknown) =>
+          setSnack({
+            severity: 'error',
+            message: errorMessage(err, 'Fullscreen error'),
+          }),
+        );
       } else {
         const exit: FullscreenExit | undefined =
-          doc?.exitFullscreen ||
-          doc?.webkitExitFullscreen ||
-          doc?.msExitFullscreen;
-        if (doc && exit) exit.call(doc);
+          doc.exitFullscreen || doc.webkitExitFullscreen;
+        exit?.call(doc);
       }
-    };
+    }, []);
+    const openFields = useCallback(() => setFieldsOpen(true), []);
+    const openFormat = useCallback(() => setFormatOpen(true), []);
 
     useEffect(() => {
       const handler = () => {
-        const doc: FullscreenDocument = document;
-        const fsEl =
-          doc.fullscreenElement ||
-          doc.webkitFullscreenElement ||
-          doc.msFullscreenElement;
+        const fsEl = fullscreenElementOf(document);
         setIsFullscreen(!!fsEl && fsEl === rootRef.current);
       };
       document.addEventListener('fullscreenchange', handler);
       document.addEventListener('webkitfullscreenchange', handler);
-      document.addEventListener('msfullscreenchange', handler);
       return () => {
         document.removeEventListener('fullscreenchange', handler);
         document.removeEventListener('webkitfullscreenchange', handler);
-        document.removeEventListener('msfullscreenchange', handler);
       };
     }, []);
 
@@ -306,7 +290,7 @@ const Pivot = forwardRef<AuraPivotRef, AuraPivotProps>(
       [engine],
     );
 
-    const handleExportExcel = async () => {
+    const handleExportExcel = useCallback(async () => {
       try {
         await engine.exportExcel('pivot.xlsx');
         setSnack({
@@ -320,7 +304,7 @@ const Pivot = forwardRef<AuraPivotRef, AuraPivotProps>(
           message: errorMessage(err, 'Export error'),
         });
       }
-    };
+    }, [engine, localization]);
 
     // Push the caller-provided locale to the engine so matrix-level code
     // (MatrixComputer, TreeBuilder) can use it for localeCompare / Intl calls.
@@ -387,8 +371,8 @@ const Pivot = forwardRef<AuraPivotRef, AuraPivotProps>(
           {toolbar && (
             <PivotToolbar
               beforeToolbarCreated={beforeToolbarCreated}
-              onOpenFields={() => setFieldsOpen(true)}
-              onOpenFormat={() => setFormatOpen(true)}
+              onOpenFields={openFields}
+              onOpenFormat={openFormat}
               onExportExcel={handleExportExcel}
               onToggleFullscreen={handleToggleFullscreen}
               isFullscreen={isFullscreen}

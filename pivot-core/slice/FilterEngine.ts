@@ -57,72 +57,90 @@ const sameCalendarDay = (raw: unknown, dayValue: string): boolean => {
   );
 };
 
-const evaluateFilter = (filter: FilterEntry, row: DataRow): boolean => {
-  const raw = row?.[filter.uniqueName];
+const isBlank = (v: unknown): boolean =>
+  v === undefined || v === null || v === '';
 
-  if (Array.isArray(filter.members) && filter.members.length > 0) {
+const hasRange = (f: FilterEntry): boolean =>
+  !!f.range && (f.range.min != null || f.range.max != null);
+
+const nonEmptyList = (list: unknown): list is unknown[] =>
+  Array.isArray(list) && list.length > 0;
+
+type RowPredicate = (row: DataRow) => boolean;
+
+/**
+ * Turns one filter entry into a row predicate, or `null` when the entry
+ * constrains nothing. Everything that does not depend on the row (member
+ * sets, parsed range bounds, lower-cased needle) is computed here once
+ * instead of once per row.
+ */
+const compileFilter = (filter: FilterEntry): RowPredicate | null => {
+  if (!filter || !filter.uniqueName) return null;
+  const field = filter.uniqueName;
+  const checks: ((raw: unknown) => boolean)[] = [];
+
+  if (nonEmptyList(filter.members)) {
     const allowed = new Set(filter.members.map((m) => String(m)));
-    if (!allowed.has(String(raw))) return false;
+    checks.push((raw) => allowed.has(String(raw)));
   }
-  if (Array.isArray(filter.exclude) && filter.exclude.length > 0) {
+  if (nonEmptyList(filter.exclude)) {
     const denied = new Set(filter.exclude.map((m) => String(m)));
-    if (denied.has(String(raw))) return false;
+    checks.push((raw) => !denied.has(String(raw)));
   }
-  if (
-    filter.value !== undefined &&
-    filter.value !== null &&
-    filter.value !== ''
-  ) {
+  if (!isBlank(filter.value)) {
     const wanted = String(filter.value);
-    if (String(raw) !== wanted) {
-      if (!(DATE_ONLY.test(wanted) && sameCalendarDay(raw, wanted))) {
-        return false;
-      }
-    }
+    const isDay = DATE_ONLY.test(wanted);
+    checks.push(
+      (raw) =>
+        String(raw) === wanted || (isDay && sameCalendarDay(raw, wanted)),
+    );
   }
-  if (filter.range && (filter.range.min != null || filter.range.max != null)) {
-    const v = toComparable(raw);
-    if (v === null) return false;
-    const min = toComparable(filter.range.min);
-    const max = toComparable(filter.range.max);
-    if (min !== null && v < min) return false;
-    if (max !== null && v > max) return false;
+  if (hasRange(filter)) {
+    const min = toComparable(filter.range!.min);
+    const max = toComparable(filter.range!.max);
+    checks.push((raw) => {
+      const v = toComparable(raw);
+      if (v === null) return false;
+      if (min !== null && v < min) return false;
+      if (max !== null && v > max) return false;
+      return true;
+    });
   }
   if (filter.search) {
     const needle = String(filter.search).toLowerCase();
-    if (
-      !String(raw ?? '')
+    checks.push((raw) =>
+      String(raw ?? '')
         .toLowerCase()
-        .includes(needle)
-    )
-      return false;
+        .includes(needle),
+    );
   }
-  return true;
+  if (checks.length === 0) return null;
+  return (row) => {
+    const raw = row?.[field];
+    return checks.every((check) => check(raw));
+  };
 };
+
+/** Whether a filter entry constrains anything (drives the "active" badges). */
+export const isFilterActive = (filter: FilterEntry): boolean =>
+  !!filter &&
+  !!filter.uniqueName &&
+  (nonEmptyList(filter.members) ||
+    nonEmptyList(filter.exclude) ||
+    !isBlank(filter.value) ||
+    hasRange(filter) ||
+    !!filter.search);
 
 export const applyFilters = (
   rows: DataRow[],
   filters: FilterEntry[] | null | undefined,
 ): DataRow[] => {
   if (!filters || filters.length === 0) return rows;
-  const active = filters.filter(
-    (f: FilterEntry) =>
-      f &&
-      f.uniqueName &&
-      ((Array.isArray(f.members) && f.members.length > 0) ||
-        (Array.isArray(f.exclude) && f.exclude.length > 0) ||
-        (f.value !== undefined && f.value !== null && f.value !== '') ||
-        (f.range && (f.range.min != null || f.range.max != null)) ||
-        f.search),
-  );
+  const active = filters
+    .map(compileFilter)
+    .filter((p): p is RowPredicate => p !== null);
   if (active.length === 0) return rows;
-
-  return rows.filter((row: DataRow) => {
-    for (const filter of active) {
-      if (!evaluateFilter(filter, row)) return false;
-    }
-    return true;
-  });
+  return rows.filter((row) => active.every((matches) => matches(row)));
 };
 
 /**

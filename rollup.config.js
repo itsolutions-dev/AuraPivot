@@ -1,15 +1,31 @@
 import fs from "node:fs";
 import path from "node:path";
-import MagicString from "magic-string";
 import resolve from "@rollup/plugin-node-resolve";
-import commonjs from "@rollup/plugin-commonjs";
 import terser from "@rollup/plugin-terser";
 import babel from "@rollup/plugin-babel";
-import peerDepsExternal from "rollup-plugin-peer-deps-external";
 import dts from "rollup-plugin-dts";
-import pkg from "./package.json" with { type: "json" };
 
 const OUT_DIR = "dist";
+
+// Nothing from node_modules is bundled: dependencies and peer dependencies
+// (and their subpaths, e.g. `@mui/icons-material/Add`) are all left to the
+// consumer's bundler, which resolves and deduplicates them against its own
+// copies. exceljs (~900 KB) is additionally only reached through a dynamic
+// import() on the first export. Only relative imports are part of the build.
+const external = (id) => !id.startsWith(".") && !path.isAbsolute(id);
+
+// Relative imports are extensionless TypeScript; this is all the resolver is
+// needed for.
+const resolveSource = () =>
+  resolve({ extensions: [".js", ".jsx", ".ts", ".tsx", ".json"] });
+
+const transpile = () =>
+  babel({
+    exclude: "node_modules/**",
+    extensions: [".js", ".jsx", ".ts", ".tsx", ".mjs"],
+    babelHelpers: "bundled",
+    presets: ["@babel/preset-react", "@babel/preset-typescript"],
+  });
 
 const cleanOutDir = () => ({
   name: "clean-out-dir",
@@ -40,34 +56,9 @@ const finalizer = terser({
   format: { comments: false },
 });
 
-// Browser shim for `process` — exceljs/jszip/readable-stream reference
-// `process.env.NODE_DEBUG` etc. at runtime. Vite doesn't polyfill `process`
-// in the browser, so without this the bundle throws
-// `ReferenceError: process is not defined` on load. Assigned to globalThis
-// (not declared as a local `var`) so terser's top-level mangling can't
-// rename the binding and orphan downstream `process.*` references.
-const processShim =
-  'if(typeof globalThis.process==="undefined"){globalThis.process={env:{NODE_ENV:"production"},browser:true,version:"v20.0.0",versions:{node:"20.0.0"},platform:"browser",nextTick:function(cb){Promise.resolve().then(cb);}};}';
-
-// Machine-readable build stamp. Lives in the intro (real code, not a
-// comment) so terser cannot strip it; scripts/verify-dist.mjs asserts it
-// after every build, and it is inspectable at runtime via
-// globalThis.__AURA_PIVOT_BUILD__.
-const buildStamp = `globalThis.__AURA_PIVOT_BUILD__={version:${JSON.stringify(
-  pkg.version,
-)}};`;
-
-const intro = processShim + buildStamp;
-
 const jsConfig = {
   input: "index.ts",
-  // Nothing in `dependencies` is bundled. exceljs (~900 KB) is loaded by
-  // ExcelExporter through a dynamic import() on the first export; the other
-  // three are ordinary imports the consumer's bundler resolves and
-  // deduplicates against its own copy. Inlining them would ship a second
-  // react-virtuoso — with its own scroll observer — into apps that already
-  // use one.
-  external: ["exceljs", "react-virtuoso", /^@mui\/icons-material($|\/)/],
+  external,
   output: [
     {
       file: `${OUT_DIR}/index.cjs`,
@@ -77,44 +68,17 @@ const jsConfig = {
       // tooling (TS esModuleInterop, babel) is unaffected.
       exports: "named",
       sourcemap: true,
-      intro,
     },
     {
       file: `${OUT_DIR}/index.esm.js`,
       format: "esm",
       sourcemap: true,
-      intro,
     },
   ],
   plugins: [
     cleanOutDir(),
-    {
-      name: "strip-use-client",
-      transform(code) {
-        const m = /^['"]use client['"];?\r?\n?/m.exec(code);
-        if (!m) return null;
-        const s = new MagicString(code);
-        s.remove(m.index, m.index + m[0].length);
-        return { code: s.toString(), map: s.generateMap({ hires: true }) };
-      },
-    },
-    peerDepsExternal(),
-    resolve({
-      extensions: [".js", ".jsx", ".ts", ".tsx", ".json"],
-      // Honor the `browser` field in package.json so deps like exceljs
-      // resolve to their pre-built browser bundle instead of the Node
-      // entry that pulls in graceful-fs / fs / stream and crashes at
-      // load time in the browser.
-      browser: true,
-      preferBuiltins: false,
-    }),
-    commonjs(),
-    babel({
-      exclude: "node_modules/**",
-      extensions: [".js", ".jsx", ".ts", ".tsx", ".mjs"],
-      babelHelpers: "bundled",
-      presets: ["@babel/preset-react", "@babel/preset-typescript"],
-    }),
+    resolveSource(),
+    transpile(),
     finalizer,
     copyLocales(),
   ],
@@ -138,7 +102,7 @@ const dtsConfig = {
     { file: `${OUT_DIR}/index.d.ts`, format: "es" },
     { file: `${OUT_DIR}/index.d.cts`, format: "es" },
   ],
-  external: [/\.css$/, /^@mui\//, /^react/, "exceljs", "react-virtuoso"],
+  external,
   plugins: [dts()],
 };
 
@@ -153,16 +117,7 @@ const themeConfig = {
     },
     { file: `${OUT_DIR}/theme.esm.js`, format: "esm", sourcemap: true },
   ],
-  plugins: [
-    resolve({ extensions: [".js", ".jsx", ".ts", ".tsx", ".json"] }),
-    babel({
-      exclude: "node_modules/**",
-      extensions: [".js", ".jsx", ".ts", ".tsx", ".mjs"],
-      babelHelpers: "bundled",
-      presets: ["@babel/preset-react", "@babel/preset-typescript"],
-    }),
-    finalizer,
-  ],
+  plugins: [resolveSource(), transpile(), finalizer],
 };
 
 const themeDtsConfig = {

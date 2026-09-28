@@ -28,6 +28,8 @@
  * results to user-facing errors exactly as before.
  */
 
+import { hasOwn } from '../utils';
+
 export interface FormulaEvalOptions {
   /**
    * Resolves a bare identifier to a numeric value (legacy "chip" references
@@ -54,7 +56,19 @@ const SINGLE_CHAR_OPS = new Set(['+', '-', '*', '/', '%', '^', '<', '>', '!']);
 const NUM_RE = /^(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/;
 const IDENT_RE = /^[A-Za-z_$][A-Za-z0-9_$]*/;
 
+/**
+ * Bounds on input size. The parser and evaluator recurse, so without them a
+ * pathological formula ends in a stack overflow instead of a readable error.
+ */
+const MAX_FORMULA_LENGTH = 10_000;
+const MAX_NESTING = 200;
+
 const tokenize = (src: string): Token[] => {
+  if (src.length > MAX_FORMULA_LENGTH) {
+    throw new Error(
+      `Formula is too long (over ${MAX_FORMULA_LENGTH} characters)`,
+    );
+  }
   const tokens: Token[] = [];
   let i = 0;
   while (i < src.length) {
@@ -130,6 +144,18 @@ const parse = (src: string): AstNode => {
   const tokens = tokenize(src);
   if (tokens.length === 0) throw new Error('Empty formula');
   let pos = 0;
+  let depth = 0;
+  // Wraps every production that can recurse into itself (parentheses,
+  // function arguments, unary chains).
+  const nested = <T>(parseInner: () => T): T => {
+    depth += 1;
+    if (depth > MAX_NESTING) throw new Error('Formula is nested too deeply');
+    try {
+      return parseInner();
+    } finally {
+      depth -= 1;
+    }
+  };
 
   const peek = (): Token | undefined => tokens[pos];
   const next = (): Token => {
@@ -200,11 +226,11 @@ const parse = (src: string): AstNode => {
   const parseUnary = (): AstNode => {
     if (isOp(peek(), '-', '+', '!')) {
       const op = next().value;
-      return { type: 'unary', op, operand: parseUnary() };
+      return { type: 'unary', op, operand: nested(parseUnary) };
     }
     if (isKeyword(peek(), 'not')) {
       next();
-      return { type: 'unary', op: '!', operand: parseUnary() };
+      return { type: 'unary', op: '!', operand: nested(parseUnary) };
     }
     return parsePower();
   };
@@ -214,7 +240,12 @@ const parse = (src: string): AstNode => {
     if (isOp(peek(), '^', '**')) {
       next();
       // Right-associative; the exponent may carry its own unary sign.
-      return { type: 'binary', op: '^', left: base, right: parseUnary() };
+      return {
+        type: 'binary',
+        op: '^',
+        left: base,
+        right: nested(parseUnary),
+      };
     }
     return base;
   };
@@ -223,7 +254,7 @@ const parse = (src: string): AstNode => {
     const t = next();
     if (t.type === 'num') return { type: 'num', value: Number(t.value) };
     if (t.type === 'lparen') {
-      const inner = parseOr();
+      const inner = nested(parseOr);
       const closing = next();
       if (closing.type !== 'rparen') {
         throw new Error("Expected ')' in formula");
@@ -234,14 +265,16 @@ const parse = (src: string): AstNode => {
       if (peek()?.type === 'lparen') {
         next(); // consume '('
         const name = t.value.toLowerCase();
-        const spec = KNOWN_FUNCTIONS[name];
+        const spec = hasOwn(KNOWN_FUNCTIONS, name)
+          ? KNOWN_FUNCTIONS[name]
+          : null;
         if (!spec) throw new Error(`Unknown function '${t.value}'`);
         const args: AstNode[] = [];
         if (peek()?.type !== 'rparen') {
-          args.push(parseOr());
+          args.push(nested(parseOr));
           while (peek()?.type === 'comma') {
             next();
-            args.push(parseOr());
+            args.push(nested(parseOr));
           }
         }
         const closing = next();
@@ -346,13 +379,28 @@ const evalNode = (node: AstNode, opts: FormulaEvalOptions): unknown => {
       }
       const args = node.args.map((a) => Number(evalNode(a, opts)));
       if (node.name === 'abs') return Math.abs(args[0]);
-      if (node.name === 'min') return Math.min(...args);
-      if (node.name === 'max') return Math.max(...args);
+      // Reduced rather than spread: spreading a very long argument list
+      // exceeds the engine's call-argument limit.
+      if (node.name === 'min') return args.reduce((a, b) => Math.min(a, b));
+      if (node.name === 'max') return args.reduce((a, b) => Math.max(a, b));
       throw new Error(`Unknown function '${node.name}'`);
     }
     default:
       throw new Error('Invalid formula node');
   }
+};
+
+/**
+ * Parses a formula once and returns an evaluator for it, so a formula that
+ * runs for every cell of a matrix is tokenized and parsed a single time.
+ * Throws on syntax errors; the returned function throws on unknown
+ * identifiers.
+ */
+export const compileFormulaExpression = (
+  src: string,
+): ((opts?: FormulaEvalOptions) => unknown) => {
+  const ast = parse(src);
+  return (opts = {}) => evalNode(ast, opts);
 };
 
 /**
@@ -363,7 +411,7 @@ const evalNode = (node: AstNode, opts: FormulaEvalOptions): unknown => {
 export const evaluateFormulaExpression = (
   src: string,
   opts: FormulaEvalOptions = {},
-): unknown => evalNode(parse(src), opts);
+): unknown => compileFormulaExpression(src)(opts);
 
 /**
  * Syntax-only validation: parses the expression, tolerating bare identifiers

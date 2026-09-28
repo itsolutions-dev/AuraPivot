@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import {
   Box,
@@ -19,7 +25,8 @@ import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import GridOnIcon from '@mui/icons-material/GridOn';
 import { usePivot } from '../../context/PivotContext';
 import { usePortalContainer } from '../../hooks/usePortalContainer';
-import { sanitizeSvgMarkup } from './sanitizeSvg';
+import { section } from '../shared/l10n';
+import { sanitizeSvg } from './sanitizeSvg';
 
 // ---------------------------------------------------------------------------
 // Internal types
@@ -85,16 +92,10 @@ const buildDefaultTabs = ({
   onToggleFullscreen,
   isFullscreen,
   t,
-}: {
-  onOpenFields?: () => void;
-  onOpenFormat?: () => void;
-  onExportExcel?: () => void;
-  onToggleFullscreen?: () => void;
-  isFullscreen?: boolean;
+}: Omit<PivotToolbarProps, 'beforeToolbarCreated'> & {
   t: Record<string, unknown>;
 }): TabDef[] => {
-  // dynamic boundary: localization is a deeply-nested Record<string,unknown>
-  const tb = (t as Record<string, Record<string, string>>)?.toolbar ?? {};
+  const tb = section(t, 'toolbar');
   return [
     {
       id: 'aura-tab-fields',
@@ -148,28 +149,43 @@ const IconFor = function IconFor({
   return null;
 };
 
+/**
+ * Consumer-provided `<svg>` markup (auraPivot convention). The sanitized
+ * result is a DOM node appended as-is: markup is never handed to the HTML
+ * parser, which is what made serialized-then-reinjected SVG exploitable.
+ */
+const SvgMarkupIcon = function SvgMarkupIcon({
+  markup,
+}: {
+  markup: string;
+}): React.ReactElement {
+  const attach = useCallback(
+    (host: HTMLSpanElement | null) => {
+      if (!host) return;
+      const svg = sanitizeSvg(markup, host.ownerDocument);
+      host.replaceChildren(...(svg ? [svg] : []));
+    },
+    [markup],
+  );
+  return (
+    <Box
+      component="span"
+      ref={attach}
+      sx={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        '& svg': { width: 20, height: 20, fill: 'currentColor' },
+      }}
+    />
+  );
+};
+
 const renderIcon = (
   icon: string | React.ReactNode | undefined,
 ): React.ReactNode => {
   if (!icon) return null;
-  // Support consumer-provided SVG markup strings (auraPivot convention).
-  // Markup is sanitized first — icon configs can round-trip through
-  // persisted report configurations, so scripts / event handlers must
-  // never reach dangerouslySetInnerHTML.
   if (typeof icon === 'string' && icon.trim().startsWith('<svg')) {
-    const safeMarkup = sanitizeSvgMarkup(icon);
-    if (!safeMarkup) return null;
-    return (
-      <Box
-        component="span"
-        dangerouslySetInnerHTML={{ __html: safeMarkup }}
-        sx={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          '& svg': { width: 20, height: 20, fill: 'currentColor' },
-        }}
-      />
-    );
+    return <SvgMarkupIcon markup={icon} />;
   }
   if (typeof icon === 'string') return <IconFor name={icon} />;
   return icon;
@@ -264,6 +280,8 @@ const PivotToolbar = function PivotToolbar({
     handlerRef.current = beforeToolbarCreated;
   });
 
+  // The tab handlers must be stable (AuraPivot memoizes them): a new
+  // identity rebuilds the tabs and re-runs the consumer hook below.
   const defaultTabs = useMemo(
     () =>
       buildDefaultTabs({
@@ -309,8 +327,8 @@ const PivotToolbar = function PivotToolbar({
   const tabs = useMemo(() => {
     const list = customTabs ?? defaultTabs;
 
-    // Visibility flags from globalProps.options (default true). Reset is
-    // injected by consumers via beforeToolbarCreated under id `reset-*`.
+    // Built-in tabs honour options.toolbar.show* (default true); tabs added
+    // through beforeToolbarCreated are always shown.
     const isVisible = (tab: TabDef): boolean => {
       if (!tab?.id) return true;
       if (tab.id === 'aura-tab-fields')
@@ -321,8 +339,6 @@ const PivotToolbar = function PivotToolbar({
         return options?.toolbar?.showExport !== false;
       if (tab.id === 'aura-tab-fullscreen')
         return options?.toolbar?.showFullscreen !== false;
-      /*       if (tab.id.startsWith('reset-'))
-        return options?.toolbar?.showReset !== false; */
       return true;
     };
     return list.filter(isVisible);

@@ -1,6 +1,3 @@
-// Build-time tokens replaced by the rollup `build-flags` plugin.
-// Declared so `tsc` accepts the source in its pre-replacement form.
-
 // ---------------------------------------------------------------------------
 // MUI theme augmentation — custom tokens consumed across the component layer.
 // Lives in global.d.ts (ambient) so every .tsx file sees it without needing
