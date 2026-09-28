@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Box,
   Dialog,
@@ -31,6 +31,8 @@ import {
   getDateTimeFormat,
   getNumberFormat,
 } from '../../pivot-core/format/intlCache';
+import { section } from '../shared/l10n';
+import { withOpenSession } from '../shared/useOpenSession';
 
 /**
  * Drill-through popup. Opens when the user clicks a non-null value cell and
@@ -72,7 +74,6 @@ type SortDir = 'asc' | 'desc';
 export interface DrillThroughDialogProps {
   open: boolean;
   onClose: () => void;
-  title?: string;
   rows?: Record<string, unknown>[];
   breadcrumbs?: Breadcrumb[];
 }
@@ -165,8 +166,7 @@ interface EmptyStateProps {
 }
 
 function EmptyState({ t }: EmptyStateProps): React.ReactElement {
-  const tDrill =
-    (t as Record<string, Record<string, string>>)?.drillThrough ?? {};
+  const tDrill = section(t, 'drillThrough');
   return (
     <Box
       sx={{
@@ -211,12 +211,12 @@ function EmptyState({ t }: EmptyStateProps): React.ReactElement {
 const DrillThroughDialog = function DrillThroughDialog({
   open,
   onClose,
-  title,
   rows,
   breadcrumbs,
 }: DrillThroughDialogProps): React.ReactElement {
   const { engine, localization: t, locale } = usePivot();
   const portalContainer = usePortalContainer();
+  // Start blank on every open: the wrapper at the bottom remounts this body.
   const [filterText, setFilterText] = useState<string>('');
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
@@ -234,17 +234,7 @@ const DrillThroughDialog = function DrillThroughDialog({
     [engine, engineVersion],
   );
 
-  // dynamic boundary: localization is Record<string,unknown>
-  const tDrill =
-    (t as Record<string, Record<string, string>>)?.drillThrough ?? {};
-
-  useEffect(() => {
-    if (open) {
-      setFilterText('');
-      setSortBy(null);
-      setSortDir('asc');
-    }
-  }, [open]);
+  const tDrill = section(t, 'drillThrough');
 
   const columns = useMemo<DrillColumn[]>(() => {
     const meta = engine.getMetadata() || {};
@@ -302,14 +292,14 @@ const DrillThroughDialog = function DrillThroughDialog({
   const formatValue = (value: unknown, type: string | undefined): string => {
     if (value === null || value === undefined || value === '') return '—';
     if (type === 'number' && Number.isFinite(Number(value))) {
-      return getNumberFormat(locale || undefined).format(Number(value));
+      return getNumberFormat(locale).format(Number(value));
     }
     if (type === 'date' || type === 'time') {
       const d = new Date(String(value));
       if (!Number.isNaN(d.getTime())) {
         // Same option set `Date.prototype.toLocaleString()` applies by
         // default, so the rendered text is unchanged.
-        return getDateTimeFormat(locale || undefined, {
+        return getDateTimeFormat(locale, {
           year: 'numeric',
           month: 'numeric',
           day: 'numeric',
@@ -379,7 +369,7 @@ const DrillThroughDialog = function DrillThroughDialog({
           return (ta - tb) * dir;
         }
         return (
-          String(va).localeCompare(String(vb), locale || undefined, {
+          String(va).localeCompare(String(vb), locale, {
             numeric: true,
           }) * dir
         );
@@ -388,7 +378,6 @@ const DrillThroughDialog = function DrillThroughDialog({
     return result;
   }, [rows, columns, filterText, sortBy, sortDir, locale]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const titleText = title || tDrill.title || 'Detail data';
   const recordsLabel =
     displayedRows.length === 1
       ? tDrill.record || 'record'
@@ -514,7 +503,7 @@ const DrillThroughDialog = function DrillThroughDialog({
                   theme.typography.fontFamily,
               })}
             >
-              {titleText}
+              {tDrill.title || 'Detail data'}
             </Typography>
 
             {/* Metric ribbon */}
@@ -532,10 +521,10 @@ const DrillThroughDialog = function DrillThroughDialog({
             >
               <Metric
                 label={tDrill.records || 'records'}
-                value={displayedRows.length.toLocaleString(locale || undefined)}
+                value={displayedRows.length.toLocaleString(locale)}
                 hint={
                   isFiltered && rows
-                    ? `/ ${rows.length.toLocaleString(locale || undefined)}`
+                    ? `/ ${rows.length.toLocaleString(locale)}`
                     : null
                 }
               />
@@ -717,8 +706,8 @@ const DrillThroughDialog = function DrillThroughDialog({
                               />
                             }
                             label={`${displayedRows.length.toLocaleString(
-                              locale || undefined,
-                            )} / ${rows.length.toLocaleString(locale || undefined)}`}
+                              locale,
+                            )} / ${rows.length.toLocaleString(locale)}`}
                             sx={(theme) => ({
                               height: 22,
                               fontSize: theme.typography.caption.fontSize,
@@ -931,11 +920,10 @@ const DrillThroughDialog = function DrillThroughDialog({
               })}
             >
               <Box component="span">
-                {displayedRows.length.toLocaleString(locale || undefined)}{' '}
-                {recordsLabel}
+                {displayedRows.length.toLocaleString(locale)} {recordsLabel}
                 {isFiltered && rows
                   ? ` · ${tDrill.of || 'of'} ${rows.length.toLocaleString(
-                      locale || undefined,
+                      locale,
                     )}`
                   : ''}
               </Box>
@@ -961,4 +949,4 @@ const DrillThroughDialog = function DrillThroughDialog({
   );
 };
 
-export default DrillThroughDialog;
+export default withOpenSession(DrillThroughDialog);

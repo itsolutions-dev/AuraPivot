@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 
 import {
   Box,
@@ -6,19 +6,19 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle,
-  IconButton,
   TextField,
   Typography,
   Stack,
   Chip,
   Tooltip,
 } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
 import { usePivot } from '../../context/PivotContext';
 import { usePortalContainer } from '../../hooks/usePortalContainer';
 import useEngineVersion from '../../hooks/useEngineVersion';
 import { parseFormulaExpression } from '../../pivot-core/matrix/FormulaEvaluator';
+import { measureCaption, section } from '../shared/l10n';
+import { withOpenSession } from '../shared/useOpenSession';
+import DialogHeader from '../shared/DialogHeader';
 
 /**
  * Dialog to create or edit a calculated field.
@@ -124,8 +124,62 @@ const CALCULATOR_KEYS: ButtonDef[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Calculator sub-component
+// Sub-components
 // ---------------------------------------------------------------------------
+
+function GroupLabel({
+  children,
+}: {
+  children: React.ReactNode;
+}): React.ReactElement {
+  return (
+    <Typography
+      variant="caption"
+      sx={{
+        fontWeight: 600,
+        opacity: 0.75,
+        letterSpacing: 0.4,
+        display: 'block',
+        mb: 0.5,
+      }}
+    >
+      {children}
+    </Typography>
+  );
+}
+
+interface InsertChipsProps {
+  title: string;
+  chips: { key: string; label: React.ReactNode; onClick: () => void }[];
+}
+
+/** A titled list of chips that insert a reference into the formula. */
+function InsertChips({
+  title,
+  chips,
+}: InsertChipsProps): React.ReactElement | null {
+  if (chips.length === 0) return null;
+  return (
+    <Box>
+      <GroupLabel>{title}</GroupLabel>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+        {chips.map((c) => (
+          <Chip
+            key={c.key}
+            label={c.label}
+            size="small"
+            onClick={c.onClick}
+            sx={(theme) => ({
+              cursor: 'pointer',
+              fontFamily: 'monospace',
+              fontSize: theme.typography.caption.fontSize,
+            })}
+          />
+        ))}
+      </Box>
+    </Box>
+  );
+}
 
 const Calculator = function Calculator({
   title,
@@ -134,19 +188,8 @@ const Calculator = function Calculator({
   onBackspace,
 }: CalculatorProps): React.ReactElement {
   return (
-    <Box style={{ flex: 1 }}>
-      <Typography
-        variant="caption"
-        sx={{
-          fontWeight: 600,
-          opacity: 0.75,
-          letterSpacing: 0.4,
-          display: 'block',
-          mb: 0.5,
-        }}
-      >
-        {title}
-      </Typography>
+    <Box>
+      <GroupLabel>{title}</GroupLabel>
       <Box
         sx={(theme) => ({
           display: 'grid',
@@ -156,7 +199,13 @@ const Calculator = function Calculator({
           borderRadius: 1,
           border: `1px solid ${theme.palette.divider}`,
           backgroundColor: theme.palette.action.hover,
-          maxWidth: 280,
+          // An explicit width, not just a cap: the keys have no intrinsic
+          // width, and the calculator sits in an `auto` grid column that
+          // would otherwise shrink it to a strip of one-character buttons.
+          // border-box so the 100% cap holds on narrow screens.
+          boxSizing: 'border-box',
+          width: 280,
+          maxWidth: '100%',
         })}
       >
         {CALCULATOR_KEYS.map((k) => {
@@ -217,12 +266,8 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
   const { engine, localization: t } = usePivot();
   const portalContainer = usePortalContainer();
 
-  // dynamic boundary: localization is Record<string,unknown>
-  const tCalc =
-    (t as Record<string, Record<string, string>>)?.calculatedField ?? {};
-  const tButtons = (t as Record<string, Record<string, string>>)?.buttons ?? {};
-  const tAgg =
-    (t as Record<string, Record<string, unknown>>)?.aggregations ?? {};
+  const tCalc = section(t, 'calculatedField');
+  const tButtons = section(t, 'buttons');
 
   const buttonGroups = useMemo<ButtonGroupDef[]>(
     () => [
@@ -334,9 +379,11 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
 
   const engineVersion = useEngineVersion(engine);
 
-  const [caption, setCaption] = useState<string>('');
-  const [formula, setFormula] = useState<string>('');
-  const [error, setError] = useState<string>('');
+  // Drafts seed from `editField` on mount; the wrapper at the bottom
+  // remounts this body on every open.
+  const [caption, setCaption] = useState(editField?.caption || '');
+  const [formula, setFormula] = useState(editField?.formula || '');
+  const [error, setError] = useState('');
   const formulaRef = useRef<HTMLDivElement | null>(null);
 
   const availableFields = engine
@@ -346,9 +393,8 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
         f.uniqueName !== 'Measures' && !f.isCalculated && f.type === 'number',
     );
 
-  // Keyed on `availableFields.length` before, which went stale whenever the
-  // engine swapped a field for another one without changing the count.
-  // Building the map is O(fields) on a list this small — cheaper than the
+  // Rebuilt every render: the field set can change without its length
+  // changing, and on a list this small the map is cheaper than the
   // bookkeeping needed to memoize it correctly.
   const fieldByName = new Map<string, AvailableField>(
     availableFields.map((f) => [f.uniqueName, f]),
@@ -359,38 +405,16 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
   // (e.g. `sum("revenue")`) directly into the formula — the caption shows
   // the aggregation in parentheses so two entries of the same field remain
   // disambiguated.
-  const aggLabelLocal = (a: string): string => {
-    const localeKey =
-      (
-        { distinctcount: 'distinctCount', avg: 'average' } as Record<
-          string,
-          string
-        >
-      )[a] || a;
-    const raw = tAgg[a] ?? tAgg[localeKey];
-    if (raw && typeof raw === 'object')
-      return (raw as Record<string, string>).caption || a;
-    return (raw as string) || a;
-  };
-
   const availableMeasures = useMemo<MeasureEntry[]>(() => {
-    const slice = engine.getSlice();
-    const meta = engine.getMetadata();
-    const calcMap = new Map(
-      engine.getCalculatedFields().map((f) => [f.uniqueName, f]),
+    const calcNames = new Set(
+      engine.getCalculatedFields().map((f) => f.uniqueName),
     );
-    return (slice.measures || []).map((m) => {
-      const base =
-        meta[m.uniqueName]?.caption ||
-        calcMap.get(m.uniqueName)?.caption ||
-        m.uniqueName;
-      return {
-        uniqueName: m.uniqueName,
-        aggregation: m.aggregation,
-        isCalculated: calcMap.has(m.uniqueName),
-        caption: `${base} (${aggLabelLocal(m.aggregation)})`,
-      };
-    });
+    return (engine.getSlice().measures || []).map((m) => ({
+      uniqueName: m.uniqueName,
+      aggregation: m.aggregation,
+      isCalculated: calcNames.has(m.uniqueName),
+      caption: measureCaption(engine, m, t),
+    }));
     // `engine` never changes identity — the version counter is what moves
     // when the slice or the calculated fields do.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -543,10 +567,8 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
     setError('');
   };
 
-  const renderFormulaToBox = (f: string) => {
-    const box = formulaRef.current;
-    if (!box) return;
-    box.innerHTML = '';
+  const renderFormulaToBox = (box: HTMLDivElement, f: string) => {
+    box.replaceChildren();
     const tokens = tokenizeFormula(f);
     tokens.forEach((tk) => {
       if (tk.type === 'text') {
@@ -590,18 +612,17 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
     return walk(box);
   };
 
-  useEffect(() => {
-    if (!open) return;
-    const initialFormula = editField?.formula || '';
-    setCaption(editField?.caption || '');
-    setFormula(initialFormula);
-    setError('');
-    // Defer so the box ref is bound after Dialog mounts. Cleared on unmount:
-    // the callback writes into a contentEditable node that may already be gone.
-    const timer = setTimeout(() => renderFormulaToBox(initialFormula), 0);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, editField]);
+  // Chips are real DOM nodes, not React children, so the box is filled by
+  // hand whenever a new node attaches: on open (the Dialog portals its
+  // content a commit after this body mounts) or if the portal moves. The
+  // callback is recreated every render, so React also calls it with null
+  // and then with the same node; both are ignored so a re-render never
+  // redraws over the user's edits.
+  const attachFormulaBox = (node: HTMLDivElement | null) => {
+    if (!node || node === formulaRef.current) return;
+    formulaRef.current = node;
+    renderFormulaToBox(node, formula);
+  };
 
   const focusBoxAtEnd = (): { sel: Selection; range: Range } | null => {
     const box = formulaRef.current;
@@ -654,8 +675,7 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
   };
 
   const clearFormula = () => {
-    const box = formulaRef.current;
-    if (box) box.innerHTML = '';
+    formulaRef.current?.replaceChildren();
     setFormula('');
     setError('');
     focusBoxAtEnd();
@@ -770,7 +790,7 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
         formula: formula.trim(),
       });
     }
-    onClose?.();
+    onClose();
   };
 
   return (
@@ -781,17 +801,14 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
       maxWidth="md"
       container={portalContainer}
     >
-      <DialogTitle sx={{ pr: 6 }}>
-        {editField
-          ? tCalc.editTitle || 'Edit calculated field'
-          : tCalc.createTitle || 'Add calculated field'}
-        <IconButton
-          onClick={onClose}
-          sx={{ position: 'absolute', top: 8, right: 8 }}
-        >
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
+      <DialogHeader
+        title={
+          editField
+            ? tCalc.editTitle || 'Edit calculated field'
+            : tCalc.createTitle || 'Add calculated field'
+        }
+        onClose={onClose}
+      />
 
       <DialogContent dividers>
         <Stack spacing={2}>
@@ -808,20 +825,12 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
           />
 
           <Box>
-            <Typography
-              variant="caption"
-              sx={{
-                fontWeight: 600,
-                opacity: 0.75,
-                letterSpacing: 0.4,
-                display: 'block',
-                mb: 0.5,
-              }}
-            >
-              {tCalc.formulaLabel || 'Formula'}
-            </Typography>
+            <GroupLabel>{tCalc.formulaLabel || 'Formula'}</GroupLabel>
+            {/* Not `plaintext-only`: copying a chip and pasting it back would
+              then paste its caption as text instead of the reference, and
+              Firefox before 136 reads that value as not editable at all. */}
             <Box
-              ref={formulaRef}
+              ref={attachFormulaBox}
               contentEditable
               suppressContentEditableWarning
               onInput={() => {
@@ -927,12 +936,12 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
           </Box>
 
           <Box
-            style={{ display: 'flex', marginBottom: 16 }}
             sx={{
               display: 'grid',
               gridTemplateColumns: { xs: '1fr', sm: 'auto 1fr' },
               gap: 2,
               alignItems: 'start',
+              mb: 2,
             }}
           >
             <Calculator
@@ -945,18 +954,7 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
             <Stack spacing={1.5}>
               {buttonGroups.map((group) => (
                 <Box key={group.title}>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontWeight: 600,
-                      opacity: 0.75,
-                      letterSpacing: 0.4,
-                      display: 'block',
-                      mb: 0.5,
-                    }}
-                  >
-                    {group.title}
-                  </Typography>
+                  <GroupLabel>{group.title}</GroupLabel>
                   <Stack direction="row" sx={{ gap: 0.5, flexWrap: 'wrap' }}>
                     {group.buttons.map((b) => {
                       const btn = (
@@ -993,71 +991,28 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
             </Stack>
           </Box>
 
-          {availableFields.length > 0 && (
-            <Box>
-              <Typography
-                variant="caption"
-                sx={{
-                  fontWeight: 600,
-                  opacity: 0.75,
-                  letterSpacing: 0.4,
-                  display: 'block',
-                  mb: 0.5,
-                }}
-              >
-                {tCalc.availableFields ||
-                  'Available numeric fields — click to insert into the formula'}
-              </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {availableFields.map((f) => (
-                  <Chip
-                    key={f.uniqueName}
-                    label={f.caption}
-                    size="small"
-                    onClick={() => insertFieldRef(f.uniqueName)}
-                    sx={(theme) => ({
-                      cursor: 'pointer',
-                      fontFamily: 'monospace',
-                      fontSize: theme.typography.caption.fontSize,
-                    })}
-                  />
-                ))}
-              </Box>
-            </Box>
-          )}
-
-          {availableMeasures.length > 0 && (
-            <Box>
-              <Typography
-                variant="caption"
-                sx={{
-                  fontWeight: 600,
-                  opacity: 0.75,
-                  letterSpacing: 0.4,
-                  display: 'block',
-                  mb: 0.5,
-                }}
-              >
-                {tCalc.availableMeasures ||
-                  'Available measures — click to insert into the formula'}
-              </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {availableMeasures.map((m, i) => (
-                  <Chip
-                    key={`${m.uniqueName}:${m.aggregation}:${i}`}
-                    label={m.caption}
-                    size="small"
-                    onClick={() => insertMeasureRef(m)}
-                    sx={(theme) => ({
-                      cursor: 'pointer',
-                      fontFamily: 'monospace',
-                      fontSize: theme.typography.caption.fontSize,
-                    })}
-                  />
-                ))}
-              </Box>
-            </Box>
-          )}
+          <InsertChips
+            title={
+              tCalc.availableFields ||
+              'Available numeric fields — click to insert into the formula'
+            }
+            chips={availableFields.map((f) => ({
+              key: f.uniqueName,
+              label: f.caption,
+              onClick: () => insertFieldRef(f.uniqueName),
+            }))}
+          />
+          <InsertChips
+            title={
+              tCalc.availableMeasures ||
+              'Available measures — click to insert into the formula'
+            }
+            chips={availableMeasures.map((m, i) => ({
+              key: `${m.uniqueName}:${m.aggregation}:${i}`,
+              label: m.caption,
+              onClick: () => insertMeasureRef(m),
+            }))}
+          />
         </Stack>
       </DialogContent>
 
@@ -1073,4 +1028,4 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
   );
 };
 
-export default CalculatedFieldDialog;
+export default withOpenSession(CalculatedFieldDialog);

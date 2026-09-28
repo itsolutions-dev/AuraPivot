@@ -1,34 +1,32 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Alert,
   Box,
   Button,
-  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle,
   FormControl,
-  FormControlLabel,
-  IconButton,
   InputLabel,
   MenuItem,
   Select,
   Stack,
-  TextField,
-  ToggleButton,
-  ToggleButtonGroup,
-  Tooltip,
-  Typography,
 } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import { distinctValuesFor } from '../../pivot-core/slice/FilterEngine';
 import { usePivot } from '../../context/PivotContext';
-import type { InternalSliceField } from '../../pivot-core/PivotEngine';
+import type {
+  InternalSlice,
+  InternalSliceField,
+} from '../../pivot-core/PivotEngine';
 import { usePortalContainer } from '../../hooks/usePortalContainer';
 import useEngineVersion from '../../hooks/useEngineVersion';
+import { measureCaption, section } from '../shared/l10n';
+import { withOpenSession } from '../shared/useOpenSession';
+import DialogHeader from '../shared/DialogHeader';
+import MemberChecklist from '../shared/MemberChecklist';
+import SortDirectionToggle, {
+  type SortToggleDirection,
+} from '../shared/SortDirectionToggle';
 
 /**
  * Quick-filter dialog reachable from the gear icon rendered beside every
@@ -56,17 +54,56 @@ export interface DimensionFilterDialogProps {
 // Internal types
 // ---------------------------------------------------------------------------
 
-interface SliceMeasureEntry {
-  uniqueName: string;
-  aggregation: string;
-  caption: string;
+interface SortPick {
+  /** 'alpha' or `${measureUniqueName}:${aggregation}`. */
+  by: string;
+  direction: SortToggleDirection;
 }
-
-type SortDirection = 'asc' | 'desc';
 
 // ---------------------------------------------------------------------------
 // Utilities
 // ---------------------------------------------------------------------------
+
+const findFieldAxis = (
+  slice: InternalSlice,
+  uniqueName: string | undefined,
+): 'rows' | 'columns' | null => {
+  if ((slice.rows || []).some((f) => f.uniqueName === uniqueName))
+    return 'rows';
+  if ((slice.columns || []).some((f) => f.uniqueName === uniqueName))
+    return 'columns';
+  return null;
+};
+
+/** The sort currently stored on the dimension's slice field. */
+const readSortPick = (
+  slice: InternalSlice,
+  uniqueName: string | undefined,
+): SortPick => {
+  const axis = findFieldAxis(slice, uniqueName);
+  const field = axis
+    ? (slice[axis] || []).find((f) => f.uniqueName === uniqueName)
+    : null;
+  const fs = field?.fieldSort as
+    | {
+        mode?: string;
+        direction?: string;
+        measure?: { uniqueName: string; aggregation?: string };
+      }
+    | undefined;
+  if (fs && fs.mode === 'measure' && fs.measure?.uniqueName) {
+    return {
+      by: `${fs.measure.uniqueName}:${fs.measure.aggregation || 'sum'}`,
+      direction: fs.direction === 'desc' ? 'desc' : 'asc',
+    };
+  }
+  return {
+    by: 'alpha',
+    direction: ((fs && fs.direction) ||
+      field?.sort ||
+      'asc') as SortToggleDirection,
+  };
+};
 
 // ---------------------------------------------------------------------------
 // Component
@@ -80,83 +117,31 @@ const DimensionFilterDialog = function DimensionFilterDialog({
 }: DimensionFilterDialogProps): React.ReactElement {
   const { engine, localization: t, locale } = usePivot();
   const portalContainer = usePortalContainer();
-  const [search, setSearch] = useState<string>('');
-  const [checked, setChecked] = useState<Set<string>>(() => new Set());
-  // `sortBy` is either 'alpha' or `${measureUniqueName}:${aggregation}`.
-  const [sortBy, setSortBy] = useState<string>('alpha');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  // Column sort (engine.setSort) is reordered after the dimension fieldSort
-  // by MatrixComputer, so an active column sort silently overrides whatever
-  // the user picks here. Surface that as a banner so the choice doesn't
-  // appear ignored.
-  const [hasColumnSort, setHasColumnSort] = useState<boolean>(false);
-  // Same caveat for the row-driven sort (engine.setSortByRow): when the
-  // dimension is on the columns axis, an active row sort overrides this
-  // dialog's pick.
-  const [hasRowSort, setHasRowSort] = useState<boolean>(false);
 
-  // dynamic boundary: localization is Record<string,unknown>
-  const tDim =
-    (t as Record<string, Record<string, string>>)?.dimensionFilter ?? {};
-  const tGrid = (t as Record<string, Record<string, string>>)?.grid ?? {};
-  const tButtons = (t as Record<string, Record<string, string>>)?.buttons ?? {};
-
-  // Resolve the underlying field caption for each measure (e.g. "Revenue"
-  // rather than "Sum Total of Revenue"). Calculated fields carry their
-  // own caption; regular measures fall back to the dataset metadata.
-  const aggLabel = (a: string): string => {
-    const localeKey =
-      (
-        { distinctcount: 'distinctCount', avg: 'average' } as Record<
-          string,
-          string
-        >
-      )[a] || a;
-    const tagg =
-      (t as Record<string, Record<string, unknown>>)?.aggregations ?? {};
-    const raw = tagg[a] ?? tagg[localeKey];
-    if (raw && typeof raw === 'object')
-      return (raw as Record<string, string>).caption || a;
-    return (raw as string) || a;
-  };
+  const tDim = section(t, 'dimensionFilter');
+  const tButtons = section(t, 'buttons');
 
   // `engine` is a stable object that mutates in place — the version counter
   // is the dependency that actually moves (see useEngineVersion).
   const engineVersion = useEngineVersion(engine);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const slice = useMemo(() => engine.getSlice(), [engine, engineVersion]);
 
-  const sliceMeasures = useMemo<SliceMeasureEntry[]>(() => {
-    if (!open) return [];
-    const slice = engine.getSlice();
-    const metadata = engine.getMetadata();
-    const calcByName = new Map<string, { caption?: string }>(
-      engine.getCalculatedFields().map((f) => [f.uniqueName, f]),
-    );
-    return (
-      (slice.measures as { uniqueName: string; aggregation: string }[]) || []
-    )
-      .filter(
-        (m) => m.aggregation !== 'formula' && m.aggregation !== 'currentRatio',
-      )
-      .map((m) => {
-        const base =
-          calcByName.get(m.uniqueName)?.caption ||
-          metadata?.[m.uniqueName]?.caption ||
-          m.uniqueName;
-        return {
-          ...m,
-          caption: `${base} (${aggLabel(m.aggregation)})`,
-        };
-      });
-  }, [engine, engineVersion, open, t]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const findFieldAxis = (): 'rows' | 'columns' | null => {
-    const slice = engine.getSlice();
-    if ((slice.rows || []).some((f) => f.uniqueName === uniqueName))
-      return 'rows';
-    if ((slice.columns || []).some((f) => f.uniqueName === uniqueName))
-      return 'columns';
-    return null;
-  };
+  const sliceMeasures = useMemo(
+    () =>
+      open
+        ? (slice.measures || [])
+            .filter(
+              (m) =>
+                m.aggregation !== 'formula' && m.aggregation !== 'currentRatio',
+            )
+            .map((m) => ({
+              key: `${m.uniqueName}:${m.aggregation}`,
+              caption: measureCaption(engine, m, t),
+            }))
+        : [],
+    [engine, slice, open, t],
+  );
 
   const distinct = useMemo(
     () =>
@@ -167,86 +152,41 @@ const DimensionFilterDialog = function DimensionFilterDialog({
     [engine, engineVersion, uniqueName, open, locale],
   );
 
-  useEffect(() => {
-    if (!open || !uniqueName) return;
-    const slice = engine.getSlice();
+  // Drafts seed from the slice on mount; the wrapper at the bottom remounts
+  // this body on every open.
+  const [checked, setChecked] = useState<Set<string>>(() => {
     const existing = (slice.filters || []).find(
       (f) => f.uniqueName === uniqueName,
     );
     // No filter OR an "allow everything" filter → check all values.
-    if (!existing || !Array.isArray(existing.members)) {
-      setChecked(new Set(distinct.map(String)));
-    } else {
-      setChecked(new Set(existing.members.map(String)));
-    }
-    setSearch('');
+    return new Set(
+      Array.isArray(existing?.members)
+        ? existing.members.map(String)
+        : distinct.map(String),
+    );
+  });
+  const [sortPick, setSortPick] = useState<SortPick>(() =>
+    readSortPick(slice, uniqueName),
+  );
 
-    // Preload current sort state from the slice field (rows or columns).
-    const axis = findFieldAxis();
-    const field = axis
-      ? (slice[axis] || []).find((f) => f.uniqueName === uniqueName)
-      : null;
-    const fs = field?.fieldSort as
-      | {
-          mode?: string;
-          direction?: string;
-          measure?: { uniqueName: string; aggregation?: string };
-        }
-      | undefined;
-    if (fs && fs.mode === 'measure' && fs.measure?.uniqueName) {
-      setSortBy(`${fs.measure.uniqueName}:${fs.measure.aggregation || 'sum'}`);
-      setSortDirection(fs.direction === 'desc' ? 'desc' : 'asc');
-    } else {
-      setSortBy('alpha');
-      setSortDirection(
-        ((fs && fs.direction) || field?.sort || 'asc') as SortDirection,
-      );
-    }
-    setHasColumnSort(!!slice?.sort?.colKey && axis === 'rows');
-    setHasRowSort(!!slice?.sort?.rowKey && axis === 'columns');
-  }, [open, uniqueName, engine, distinct]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const filteredDistinct = useMemo(() => {
-    if (!search) return distinct;
-    const needle = search.toLowerCase();
-    return distinct.filter((v) => String(v).toLowerCase().includes(needle));
-  }, [distinct, search]);
-
-  const allChecked =
-    filteredDistinct.length > 0 &&
-    filteredDistinct.every((v) => checked.has(String(v)));
-
-  const toggleOne = (v: unknown) => {
-    const s = String(v);
-    setChecked((prev) => {
-      const next = new Set(prev);
-      if (next.has(s)) next.delete(s);
-      else next.add(s);
-      return next;
-    });
-  };
-
-  const toggleAll = () => {
-    setChecked((prev) => {
-      const next = new Set(prev);
-      if (allChecked) {
-        filteredDistinct.forEach((v) => next.delete(String(v)));
-      } else {
-        filteredDistinct.forEach((v) => next.add(String(v)));
-      }
-      return next;
-    });
-  };
+  // Column sort (engine.setSort) is reordered after the dimension fieldSort
+  // by MatrixComputer, so an active column sort silently overrides whatever
+  // the user picks here; so does the row-driven sort (engine.setSortByRow)
+  // for a dimension on the columns axis. Surface that as a banner so the
+  // choice doesn't appear ignored.
+  const axis = findFieldAxis(slice, uniqueName);
+  const hasColumnSort = !!slice.sort?.colKey && axis === 'rows';
+  const hasRowSort = !!slice.sort?.rowKey && axis === 'columns';
 
   const buildFieldSort = (): Record<string, unknown> => {
-    if (sortBy === 'alpha') {
-      return { mode: 'alpha', direction: sortDirection };
+    if (sortPick.by === 'alpha') {
+      return { mode: 'alpha', direction: sortPick.direction };
     }
-    const [mName, mAgg] = sortBy.split(':');
+    const [mName, mAgg] = sortPick.by.split(':');
     return {
       mode: 'measure',
       measure: { uniqueName: mName, aggregation: mAgg || 'sum' },
-      direction: sortDirection,
+      direction: sortPick.direction,
     };
   };
 
@@ -258,16 +198,17 @@ const DimensionFilterDialog = function DimensionFilterDialog({
         ? {
             ...f,
             fieldSort: buildFieldSort(),
-            // Keep legacy `sort` in sync for alpha mode so consumers that
-            // still read `field.sort` stay consistent.
-            ...(sortBy === 'alpha' ? { sort: sortDirection } : {}),
+            // TreeBuilder still reads `field.sort` for the alphabetical
+            // pre-order while fieldSort is in measure mode, and the measure
+            // sort is stable: tied values keep the last alpha direction.
+            ...(sortPick.by === 'alpha' ? { sort: sortPick.direction } : {}),
           }
         : f,
     );
 
   const handleApply = () => {
-    const slice = engine.getSlice();
-    const filters = (slice.filters || []).filter(
+    const current = engine.getSlice();
+    const filters = (current.filters || []).filter(
       (f) => f.uniqueName !== uniqueName,
     );
     const allSelected =
@@ -275,7 +216,7 @@ const DimensionFilterDialog = function DimensionFilterDialog({
 
     if (!allSelected) {
       // Keep previous predicates (e.g. range/search) if present.
-      const previous = (slice.filters || []).find(
+      const previous = (current.filters || []).find(
         (f) => f.uniqueName === uniqueName,
       );
       filters.push({
@@ -286,21 +227,21 @@ const DimensionFilterDialog = function DimensionFilterDialog({
     }
 
     engine.setSlice({
-      ...slice,
-      rows: applyFieldSortToAxis(slice.rows),
-      columns: applyFieldSortToAxis(slice.columns),
+      ...current,
+      rows: applyFieldSortToAxis(current.rows),
+      columns: applyFieldSortToAxis(current.columns),
       filters,
     });
-    onClose?.();
+    onClose();
   };
 
   const handleClear = () => {
-    const slice = engine.getSlice();
-    const filters = (slice.filters || []).filter(
+    const current = engine.getSlice();
+    const filters = (current.filters || []).filter(
       (f) => f.uniqueName !== uniqueName,
     );
-    engine.setSlice({ ...slice, filters });
-    onClose?.();
+    engine.setSlice({ ...current, filters });
+    onClose();
   };
 
   return (
@@ -311,18 +252,11 @@ const DimensionFilterDialog = function DimensionFilterDialog({
       maxWidth="xs"
       container={portalContainer}
     >
-      <DialogTitle sx={{ pr: 6 }}>
-        {caption || uniqueName}
-        <Typography variant="caption" component="div" sx={{ opacity: 0.7 }}>
-          {tDim.subtitle || 'Select the values to include in the pivot.'}
-        </Typography>
-        <IconButton
-          onClick={onClose}
-          sx={{ position: 'absolute', top: 8, right: 8 }}
-        >
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
+      <DialogHeader
+        title={caption || uniqueName}
+        subtitle={tDim.subtitle || 'Select the values to include in the pivot.'}
+        onClose={onClose}
+      />
       <DialogContent dividers>
         {hasColumnSort && (
           <Alert severity="info" sx={{ mb: 1 }}>
@@ -341,120 +275,31 @@ const DimensionFilterDialog = function DimensionFilterDialog({
             <InputLabel>{tDim.sortBy || 'Sort by'}</InputLabel>
             <Select
               label={tDim.sortBy || 'Sort by'}
-              value={sortBy}
-              onChange={(e) => setSortBy(String(e.target.value))}
+              value={sortPick.by}
+              onChange={(e) =>
+                setSortPick((p) => ({ ...p, by: String(e.target.value) }))
+              }
             >
               <MenuItem value="alpha">{caption || uniqueName}</MenuItem>
-              {sliceMeasures.map((m) => {
-                const key = `${m.uniqueName}:${m.aggregation}`;
-                return (
-                  <MenuItem key={key} value={key}>
-                    {m.caption || m.uniqueName}
-                  </MenuItem>
-                );
-              })}
+              {sliceMeasures.map((m) => (
+                <MenuItem key={m.key} value={m.key}>
+                  {m.caption}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            value={sortDirection}
-            onChange={(_, v: SortDirection | null) => v && setSortDirection(v)}
-          >
-            <Tooltip
-              title={tGrid.sortAsc || 'Ascending'}
-              disableInteractive
-              arrow
-            >
-              <ToggleButton
-                value="asc"
-                aria-label={tGrid.sortAsc || 'Ascending'}
-              >
-                <ArrowUpwardIcon fontSize="small" />
-              </ToggleButton>
-            </Tooltip>
-            <Tooltip
-              title={tGrid.sortDesc || 'Descending'}
-              disableInteractive
-              arrow
-            >
-              <ToggleButton
-                value="desc"
-                aria-label={tGrid.sortDesc || 'Descending'}
-              >
-                <ArrowDownwardIcon fontSize="small" />
-              </ToggleButton>
-            </Tooltip>
-          </ToggleButtonGroup>
+          <SortDirectionToggle
+            value={sortPick.direction}
+            onChange={(direction) => setSortPick((p) => ({ ...p, direction }))}
+          />
         </Stack>
-        <TextField
-          size="small"
-          fullWidth
-          placeholder={tDim.search || 'Search…'}
-          value={search}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            setSearch(e.target.value)
-          }
-          sx={{ mb: 1 }}
+        <MemberChecklist
+          values={distinct}
+          selected={checked}
+          onChange={setChecked}
+          labels={tDim}
+          maxHeight={340}
         />
-        <Box
-          sx={(theme) => ({
-            border: `1px solid ${theme.palette.divider}`,
-            borderRadius: 1,
-            maxHeight: 340,
-            overflowY: 'auto',
-            p: 0.5,
-          })}
-        >
-          {filteredDistinct.length > 0 && (
-            <FormControlLabel
-              sx={{ pl: 1 }}
-              control={
-                <Checkbox
-                  size="small"
-                  checked={allChecked}
-                  indeterminate={
-                    !allChecked &&
-                    filteredDistinct.some((v) => checked.has(String(v)))
-                  }
-                  onChange={toggleAll}
-                />
-              }
-              label={
-                <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                  {tDim.selectAll || 'Select all'} ({filteredDistinct.length})
-                </Typography>
-              }
-            />
-          )}
-          <Stack>
-            {filteredDistinct.map((v) => {
-              const s = String(v);
-              return (
-                <FormControlLabel
-                  key={s}
-                  sx={{ pl: 1, display: 'flex' }}
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={checked.has(s)}
-                      onChange={() => toggleOne(v)}
-                    />
-                  }
-                  label={<Typography variant="body2">{s}</Typography>}
-                />
-              );
-            })}
-          </Stack>
-          {filteredDistinct.length === 0 && (
-            <Typography
-              variant="caption"
-              sx={{ p: 1, display: 'block', opacity: 0.6, fontStyle: 'italic' }}
-            >
-              {tDim.noValues || 'No values.'}
-            </Typography>
-          )}
-        </Box>
       </DialogContent>
       <DialogActions style={{ padding: '16px' }}>
         <Button onClick={handleClear}>
@@ -470,4 +315,4 @@ const DimensionFilterDialog = function DimensionFilterDialog({
   );
 };
 
-export default DimensionFilterDialog;
+export default withOpenSession(DimensionFilterDialog);

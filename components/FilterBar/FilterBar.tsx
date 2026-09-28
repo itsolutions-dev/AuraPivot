@@ -2,9 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   Box,
   Button,
-  Checkbox,
   Chip,
-  FormControlLabel,
   IconButton,
   Popover,
   Stack,
@@ -20,7 +18,12 @@ import { usePivot } from '../../context/PivotContext';
 import { usePortalContainer } from '../../hooks/usePortalContainer';
 import useEngineVersion from '../../hooks/useEngineVersion';
 import type { FilterEntry } from '../../pivot-core/slice/FilterEngine';
-import { distinctValuesFor } from '../../pivot-core/slice/FilterEngine';
+import {
+  distinctValuesFor,
+  isFilterActive,
+} from '../../pivot-core/slice/FilterEngine';
+import { section } from '../shared/l10n';
+import MemberChecklist from '../shared/MemberChecklist';
 
 /**
  * Horizontal bar rendered above the grid. Shows one chip per field dropped
@@ -89,7 +92,10 @@ interface FilterEditorProps {
 
 const inferInitialMode = (filter: FilterEntry, type: string): FilterMode => {
   if (filter.range) return 'range';
-  if (Array.isArray(filter?.members) && filter.members.length > 1)
+  // A whitelist of any length opens as one: single mode edits `value`, so a
+  // one-member list (what DimensionFilterDialog writes when one value is
+  // kept) would show nothing selected there and Apply would drop it.
+  if (Array.isArray(filter.members) && filter.members.length > 0)
     return 'multi';
   if (
     filter.value !== undefined &&
@@ -102,13 +108,9 @@ const inferInitialMode = (filter: FilterEntry, type: string): FilterMode => {
   return modes[0]?.value || 'multi';
 };
 
-const filterSummary = (
-  filter: FilterEntry,
-  t: Record<string, unknown>,
-): string => {
+const filterSummary = (filter: FilterEntry, t: unknown): string => {
   const range = filter.range;
-  // dynamic boundary: localization values are unknown
-  const tb = (t as Record<string, Record<string, string>>)?.filterBar ?? {};
+  const tb = section(t, 'filterBar');
   if (range && (range.min != null || range.max != null)) {
     const { min, max } = range;
     if (min != null && max != null) return `${min} … ${max}`;
@@ -168,10 +170,9 @@ const FilterEditor = function FilterEditor({
       max: r?.max != null ? String(r.max) : '',
     };
   });
-  const [search, setSearch] = useState<string>('');
 
-  // dynamic boundary: localization is Record<string,unknown>
-  const tb = (t as Record<string, Record<string, string>>)?.filterEditor ?? {};
+  const tb = section(t, 'filterEditor');
+  const tButtons = section(t, 'buttons');
 
   // `engine` alone is not a real dependency: it is the same object for the
   // component's whole life and mutates in place. The version counter is what
@@ -183,38 +184,10 @@ const FilterEditor = function FilterEditor({
     [engine, engineVersion, filter.uniqueName, locale],
   );
 
-  const filteredDistinct = useMemo(() => {
-    if (!search) return distinct;
-    const needle = search.toLowerCase();
-    return distinct.filter((v) => String(v).toLowerCase().includes(needle));
-  }, [distinct, search]);
-
-  const allChecked =
-    filteredDistinct.length > 0 &&
-    filteredDistinct.every((v) => members.includes(String(v)));
-
-  const toggleAll = () => {
-    if (allChecked) {
-      setMembers(
-        members.filter((m) => !filteredDistinct.some((v) => String(v) === m)),
-      );
-    } else {
-      const next = new Set(members);
-      filteredDistinct.forEach((v) => next.add(String(v)));
-      setMembers(Array.from(next));
-    }
-  };
-
-  const toggleOne = (v: unknown) => {
-    const s = String(v);
-    if (mode === 'single') {
-      setMembers([s]);
-      setValue(s);
-      return;
-    }
-    setMembers((prev) =>
-      prev.includes(s) ? prev.filter((m) => m !== s) : [...prev, s],
-    );
+  const pickMembers = (next: Set<string>) => {
+    const list = Array.from(next);
+    setMembers(list);
+    if (mode === 'single') setValue(list[0] ?? '');
   };
 
   const handleApply = () => {
@@ -337,88 +310,26 @@ const FilterEditor = function FilterEditor({
       )}
 
       {(mode === 'multi' || (mode === 'single' && !isDateLike)) && (
-        <>
-          <TextField
-            size="small"
-            fullWidth
-            placeholder={tb.search || 'Search…'}
-            value={search}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setSearch(e.target.value)
-            }
-            sx={{ mb: 1 }}
-          />
-          <Box
-            sx={(theme) => ({
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 1,
-              maxHeight: 220,
-              overflowY: 'auto',
-              p: 0.5,
-            })}
-          >
-            {mode === 'multi' && filteredDistinct.length > 0 && (
-              <FormControlLabel
-                sx={{ pl: 1 }}
-                control={
-                  <Checkbox
-                    size="small"
-                    checked={allChecked}
-                    indeterminate={!allChecked && members.length > 0}
-                    onChange={toggleAll}
-                  />
-                }
-                label={
-                  <Typography variant="caption">
-                    {tb.selectAll || 'Select all'}
-                  </Typography>
-                }
-              />
-            )}
-            {filteredDistinct.map((v) => {
-              const s = String(v);
-              const checked =
-                mode === 'multi' ? members.includes(s) : value === s;
-              return (
-                <FormControlLabel
-                  key={s}
-                  sx={{ pl: 1, display: 'flex' }}
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={checked}
-                      onChange={() => toggleOne(v)}
-                    />
-                  }
-                  label={<Typography variant="body2">{s}</Typography>}
-                />
-              );
-            })}
-            {filteredDistinct.length === 0 && (
-              <Typography
-                variant="caption"
-                sx={{ p: 1, opacity: 0.6, fontStyle: 'italic' }}
-              >
-                {tb.noValues || 'No values.'}
-              </Typography>
-            )}
-          </Box>
-        </>
+        <MemberChecklist
+          values={distinct}
+          selected={new Set(mode === 'multi' ? members : [value])}
+          single={mode === 'single'}
+          onChange={pickMembers}
+          labels={tb}
+          maxHeight={220}
+        />
       )}
 
       <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
         <Button size="small" onClick={handleClear}>
-          {(t as Record<string, Record<string, string>>)?.buttons
-            ?.removeFilter || 'Remove filter'}
+          {tButtons.removeFilter || 'Remove filter'}
         </Button>
         <Box sx={{ flex: 1 }} />
         <Button size="small" onClick={onClose}>
-          {(t as Record<string, Record<string, string>>)?.buttons?.cancel ||
-            'Cancel'}
+          {tButtons.cancel || 'Cancel'}
         </Button>
         <Button size="small" variant="contained" onClick={handleApply}>
-          {(t as Record<string, Record<string, string>>)?.buttons?.apply ||
-            'Apply'}
+          {tButtons.apply || 'Apply'}
         </Button>
       </Stack>
     </Box>
@@ -458,8 +369,7 @@ const FilterBar = function FilterBar(): React.ReactElement | null {
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
-  // dynamic boundary: localization is Record<string,unknown>
-  const tb = (t as Record<string, Record<string, string>>)?.filterBar ?? {};
+  const tb = section(t, 'filterBar');
 
   const filters: FilterEntry[] = slice.filters || [];
   if (filters.length === 0) return null;
@@ -513,13 +423,7 @@ const FilterBar = function FilterBar(): React.ReactElement | null {
         const meta = metadata[filter.uniqueName];
         const caption = meta?.caption || filter.uniqueName;
         const summary = filterSummary(filter, t);
-        const isActive =
-          (Array.isArray(filter.members) && filter.members.length > 0) ||
-          (filter.value !== undefined &&
-            filter.value !== null &&
-            filter.value !== '') ||
-          (filter.range != null &&
-            (filter.range.min != null || filter.range.max != null));
+        const isActive = isFilterActive(filter);
         return (
           <Chip
             key={keys[idx]}
