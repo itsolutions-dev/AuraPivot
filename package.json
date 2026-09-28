@@ -79,24 +79,24 @@
     "react-virtuoso": "^4.18.15"
   },
   "devDependencies": {
-    "@babel/core": "^7.29.7",
-    "@babel/preset-react": "^7.29.7",
-    "@babel/preset-typescript": "^7.29.7",
+    "@babel/core": "^8.0.6",
+    "@babel/preset-react": "^8.0.1",
+    "@babel/preset-typescript": "^8.0.1",
     "@changesets/changelog-github": "^1.0.1",
     "@changesets/cli": "^3.0.3",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@eslint/js": "^9.39.5",
+    "@eslint/js": "^10.0.1",
     "@mui/material": "^9.4.0",
     "@rollup/plugin-babel": "^7.1.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^1.0.0",
-    "@size-limit/preset-small-lib": "^13.0.3",
+    "@size-limit/preset-small-lib": "^14.1.0",
     "@testing-library/react": "^16.3.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitest/coverage-v8": "^4.1.11",
-    "eslint": "^9.39.5",
+    "@vitest/coverage-v8": "^5.0.2",
+    "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react-hooks": "^7.1.1",
@@ -106,10 +106,10 @@
     "react-dom": "^19.3.0",
     "rollup": "^4.63.5",
     "rollup-plugin-dts": "^6.5.1",
-    "size-limit": "^13.0.3",
+    "size-limit": "^14.1.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.70.1",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.2"
   },
   "files": [
     "dist",
@@ -117,7 +117,13 @@
     "THIRD-PARTY-NOTICES.md"
   ],
   "overrides": {
-    "uuid": "^11.1.1"
+    "uuid": "^11.1.1",
+    "@rollup/plugin-babel": {
+      "@babel/core": "$@babel/core"
+    },
+    "eslint-plugin-jsx-a11y": {
+      "eslint": "$eslint"
+    }
   },
   "scripts": {
     "check": "tsc --noEmit",

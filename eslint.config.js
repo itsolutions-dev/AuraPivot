@@ -1,16 +1,21 @@
+import { defineConfig } from "eslint/config";
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 import prettier from "eslint-config-prettier";
 
-export default tseslint.config(
+export default defineConfig(
   { ignores: ["dist/**", "node_modules/**", "coverage/**"] },
   js.configs.recommended,
-  ...tseslint.configs.recommended,
+  tseslint.configs.recommended,
   {
     files: ["**/*.{ts,tsx}"],
-    plugins: { "react-hooks": reactHooks, "jsx-a11y": jsxA11y },
+    ...jsxA11y.flatConfigs.recommended,
+  },
+  {
+    files: ["**/*.{ts,tsx}"],
+    plugins: { "react-hooks": reactHooks },
     rules: {
       ...reactHooks.configs.recommended.rules,
       // The engine's event payloads are genuinely dynamic; the boundary is

@@ -24,7 +24,21 @@ const transpile = () =>
     exclude: "node_modules/**",
     extensions: [".js", ".jsx", ".ts", ".tsx", ".mjs"],
     babelHelpers: "bundled",
-    presets: ["@babel/preset-react", "@babel/preset-typescript"],
+    presets: ["@babel/preset-typescript"],
+    overrides: [
+      {
+        // JSX only where TypeScript allows it: in a .ts file `<T>(x) => …`
+        // is a generic arrow, which Babel 8 would otherwise parse as JSX.
+        test: /\.[jt]sx$/,
+        presets: [
+          // The automatic runtime, as tsconfig's `jsx: react-jsx` assumes:
+          // no file needs React in scope. `development` is pinned because
+          // Babel 8 infers it from NODE_ENV, and with none set it would emit
+          // react/jsx-dev-runtime, whose jsxDEV is undefined in production.
+          ["@babel/preset-react", { runtime: "automatic", development: false }],
+        ],
+      },
+    ],
   });
 
 const cleanOutDir = () => ({
@@ -67,6 +81,10 @@ const jsConfig = {
       // plain require() consumers read `.default` / `.Pivot`, interop-aware
       // tooling (TS esModuleInterop, babel) is unaffected.
       exports: "named",
+      // Dependencies' CommonJS builds (@mui/icons-material/*) export
+      // `{ __esModule, default }`; "auto" unwraps `default` for them, where
+      // Rollup's "default" handed the whole object to React as a component.
+      interop: "auto",
       sourcemap: true,
     },
     {

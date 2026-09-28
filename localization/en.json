@@ -56,7 +56,11 @@
         "number": "Number (1)",
         "long": "Long (Week 1)"
       }
-    }
+    },
+    "showMeasure": "Show measure",
+    "hideMeasure": "Hide measure",
+    "renameField": "Rename field",
+    "atLeastOneVisibleMeasure": "At least one measure must be visible."
   },
   "grid": {
     "total": "Total",
@@ -76,7 +80,11 @@
     "sortByMeasure": "Sort by measure",
     "removeSort": "Remove sort",
     "errorTitle": "Something went wrong",
-    "errorBody": "The pivot grid could not be rendered. Undo the last change and retry."
+    "errorBody": "The pivot grid could not be rendered. Undo the last change and retry.",
+    "collapseFilters": "Collapse filters",
+    "expandFilters": "Expand filters",
+    "collapseChildren": "Collapse",
+    "expandChildren": "Expand"
   },
   "aggregations": {
     "sum": "Sum",
@@ -86,7 +94,8 @@
     "min": "Minimum",
     "max": "Maximum",
     "ratioTotal": "Ratio to total",
-    "currentRatio": "Incidence"
+    "currentRatio": "Incidence",
+    "formula": "Calculated"
   },
   "buttons": {
     "ok": "OK",
@@ -176,7 +185,12 @@
     "nameLabel": "Field name",
     "formulaLabel": "Formula",
     "formulaPlaceholder": "Example: sum(\"revenue\") / count(\"orders\") * 100",
-    "availableFields": "Available numeric fields — click to insert into the formula"
+    "availableFields": "Available numeric fields — click to insert into the formula",
+    "availableMeasures": "Available measures — click to insert into the formula",
+    "tooltipNULL": "Null value",
+    "tooltipEMPTY": "Empty string",
+    "runningSumLabel": "Σ running",
+    "removeField": "Remove field"
   },
   "formatDialog": {
     "subtitle": "Customize cell appearance and conditional formatting rules.",
@@ -232,7 +246,8 @@
       "lte": "Less or equal (≤)",
       "eq": "Equal (=)",
       "neq": "Not equal (≠)",
-      "between": "Between"
+      "between": "Between",
+      "expression": "Expression"
     },
     "rule": "Rule",
     "rulesDesc": "Drag to reorder Rules.",
@@ -282,7 +297,12 @@
     "exprEquals": "Equals",
     "exprNot": "NOT",
     "enableDrillThrough": "DRILL-THROUGH",
-    "enableDrillThroughToggle": "Enable drill-through (double-click a cell to see underlying rows)"
+    "enableDrillThroughToggle": "Enable drill-through (click a cell to see underlying rows)",
+    "sectionTypography": "Typography",
+    "sectionStyle": "Style & alignment",
+    "sectionColors": "Colors",
+    "dimensions": "Dimensions",
+    "dragToReorder": "Drag to reorder"
   },
   "dates": {
     "monthNames": [

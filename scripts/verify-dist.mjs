@@ -11,6 +11,10 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 
+// Everything below loads React through the bundles; it must be the
+// production build throughout (see the render check at the end).
+process.env.NODE_ENV = "production";
+
 // This file is ESM, so the CommonJS half of the load check needs its own
 // require.
 const requireCjs = createRequire(import.meta.url);
@@ -82,6 +86,11 @@ for (const name of [path.basename(cjsEntry), path.basename(esmEntry)]) {
 
   if (GLOBAL_WRITE_RE.test(code)) {
     fail(`${p}: writes to globalThis on import`);
+  }
+
+  // The development JSX runtime is empty in production React builds.
+  if (code.includes("react/jsx-dev-runtime")) {
+    fail(`${p}: imports react/jsx-dev-runtime`);
   }
 
   // The lazy exceljs import must survive as a literal specifier so the
@@ -175,6 +184,37 @@ for (const { entry, kind, publicName, load } of loadChecks) {
   }
   if (!keys.includes(publicName)) {
     fail(`${entry}: ${kind} entry does not export '${publicName}'`);
+  }
+}
+
+// Loading is not rendering either. Both entries are rendered to a string
+// with production React: that is what caught a CommonJS build handing the
+// `{ __esModule, default }` wrapper of an icon module to React as a
+// component, and JSX compiled against a React binding the module lacked.
+// The development JSX runtime is empty in production, so it is caught too.
+const React = requireCjs("react");
+const { renderToString } = requireCjs("react-dom/server");
+const renderProps = {
+  options: {
+    data: {
+      fields: [{ uniqueName: "region", dataType: "string" }],
+      dimensions: [{ axis: "row", uniqueName: "region" }],
+    },
+  },
+  dataSource: [{ region: "North" }],
+};
+for (const { entry, kind, publicName, load } of loadChecks) {
+  if (publicName !== PUBLIC_NAME || !fs.existsSync(entry)) continue;
+  try {
+    const Pivot = (await load())[publicName];
+    const html = renderToString(React.createElement(Pivot, renderProps));
+    // Options are applied in an effect, which a server render never runs;
+    // the toolbar's default tabs are what a first render must contain.
+    if (!html.includes(">Fields<")) {
+      fail(`${entry}: ${kind} render is missing the toolbar`);
+    }
+  } catch (err) {
+    fail(`${entry}: ${kind} entry failed to render — ${err.message}`);
   }
 }
 

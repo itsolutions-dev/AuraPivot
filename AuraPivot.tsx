@@ -22,6 +22,7 @@ import PivotToolbar from './components/Toolbar/PivotToolbar';
 import type { ToolbarApi } from './components/Toolbar/PivotToolbar';
 import PivotTable from './components/PivotTable/PivotTable';
 import ErrorBoundary from './components/ErrorBoundary';
+import FullscreenOverlays from './components/shared/FullscreenOverlays';
 import FieldList from './components/FieldList/FieldList';
 import FormatDialog from './components/FormatDialog/FormatDialog';
 import FilterBar from './components/FilterBar/FilterBar';
@@ -159,7 +160,8 @@ const Pivot = forwardRef<AuraPivotRef, AuraPivotProps>(
     const [fieldsOpen, setFieldsOpen] = useState(false);
     const [formatOpen, setFormatOpen] = useState(false);
     const [snack, setSnack] = useState<SnackState | null>(null);
-    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [fullscreenEl, setFullscreenEl] = useState<HTMLElement | null>(null);
+    const isFullscreen = fullscreenEl !== null;
     const [optsTick, setOptsTick] = useState(0);
     const [layoutFormat, setLayoutFormat] = useState<LayoutFormat>(
       () => engine.getFormat()?.layout || {},
@@ -198,8 +200,10 @@ const Pivot = forwardRef<AuraPivotRef, AuraPivotProps>(
 
     useEffect(() => {
       const handler = () => {
-        const fsEl = fullscreenElementOf(document);
-        setIsFullscreen(!!fsEl && fsEl === rootRef.current);
+        const root = rootRef.current;
+        setFullscreenEl(
+          root && fullscreenElementOf(document) === root ? root : null,
+        );
       };
       document.addEventListener('fullscreenchange', handler);
       document.addEventListener('webkitfullscreenchange', handler);
@@ -337,99 +341,99 @@ const Pivot = forwardRef<AuraPivotRef, AuraPivotProps>(
 
     const content = (
       <PivotProvider value={contextValue}>
-        <Box
-          ref={rootRef}
-          sx={(theme) => ({
-            position: 'relative',
-            width,
-            height,
-            display: 'flex',
-            flexDirection: 'column',
-            backgroundColor: theme.palette.background.paper,
-            color: theme.palette.text.primary,
-            fontFamily: theme.font?.primary || 'Inter',
-            borderRadius: 2,
-            overflow: 'hidden',
-            border: `1px solid ${theme.palette.divider}`,
-          })}
-        >
-          {layoutFormat?.title ? (
-            <Typography
-              variant="h6"
-              sx={(theme) => ({
-                px: 2,
-                pt: 1.5,
-                pb: 1,
-                fontWeight: 600,
-                color: theme.palette.text.primary,
-                borderBottom: `1px solid ${theme.palette.divider}`,
-              })}
-            >
-              {layoutFormat.title}
-            </Typography>
-          ) : null}
-          {toolbar && (
-            <PivotToolbar
-              beforeToolbarCreated={beforeToolbarCreated}
-              onOpenFields={openFields}
-              onOpenFormat={openFormat}
-              onExportExcel={handleExportExcel}
-              onToggleFullscreen={handleToggleFullscreen}
-              isFullscreen={isFullscreen}
-            />
-          )}
-          <FilterBar />
-          <Box sx={{ flex: 1, minHeight: 0 }}>
-            {/* A render-time throw inside the grid must not take the host app
+        <FullscreenOverlays container={fullscreenEl}>
+          <Box
+            ref={rootRef}
+            sx={(theme) => ({
+              position: 'relative',
+              width,
+              height,
+              display: 'flex',
+              flexDirection: 'column',
+              backgroundColor: theme.palette.background.paper,
+              color: theme.palette.text.primary,
+              fontFamily: theme.font?.primary || 'Inter',
+              borderRadius: 2,
+              overflow: 'hidden',
+              border: `1px solid ${theme.palette.divider}`,
+            })}
+          >
+            {layoutFormat?.title ? (
+              <Typography
+                variant="h6"
+                sx={(theme) => ({
+                  px: 2,
+                  pt: 1.5,
+                  pb: 1,
+                  fontWeight: 600,
+                  color: theme.palette.text.primary,
+                  borderBottom: `1px solid ${theme.palette.divider}`,
+                })}
+              >
+                {layoutFormat.title}
+              </Typography>
+            ) : null}
+            {toolbar && (
+              <PivotToolbar
+                beforeToolbarCreated={beforeToolbarCreated}
+                onOpenFields={openFields}
+                onOpenFormat={openFormat}
+                onExportExcel={handleExportExcel}
+                onToggleFullscreen={handleToggleFullscreen}
+                isFullscreen={isFullscreen}
+              />
+            )}
+            <FilterBar />
+            <Box sx={{ flex: 1, minHeight: 0 }}>
+              {/* A render-time throw inside the grid must not take the host app
               down with it. */}
-            <ErrorBoundary
-              title={caption(localization?.grid?.errorTitle)}
-              message={caption(localization?.grid?.errorBody)}
-              retryLabel={caption(localization?.buttons?.retry)}
+              <ErrorBoundary
+                title={caption(localization?.grid?.errorTitle)}
+                message={caption(localization?.grid?.errorBody)}
+                retryLabel={caption(localization?.buttons?.retry)}
+              >
+                <PivotTable />
+              </ErrorBoundary>
+            </Box>
+            {layoutFormat?.note ? (
+              <Typography
+                variant="caption"
+                sx={(theme) => ({
+                  px: 2,
+                  py: 1,
+                  whiteSpace: 'pre-wrap',
+                  color: theme.palette.text.secondary,
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                })}
+              >
+                {layoutFormat.note}
+              </Typography>
+            ) : null}
+            <FieldList
+              open={fieldsOpen}
+              onClose={() => setFieldsOpen(false)}
+              measuresAxis={options?.layout?.measuresAxis}
+            />
+            <FormatDialog
+              open={formatOpen}
+              onClose={() => setFormatOpen(false)}
+            />
+            <Snackbar
+              open={!!snack}
+              autoHideDuration={4000}
+              onClose={() => setSnack(null)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              // Not a portal: rendered inside the root so it stays visible in
+              // fullscreen (position: fixed still places it on the viewport).
             >
-              <PivotTable />
-            </ErrorBoundary>
+              {snack ? (
+                <Alert severity={snack.severity} onClose={() => setSnack(null)}>
+                  {snack.message}
+                </Alert>
+              ) : undefined}
+            </Snackbar>
           </Box>
-          {layoutFormat?.note ? (
-            <Typography
-              variant="caption"
-              sx={(theme) => ({
-                px: 2,
-                py: 1,
-                whiteSpace: 'pre-wrap',
-                color: theme.palette.text.secondary,
-                borderTop: `1px solid ${theme.palette.divider}`,
-              })}
-            >
-              {layoutFormat.note}
-            </Typography>
-          ) : null}
-          <FieldList
-            open={fieldsOpen}
-            onClose={() => setFieldsOpen(false)}
-            measuresAxis={options?.layout?.measuresAxis}
-          />
-          <FormatDialog
-            open={formatOpen}
-            onClose={() => setFormatOpen(false)}
-          />
-        </Box>
-        <Snackbar
-          open={!!snack}
-          autoHideDuration={4000}
-          onClose={() => setSnack(null)}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          // No `container`: MUI v9's Snackbar is not Modal-based and declares
-          // no such prop, so the value was only ever spread onto the root div
-          // as an unknown DOM attribute. Re-portaling it into the fullscreen
-          // element needs a different mechanism than the dialogs use.
-        >
-          {snack ? (
-            <Alert severity={snack.severity} onClose={() => setSnack(null)}>
-              {snack.message}
-            </Alert>
-          ) : undefined}
-        </Snackbar>
+        </FullscreenOverlays>
       </PivotProvider>
     );
 
