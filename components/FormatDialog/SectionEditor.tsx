@@ -250,7 +250,9 @@ interface SectionEditorProps {
 /** A font size in px, when it is a bare number or a px length. */
 const toPx = (size: unknown): number | null => {
   if (typeof size === 'number') return Number.isFinite(size) ? size : null;
-  const m = /^\s*(\d+(?:\.\d+)?)\s*(?:px)?\s*$/i.exec(String(size ?? ''));
+  // Trimmed first: whitespace on both sides of the optional unit would make
+  // the match backtrack quadratically on long runs of spaces.
+  const m = /^(\d+(?:\.\d+)?)\s*(?:px)?$/i.exec(String(size ?? '').trim());
   return m ? Number(m[1]) : null;
 };
 
