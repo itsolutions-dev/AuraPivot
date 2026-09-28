@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 
 import {
   Accordion,
@@ -10,7 +10,6 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle,
   Divider,
   FormControlLabel,
   IconButton,
@@ -26,6 +25,7 @@ import {
   ToggleButtonGroup,
   Typography,
 } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
@@ -39,48 +39,40 @@ import FormatAlignRightIcon from '@mui/icons-material/FormatAlignRight';
 import { usePivot } from '../../context/PivotContext';
 import { usePortalContainer } from '../../hooks/usePortalContainer';
 import { newId, withIds } from '../../utils/ids';
-import type {
-  FormatSnapshot,
-  InternalCalculatedField,
+import {
+  DEFAULT_DIMENSIONS_FORMAT,
+  DEFAULT_GRAND_TOTALS_FORMAT,
+  DEFAULT_HEADERS_FORMAT,
+  DEFAULT_LAYOUT,
+  DEFAULT_VALUES_FORMAT,
 } from '../../pivot-core/PivotEngine';
+import type {
+  CellStyleFormat,
+  LayoutFormat,
+} from '../../pivot-core/PivotEngine';
+import DialogHeader from '../shared/DialogHeader';
+import { measureCaption, section } from '../shared/l10n';
+import { withOpenSession } from '../shared/useOpenSession';
 
 /**
- * Format customization dialog. Modeled after the auraPivot format panel:
+ * Format dialog: edits the engine's format state across six tabs.
  *
- *   - Tab "Generale": font family, size, weight, italic, text / background
- *     color, alignment and number-format options (decimal places, thousands
- *     separator, currency symbol).
- *   - Tab "Condizionale": an ordered list of rules that apply a style when
- *     a cell's numeric value matches an operator (>, >=, <, <=, =, ≠,
- *     between). Each rule can target a specific measure or all measures.
+ *   - Layout: title, note, density, zebra rows, drill-through on/off.
+ *   - Headers / Dimensions: typography, style and colors of those cells.
+ *   - Values: the same plus number format, for all measures or one measure.
+ *   - Conditional: ordered rules that restyle a value cell when it matches a
+ *     comparison, or an expression over dimensions and measures.
+ *   - Grand totals: totals placement and pinning, plus their styling.
  *
- * The resulting format object is pushed to the engine via `setFormat()` on
- * "Applica", triggering a re-render of the grid through the `formatChange`
- * event exposed to the PivotContext consumer.
+ * Every tab edits a draft; Apply hands them all to `engine.setFormat()` and
+ * Reset restores the engine defaults.
  */
 
 // ---------------------------------------------------------------------------
 // Shared style-section shape used for values / headers / dimensions / totals
 // ---------------------------------------------------------------------------
 
-interface SectionValues {
-  fontFamily?: string;
-  fontSize?: number;
-  fontWeight?: number;
-  italic?: boolean;
-  textColor?: string | null;
-  backgroundColor?: string | null;
-  textAlign?: string;
-  thousandSeparator?: string;
-  decimalSeparator?: string;
-  numberOfDecimals?: string | number;
-  currencySymbol?: string;
-  currencyOther?: string;
-  currencyAlignment?: string;
-  nullValue?: string;
-  percentage?: boolean;
-  [key: string]: unknown;
-}
+type SectionValues = CellStyleFormat;
 
 // ---------------------------------------------------------------------------
 // Conditional-rule related shapes
@@ -167,17 +159,10 @@ interface DimensionEntry {
 // Layout state shape
 // ---------------------------------------------------------------------------
 
-interface LayoutValues {
-  totalsRowsPosition?: string;
-  totalsRowsSticky?: boolean;
-  totalsColumnsPosition?: string;
-  totalsColumnsSticky?: boolean;
-  alternateRows?: boolean;
+/** The engine's layout section, plus the keys this dialog also stores there. */
+interface LayoutValues extends LayoutFormat {
   enableDrillThrough?: boolean;
   density?: string;
-  title?: string;
-  note?: string;
-  [key: string]: unknown;
 }
 
 // ---------------------------------------------------------------------------
@@ -289,15 +274,7 @@ const ColorField = function ColorField({
   onChange,
 }: ColorFieldProps) {
   return (
-    <Stack
-      sx={{
-        marginTop: (theme) => theme.spacing(1),
-        marginBottom: (theme) => theme.spacing(1),
-        alignItems: 'flex-start',
-      }}
-      direction="row"
-      spacing={2}
-    >
+    <Stack sx={{ my: 1, alignItems: 'flex-start' }} direction="row" spacing={2}>
       <Typography
         variant="caption"
         sx={{ minWidth: 110, opacity: 0.75, pt: 0.5 }}
@@ -377,6 +354,34 @@ const SectionLabel = function SectionLabel({ children }: SectionLabelProps) {
 };
 
 // ---------------------------------------------------------------------------
+// LabeledField
+// ---------------------------------------------------------------------------
+
+interface LabeledFieldProps {
+  label: React.ReactNode;
+  /** Fixed width; without one the field shares its row with its siblings. */
+  width?: number;
+  children: React.ReactNode;
+}
+
+const LabeledField = function LabeledField({
+  label,
+  width,
+  children,
+}: LabeledFieldProps) {
+  return (
+    <Stack
+      sx={{ gap: 0.5, ...(width === undefined ? { flex: 1 } : { width }) }}
+    >
+      <Typography variant="caption" sx={{ opacity: 0.75 }}>
+        {label}
+      </Typography>
+      {children}
+    </Stack>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // SectionEditor
 // ---------------------------------------------------------------------------
 
@@ -388,28 +393,25 @@ interface SectionEditorProps {
 }
 
 const SectionEditor = function SectionEditor({
-  section,
+  // Renamed so it does not shadow the `section` l10n helper.
+  section: values,
   setSection,
   showNumberFormat,
   showAlignment = true,
 }: SectionEditorProps) {
-  // dynamic boundary: localization is Record<string, unknown> from context
-  const { localization: t } = usePivot();
-  const tF = (t as Record<string, Record<string, string>>)?.formatDialog ?? {};
+  const tF = section(usePivot().localization, 'formatDialog');
   const patch = (upd: Partial<SectionValues>) =>
-    setSection({ ...section, ...upd });
+    setSection({ ...values, ...upd });
+  const fontSize = values.fontSize || 13;
   return (
     <Stack sx={{ gap: 3, pt: 1.5 }}>
       <Stack sx={{ gap: 1.25 }}>
         <SectionLabel>{tF.sectionTypography || 'Typography'}</SectionLabel>
         <Stack direction="row" spacing={2}>
-          <Stack sx={{ gap: 0.5, flex: 1 }}>
-            <Typography variant="caption" sx={{ opacity: 0.75 }}>
-              {tF.font || 'Font'}
-            </Typography>
+          <LabeledField label={tF.font || 'Font'}>
             <Select
               size="small"
-              value={section.fontFamily || 'inherit'}
+              value={values.fontFamily || 'inherit'}
               onChange={(e) => patch({ fontFamily: e.target.value as string })}
             >
               <MenuItem value="inherit">
@@ -421,30 +423,31 @@ const SectionEditor = function SectionEditor({
                 </MenuItem>
               ))}
             </Select>
-          </Stack>
-          <Stack sx={{ gap: 0.5, width: 160 }}>
-            <Typography variant="caption" sx={{ opacity: 0.75 }}>
-              {tF.fontSize || 'Size'} ({section.fontSize || 13}px)
-            </Typography>
+          </LabeledField>
+          <LabeledField
+            label={`${tF.fontSize || 'Size'} (${fontSize}px)`}
+            width={160}
+          >
             <Slider
               size="small"
               min={10}
               max={24}
+              value={fontSize}
               sx={(theme) => ({ fontSize: theme.typography.fontSize })}
               onChange={(_, v) => patch({ fontSize: v as number })}
             />
-          </Stack>
+          </LabeledField>
         </Stack>
       </Stack>
 
-      <Stack sx={{ gap: 8.25 }}>
+      <Stack sx={{ gap: 1.25 }}>
         <SectionLabel>{tF.sectionStyle || 'Style & alignment'}</SectionLabel>
         <Stack direction="row" spacing={1.5} style={{ alignItems: 'center' }}>
           <ToggleButtonGroup
             size="small"
             value={[
-              (section.fontWeight ?? 400) >= 600 ? 'bold' : null,
-              section.italic ? 'italic' : null,
+              (values.fontWeight ?? 400) >= 600 ? 'bold' : null,
+              values.italic ? 'italic' : null,
             ].filter(Boolean)}
             onChange={(_, v: string[]) => {
               patch({
@@ -468,7 +471,7 @@ const SectionEditor = function SectionEditor({
               <ToggleButtonGroup
                 size="small"
                 exclusive
-                value={section.textAlign}
+                value={values.textAlign}
                 onChange={(_, v: string | null) => v && patch({ textAlign: v })}
               >
                 <ToggleButton value="left">
@@ -490,35 +493,27 @@ const SectionEditor = function SectionEditor({
         <SectionLabel>{tF.sectionColors || 'Colors'}</SectionLabel>
         <ColorField
           label={tF.textColorLabel || 'Text color'}
-          value={section.textColor as string | null | undefined}
+          value={values.textColor as string | null | undefined}
           onChange={(v) => patch({ textColor: v })}
         />
         <ColorField
           label={tF.bgColorLabel || 'Background color'}
-          value={section.backgroundColor as string | null | undefined}
+          value={values.backgroundColor as string | null | undefined}
           onChange={(v) => patch({ backgroundColor: v })}
         />
       </Stack>
 
       {showNumberFormat && (
         <>
-          <Divider
-            sx={{
-              marginTop: (theme) => theme.spacing(1),
-              marginBottom: (theme) => theme.spacing(1),
-            }}
-          />
+          <Divider sx={{ my: 1 }} />
 
           <SectionLabel>{tF.numberFormat || 'NUMBER FORMAT'}</SectionLabel>
 
           <Stack direction="row" spacing={1.5}>
-            <Stack sx={{ gap: 0.5, flex: 1 }}>
-              <Typography variant="caption" sx={{ opacity: 0.75 }}>
-                {tF.thousandSeparator || 'Thousand Separator'}
-              </Typography>
+            <LabeledField label={tF.thousandSeparator || 'Thousand Separator'}>
               <Select
                 size="small"
-                value={section.thousandSeparator ?? 'System'}
+                value={values.thousandSeparator ?? 'System'}
                 onChange={(e) =>
                   patch({ thousandSeparator: e.target.value as string })
                 }
@@ -528,14 +523,11 @@ const SectionEditor = function SectionEditor({
                 <MenuItem value=".">.</MenuItem>
                 <MenuItem value=",">,</MenuItem>
               </Select>
-            </Stack>
-            <Stack sx={{ gap: 0.5, flex: 1 }}>
-              <Typography variant="caption" sx={{ opacity: 0.75 }}>
-                {tF.decimalSeparator || 'Decimal Separator'}
-              </Typography>
+            </LabeledField>
+            <LabeledField label={tF.decimalSeparator || 'Decimal Separator'}>
               <Select
                 size="small"
-                value={section.decimalSeparator ?? 'System'}
+                value={values.decimalSeparator ?? 'System'}
                 onChange={(e) =>
                   patch({ decimalSeparator: e.target.value as string })
                 }
@@ -544,14 +536,11 @@ const SectionEditor = function SectionEditor({
                 <MenuItem value=".">.</MenuItem>
                 <MenuItem value=",">,</MenuItem>
               </Select>
-            </Stack>
-            <Stack sx={{ gap: 0.5, flex: 1 }}>
-              <Typography variant="caption" sx={{ opacity: 0.75 }}>
-                {tF.numberOfDecimals || 'Number of decimals'}
-              </Typography>
+            </LabeledField>
+            <LabeledField label={tF.numberOfDecimals || 'Number of decimals'}>
               <Select
                 size="small"
-                value={section.numberOfDecimals ?? 'Default'}
+                value={values.numberOfDecimals ?? 'Default'}
                 onChange={(e) =>
                   patch({ numberOfDecimals: e.target.value as string })
                 }
@@ -563,14 +552,11 @@ const SectionEditor = function SectionEditor({
                   </MenuItem>
                 ))}
               </Select>
-            </Stack>
-            <Stack sx={{ gap: 0.5, flex: 1 }}>
-              <Typography variant="caption" sx={{ opacity: 0.75 }}>
-                {tF.currencySymbol || 'Currency symbol'}
-              </Typography>
+            </LabeledField>
+            <LabeledField label={tF.currencySymbol || 'Currency symbol'}>
               <Select
                 size="small"
-                value={section.currencySymbol ?? 'None'}
+                value={values.currencySymbol ?? 'None'}
                 onChange={(e) =>
                   patch({ currencySymbol: e.target.value as string })
                 }
@@ -582,12 +568,12 @@ const SectionEditor = function SectionEditor({
                 <MenuItem value="£">£</MenuItem>
                 <MenuItem value="Other">{tF.other || 'Other'}</MenuItem>
               </Select>
-            </Stack>
+            </LabeledField>
             <FormControlLabel
               sx={{ alignSelf: 'flex-end', flex: 1, ml: 0 }}
               control={
                 <Switch
-                  checked={!!section.percentage}
+                  checked={!!values.percentage}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     patch({ percentage: e.target.checked })
                   }
@@ -597,31 +583,30 @@ const SectionEditor = function SectionEditor({
             />
           </Stack>
 
-          {section.currencySymbol && section.currencySymbol !== 'None' && (
+          {values.currencySymbol && values.currencySymbol !== 'None' && (
             <Stack
               direction="row"
               spacing={1.5}
               style={{ alignItems: 'flex-end' }}
             >
-              {section.currencySymbol === 'Other' && (
+              {values.currencySymbol === 'Other' && (
                 <TextField
                   size="small"
                   label={tF.currencyOther || 'Symbol'}
-                  value={section.currencyOther || ''}
+                  value={values.currencyOther || ''}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     patch({ currencyOther: e.target.value })
                   }
                   sx={{ flex: 1 }}
                 />
               )}
-              <Stack sx={{ gap: 0.5, flex: 1 }}>
-                <Typography variant="caption" sx={{ opacity: 0.75 }}>
-                  {tF.currencyAlignment || 'Currency alignment'}
-                </Typography>
+              <LabeledField
+                label={tF.currencyAlignment || 'Currency alignment'}
+              >
                 <ToggleButtonGroup
                   size="small"
                   exclusive
-                  value={section.currencyAlignment || 'Left'}
+                  value={values.currencyAlignment || 'Left'}
                   onChange={(_, v: string | null) =>
                     v && patch({ currencyAlignment: v })
                   }
@@ -633,17 +618,14 @@ const SectionEditor = function SectionEditor({
                     {tF.right || 'Right'}
                   </ToggleButton>
                 </ToggleButtonGroup>
-              </Stack>
+              </LabeledField>
             </Stack>
           )}
 
           <Stack
             direction="row"
             spacing={1.5}
-            sx={(theme) => ({
-              alignItems: 'center',
-              marginTop: theme.spacing(2),
-            })}
+            sx={{ alignItems: 'center', mt: 2 }}
           >
             <Stack sx={{ gap: 0.5 }}>
               <Typography variant="caption" sx={{ opacity: 0.75 }}>
@@ -651,7 +633,7 @@ const SectionEditor = function SectionEditor({
               </Typography>
               <TextField
                 size="small"
-                value={section.nullValue ?? ''}
+                value={values.nullValue ?? ''}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   patch({ nullValue: e.target.value })
                 }
@@ -668,6 +650,22 @@ const SectionEditor = function SectionEditor({
 // TotalsPositionEditor
 // ---------------------------------------------------------------------------
 
+/** The layout keys and row caption of each totals axis. */
+const TOTALS_AXES = [
+  {
+    position: 'totalsRowsPosition',
+    sticky: 'totalsRowsSticky',
+    labelKey: 'totalsPerRow',
+    fallback: 'Totals per row',
+  },
+  {
+    position: 'totalsColumnsPosition',
+    sticky: 'totalsColumnsSticky',
+    labelKey: 'totalsPerColumn',
+    fallback: 'Totals per column',
+  },
+] as const;
+
 interface TotalsPositionEditorProps {
   layout: LayoutValues;
   setLayout: (next: LayoutValues) => void;
@@ -677,96 +675,66 @@ const TotalsPositionEditor = function TotalsPositionEditor({
   layout,
   setLayout,
 }: TotalsPositionEditorProps) {
-  // dynamic boundary: localization is Record<string, unknown> from context
-  const { localization: t } = usePivot();
-  const tF = (t as Record<string, Record<string, string>>)?.formatDialog ?? {};
+  const tF = section(usePivot().localization, 'formatDialog');
   const patch = (upd: Partial<LayoutValues>) =>
     setLayout({ ...layout, ...upd });
   return (
     <Stack sx={{ gap: 3, pt: 1.5 }}>
       <Stack sx={{ gap: 0.5 }}>
         <SectionLabel>{tF.totalsPosition || 'TOTALS POSITION'}</SectionLabel>
-        <Typography
-          variant="caption"
-          sx={(theme) => ({ opacity: 0.7, marginBottom: theme.spacing(2) })}
-        >
+        <Typography variant="caption" sx={{ opacity: 0.7, mb: 2 }}>
           {tF.totalsPositionDesc ||
             'Defines whether subtotals and the grand total are displayed before or after the data they aggregate.'}
         </Typography>
       </Stack>
 
-      <Stack
-        direction="row"
-        style={{
-          alignItems: 'center',
-        }}
-      >
-        <Typography variant="body2" sx={{ minWidth: 140 }}>
-          {tF.totalsPerRow || 'Totals per row'}
-        </Typography>
-        <ToggleButtonGroup
-          size="small"
-          exclusive
-          value={layout.totalsRowsPosition || 'before'}
-          onChange={(_, v: string | null) =>
-            v && patch({ totalsRowsPosition: v })
-          }
-        >
-          <ToggleButton value="before" sx={{ textTransform: 'none' }}>
-            {tF.beforeData || 'Before data'}
-          </ToggleButton>
-          <ToggleButton value="after" sx={{ textTransform: 'none' }}>
-            {tF.afterData || 'After data'}
-          </ToggleButton>
-          <ToggleButton value="none" sx={{ textTransform: 'none' }}>
-            {tF.noTotals || 'None'}
-          </ToggleButton>
-        </ToggleButtonGroup>
-        {(layout.totalsRowsPosition || 'before') !== 'none' && (
-          <FormControlLabel
-            sx={{ ml: 1 }}
-            control={
-              <Switch
-                size="small"
-                checked={!!layout.totalsRowsSticky}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  patch({ totalsRowsSticky: e.target.checked })
+      {TOTALS_AXES.map((axis) => {
+        const position = layout[axis.position] || 'before';
+        return (
+          <Stack
+            key={axis.position}
+            direction="row"
+            style={{ alignItems: 'center' }}
+          >
+            <Typography variant="body2" sx={{ minWidth: 140 }}>
+              {tF[axis.labelKey] || axis.fallback}
+            </Typography>
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={position}
+              onChange={(_, v: string | null) =>
+                v && patch({ [axis.position]: v })
+              }
+            >
+              <ToggleButton value="before" sx={{ textTransform: 'none' }}>
+                {tF.beforeData || 'Before data'}
+              </ToggleButton>
+              <ToggleButton value="after" sx={{ textTransform: 'none' }}>
+                {tF.afterData || 'After data'}
+              </ToggleButton>
+              <ToggleButton value="none" sx={{ textTransform: 'none' }}>
+                {tF.noTotals || 'None'}
+              </ToggleButton>
+            </ToggleButtonGroup>
+            {position !== 'none' && (
+              <FormControlLabel
+                sx={{ ml: 1 }}
+                control={
+                  <Switch
+                    size="small"
+                    checked={!!layout[axis.sticky]}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      patch({ [axis.sticky]: e.target.checked })
+                    }
+                  />
                 }
+                label={tF.stickyTotals || 'Pin during scroll'}
               />
-            }
-            label={tF.stickyTotals || 'Pin during scroll'}
-          />
-        )}
-      </Stack>
-
-      <Stack
-        direction="row"
-        style={{
-          alignItems: 'center',
-        }}
-      >
-        <Typography variant="body2" sx={{ minWidth: 140 }}>
-          {tF.totalsPerColumn || 'Totals per column'}
-        </Typography>
-        <ToggleButtonGroup
-          size="small"
-          exclusive
-          value={layout.totalsColumnsPosition || 'before'}
-          onChange={(_, v: string | null) =>
-            v && patch({ totalsColumnsPosition: v })
-          }
-        >
-          <ToggleButton value="before" sx={{ textTransform: 'none' }}>
-            {tF.beforeData || 'Before data'}
-          </ToggleButton>
-          <ToggleButton value="after" sx={{ textTransform: 'none' }}>
-            {tF.afterData || 'After data'}
-          </ToggleButton>
-          <ToggleButton value="none" sx={{ textTransform: 'none' }}>
-            {tF.noTotals || 'None'}
-          </ToggleButton>
-        </ToggleButtonGroup>
-      </Stack>
+            )}
+          </Stack>
+        );
+      })}
     </Stack>
   );
 };
@@ -781,9 +749,7 @@ interface LayoutTabProps {
 }
 
 const LayoutTab = function LayoutTab({ layout, setLayout }: LayoutTabProps) {
-  // dynamic boundary: localization is Record<string, unknown> from context
-  const { localization: t } = usePivot();
-  const tF = (t as Record<string, Record<string, string>>)?.formatDialog ?? {};
+  const tF = section(usePivot().localization, 'formatDialog');
   const patch = (upd: Partial<LayoutValues>) =>
     setLayout({ ...layout, ...upd });
   return (
@@ -803,12 +769,7 @@ const LayoutTab = function LayoutTab({ layout, setLayout }: LayoutTabProps) {
           sx={{ mt: 1 }}
         />
       </Stack>
-      <Divider
-        sx={{
-          marginTop: (theme) => theme.spacing(2),
-          marginBottom: (theme) => theme.spacing(1),
-        }}
-      />
+      <Divider sx={{ mt: 2, mb: 1 }} />
       <Stack sx={{ gap: 0.5 }}>
         <SectionLabel>{tF.density || 'DENSITY'}</SectionLabel>
         <Typography variant="caption" sx={{ opacity: 0.7 }}>
@@ -820,10 +781,7 @@ const LayoutTab = function LayoutTab({ layout, setLayout }: LayoutTabProps) {
           exclusive
           value={layout.density || 'Standard'}
           onChange={(_, v: string | null) => v && patch({ density: v })}
-          sx={(theme) => ({
-            alignSelf: 'flex-start',
-            marginTop: theme.spacing(2),
-          })}
+          sx={{ alignSelf: 'flex-start', mt: 2 }}
         >
           <ToggleButton value="Compact" sx={{ textTransform: 'none' }}>
             {tF.densityCompact || 'Compact'}
@@ -836,12 +794,7 @@ const LayoutTab = function LayoutTab({ layout, setLayout }: LayoutTabProps) {
           </ToggleButton>
         </ToggleButtonGroup>
       </Stack>
-      <Divider
-        sx={{
-          marginTop: (theme) => theme.spacing(2),
-          marginBottom: (theme) => theme.spacing(1),
-        }}
-      />
+      <Divider sx={{ mt: 2, mb: 1 }} />
       <Stack sx={{ gap: 0.5 }}>
         <SectionLabel>{tF.readability || 'READABILITY'}</SectionLabel>
         <FormControlLabel
@@ -859,12 +812,7 @@ const LayoutTab = function LayoutTab({ layout, setLayout }: LayoutTabProps) {
           }
         />
       </Stack>
-      <Divider
-        sx={{
-          marginTop: (theme) => theme.spacing(2),
-          marginBottom: (theme) => theme.spacing(1),
-        }}
-      />
+      <Divider sx={{ mt: 2, mb: 1 }} />
       <Stack sx={{ gap: 0.5 }}>
         <SectionLabel>{tF.enableDrillThrough || 'DRILLTHROUGH'}</SectionLabel>
         <FormControlLabel
@@ -878,16 +826,11 @@ const LayoutTab = function LayoutTab({ layout, setLayout }: LayoutTabProps) {
           }
           label={
             tF.enableDrillThroughToggle ||
-            'Enable drill-through (double-click a cell to see underlying rows)'
+            'Enable drill-through (click a cell to see underlying rows)'
           }
         />
       </Stack>
-      <Divider
-        sx={{
-          marginTop: (theme) => theme.spacing(2),
-          marginBottom: (theme) => theme.spacing(1),
-        }}
-      />
+      <Divider sx={{ mt: 2, mb: 1 }} />
       <Stack sx={{ gap: 0.5 }}>
         <SectionLabel>{tF.note || 'NOTE'}</SectionLabel>
         <Typography variant="caption" sx={{ opacity: 0.7 }}>
@@ -911,11 +854,62 @@ const LayoutTab = function LayoutTab({ layout, setLayout }: LayoutTabProps) {
 };
 
 // ---------------------------------------------------------------------------
-// ClauseEditor
+// Operators and measure references
 // ---------------------------------------------------------------------------
+
+interface OperatorDef {
+  /** Short form in a rule's summary line; text matches never appear there. */
+  symbol?: string;
+  /** Flat `formatDialog` key; without one, `formatDialog.operators.<op>`. */
+  l10nKey?: string;
+  fallback: string;
+}
+
+const OPERATORS: Record<string, OperatorDef> = {
+  gt: { symbol: '>', fallback: 'Greater than (>)' },
+  gte: { symbol: '≥', fallback: 'Greater or equal (≥)' },
+  lt: { symbol: '<', fallback: 'Less than (<)' },
+  lte: { symbol: '≤', fallback: 'Less or equal (≤)' },
+  eq: { symbol: '=', fallback: 'Equal (=)' },
+  neq: { symbol: '≠', fallback: 'Not equal (≠)' },
+  // The summary shows its operands as an interval.
+  between: { symbol: '∈', fallback: 'Between' },
+  expression: { symbol: 'ƒ(x)', fallback: 'Expression' },
+  equals: { l10nKey: 'exprEquals', fallback: 'Equals' },
+  startsWith: { l10nKey: 'exprStartsWith', fallback: 'Starts with' },
+  endsWith: { l10nKey: 'exprEndsWith', fallback: 'Ends with' },
+  contains: { l10nKey: 'exprContains', fallback: 'Contains' },
+};
 
 const DIM_OPS = ['equals', 'startsWith', 'endsWith', 'contains'];
 const NUM_OPS = ['gt', 'gte', 'lt', 'lte', 'eq', 'neq', 'between'];
+/** A rule can also delegate its condition to an expression. */
+const RULE_OPS = [...NUM_OPS, 'expression'];
+
+const operatorLabel = (tF: Record<string, string>, op: string): string => {
+  const def = OPERATORS[op];
+  const caption = def.l10nKey ? tF[def.l10nKey] : section(tF, 'operators')[op];
+  return caption || def.fallback;
+};
+
+/**
+ * Whether a stored measure reference (a rule's `measure`, `valueRef`, …)
+ * points at `m`. References are measure keys; ones saved before measure keys
+ * existed hold the bare uniqueName, which still matches.
+ */
+const refersTo = (ref: string | undefined, m: MeasureEntry): boolean =>
+  !!ref &&
+  (ref === m.measureKey ||
+    (!String(ref).includes(':') && ref === m.uniqueName));
+
+const findMeasure = (
+  measures: MeasureEntry[],
+  ref: string | undefined,
+): MeasureEntry | undefined => measures.find((m) => refersTo(ref, m));
+
+// ---------------------------------------------------------------------------
+// ClauseEditor
+// ---------------------------------------------------------------------------
 
 interface ClauseEditorProps {
   clause: ExpressionClause;
@@ -932,16 +926,9 @@ const ClauseEditor = function ClauseEditor({
   onChange,
   onRemove,
 }: ClauseEditorProps) {
-  // dynamic boundary: localization is Record<string, unknown> from context
   const { localization: t } = usePivot();
-  const tF =
-    (
-      t as Record<
-        string,
-        Record<string, string> & { operators?: Record<string, string> }
-      >
-    )?.formatDialog ?? {};
-  const tFl = (t as Record<string, Record<string, string>>)?.fieldsList ?? {};
+  const tF = section(t, 'formatDialog');
+  const tFl = section(t, 'fieldsList');
   const visibleMeasures = useMemo(
     () => measures.filter((m) => !m.hidden),
     [measures],
@@ -976,27 +963,7 @@ const ClauseEditor = function ClauseEditor({
     }
   };
 
-  const dimOpsLabels: Record<string, string> = {
-    equals: tF.exprEquals || 'Equals',
-    startsWith: tF.exprStartsWith || 'Starts with',
-    endsWith: tF.exprEndsWith || 'Ends with',
-    contains: tF.exprContains || 'Contains',
-  };
-  // dynamic boundary: operators is a nested object in localization
-  const tOps =
-    (tF as unknown as { operators?: Record<string, string> }).operators ?? {};
-  const numOpsLabels: Record<string, string> = {
-    gt: tOps.gt || '> Greater than',
-    gte: tOps.gte || '≥ Greater or equal',
-    lt: tOps.lt || '< Less than',
-    lte: tOps.lte || '≤ Less or equal',
-    eq: tOps.eq || '= Equal',
-    neq: tOps.neq || '≠ Not equal',
-    between: tOps.between || 'Between',
-  };
-
   const ops = clause.kind === 'dim' ? DIM_OPS : NUM_OPS;
-  const opLabels = clause.kind === 'dim' ? dimOpsLabels : numOpsLabels;
 
   return (
     <Stack
@@ -1054,7 +1021,7 @@ const ClauseEditor = function ClauseEditor({
       >
         {ops.map((op) => (
           <MenuItem key={op} value={op}>
-            {opLabels[op]}
+            {operatorLabel(tF, op)}
           </MenuItem>
         ))}
       </Select>
@@ -1116,7 +1083,7 @@ interface ExpressionDialogProps {
   measures: MeasureEntry[];
 }
 
-const ExpressionDialog = function ExpressionDialog({
+const ExpressionDialogBody = function ExpressionDialogBody({
   open,
   onClose,
   value,
@@ -1124,18 +1091,15 @@ const ExpressionDialog = function ExpressionDialog({
   dimensions,
   measures,
 }: ExpressionDialogProps) {
-  // dynamic boundary: localization is Record<string, unknown> from context
   const { localization: t } = usePivot();
-  const tF = (t as Record<string, Record<string, string>>)?.formatDialog ?? {};
-  const tB = (t as Record<string, Record<string, string>>)?.buttons ?? {};
+  const tF = section(t, 'formatDialog');
+  const tB = section(t, 'buttons');
   const portalContainer = usePortalContainer();
+  // Seeded once per open (see withOpenSession below). `value` only changes
+  // through this dialog's own Apply, which also closes it.
   const [draft, setDraft] = useState<Expression>(
     () => value || { join: 'and', clauses: [] },
   );
-
-  useEffect(() => {
-    if (open) setDraft(value || { join: 'and', clauses: [] });
-  }, [open, value]);
 
   const addClause = () => {
     const firstDim = dimensions[0];
@@ -1188,19 +1152,14 @@ const ExpressionDialog = function ExpressionDialog({
       maxWidth="md"
       container={portalContainer}
     >
-      <DialogTitle sx={{ pr: 6 }}>
-        {tF.expressionTitle || 'Expression'}
-        <Typography variant="caption" component="div" sx={{ opacity: 0.7 }}>
-          {tF.expressionSubtitle ||
-            'Combine clauses on dimensions and measures. The expression is evaluated per cell; the rule fires when it returns true.'}
-        </Typography>
-        <IconButton
-          onClick={onClose}
-          sx={{ position: 'absolute', top: 8, right: 8 }}
-        >
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
+      <DialogHeader
+        title={tF.expressionTitle || 'Expression'}
+        subtitle={
+          tF.expressionSubtitle ||
+          'Combine clauses on dimensions and measures. The expression is evaluated per cell; the rule fires when it returns true.'
+        }
+        onClose={onClose}
+      />
       <DialogContent dividers sx={{ px: 3, py: 3 }}>
         <Stack sx={{ gap: 2.5 }}>
           <Stack direction="row" spacing={2} style={{ alignItems: 'center' }}>
@@ -1269,6 +1228,124 @@ const ExpressionDialog = function ExpressionDialog({
   );
 };
 
+/** Remounted on every open, so Cancel drops the draft. */
+const ExpressionDialog = withOpenSession(ExpressionDialogBody);
+
+// ---------------------------------------------------------------------------
+// OperandEditor
+// ---------------------------------------------------------------------------
+
+interface OperandEditorProps {
+  kind?: string;
+  value?: number | string;
+  measureRef?: string;
+  label: string;
+  measures: MeasureEntry[];
+  /** Measures the operand may reference: all but the rule's own. */
+  candidates: MeasureEntry[];
+  canReferenceMeasure: boolean;
+  onKindChange: (kind: string) => void;
+  onValueChange: (value: number) => void;
+  onMeasureRefChange: (ref: string) => void;
+}
+
+/** One side of a comparison: a constant, or another measure of the cell. */
+const OperandEditor = function OperandEditor({
+  kind,
+  value,
+  measureRef,
+  label,
+  measures,
+  candidates,
+  canReferenceMeasure,
+  onKindChange,
+  onValueChange,
+  onMeasureRefChange,
+}: OperandEditorProps) {
+  const tF = section(usePivot().localization, 'formatDialog');
+  const isMeasure = (kind || 'constant') === 'measure';
+  return (
+    <>
+      <Select
+        size="small"
+        value={kind || 'constant'}
+        onChange={(e) => onKindChange(e.target.value as string)}
+        sx={{ width: 120, flexShrink: 0 }}
+      >
+        <MenuItem value="constant">
+          {tF.ruleValueConstant || 'Constant'}
+        </MenuItem>
+        {canReferenceMeasure && (
+          <MenuItem value="measure">
+            {tF.ruleValueMeasure || 'Measure'}
+          </MenuItem>
+        )}
+      </Select>
+
+      {isMeasure ? (
+        <Select
+          size="small"
+          value={findMeasure(measures, measureRef)?.measureKey || ''}
+          onChange={(e) => onMeasureRefChange(e.target.value as string)}
+          displayEmpty
+          sx={{ width: 220, flexShrink: 0 }}
+        >
+          <MenuItem value="" disabled>
+            <em>{tF.selectMeasure || 'Select measure'}</em>
+          </MenuItem>
+          {candidates.map((m) => (
+            <MenuItem key={m.measureKey} value={m.measureKey}>
+              {m.caption || m.uniqueName}
+            </MenuItem>
+          ))}
+        </Select>
+      ) : (
+        <TextField
+          size="small"
+          type="number"
+          value={value ?? ''}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            onValueChange(Number(e.target.value))
+          }
+          sx={{ width: 160, flexShrink: 0 }}
+          label={label}
+        />
+      )}
+    </>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// RulePreview
+// ---------------------------------------------------------------------------
+
+interface RulePreviewProps {
+  style?: RuleStyle;
+  sx?: SxProps<Theme>;
+}
+
+/** A "preview" chip rendered in the rule's style. */
+const RulePreview = function RulePreview({ style = {}, sx }: RulePreviewProps) {
+  const tF = section(usePivot().localization, 'formatDialog');
+  return (
+    <Box
+      sx={[
+        (theme) => ({
+          fontFamily: style.fontFamily || 'inherit',
+          fontSize: style.fontSize || theme.typography.caption.fontSize || 13,
+          fontWeight: style.fontWeight || 400,
+          fontStyle: style.italic ? 'italic' : 'normal',
+          color: style.textColor || 'inherit',
+          backgroundColor: style.backgroundColor || 'transparent',
+        }),
+        ...(Array.isArray(sx) ? sx : [sx]),
+      ]}
+    >
+      {tF.preview || 'preview'}
+    </Box>
+  );
+};
+
 // ---------------------------------------------------------------------------
 // RuleEditor
 // ---------------------------------------------------------------------------
@@ -1284,7 +1361,6 @@ interface RuleEditorProps {
   isDropTarget?: boolean;
   onDragStart?: (e: React.DragEvent<HTMLSpanElement>, idx: number) => void;
   onDragOver?: (e: React.DragEvent<HTMLDivElement>, idx: number) => void;
-  onDragLeave?: () => void;
   onDrop?: (e: React.DragEvent<HTMLDivElement>, idx: number) => void;
   onDragEnd?: () => void;
 }
@@ -1300,22 +1376,10 @@ const RuleEditor = function RuleEditor({
   isDropTarget,
   onDragStart,
   onDragOver,
-  onDragLeave,
   onDrop,
   onDragEnd,
 }: RuleEditorProps) {
-  // dynamic boundary: localization is Record<string, unknown> from context
-  const { localization: t } = usePivot();
-  const tF =
-    (
-      t as Record<
-        string,
-        Record<string, string> & { operators?: Record<string, string> }
-      >
-    )?.formatDialog ?? {};
-  // dynamic boundary: operators is a nested object in localization
-  const tOps =
-    (tF as unknown as { operators?: Record<string, string> }).operators ?? {};
+  const tF = section(usePivot().localization, 'formatDialog');
   const patch = (upd: Partial<ConditionalRule>) =>
     onChange({ ...rule, ...upd });
   const [exprOpen, setExprOpen] = useState(false);
@@ -1324,68 +1388,16 @@ const RuleEditor = function RuleEditor({
     () => measures.filter((m) => !m.hidden),
     [measures],
   );
-  // Helper: match a stored rule.measure (either measureKey or legacy
-  // uniqueName) against a measures[] entry.
-  const measureEntryMatches = (m: MeasureEntry, stored: string | undefined) => {
-    if (!stored || !m) return false;
-    if (stored === m.measureKey) return true;
-    // Legacy: stored value was uniqueName — accept it for back-compat.
-    if (!String(stored).includes(':') && stored === m.uniqueName) return true;
-    return false;
-  };
   const otherMeasures = useMemo(
-    () => measures.filter((m) => !measureEntryMatches(m, rule.measure)),
+    () => measures.filter((m) => !refersTo(rule.measure, m)),
     [measures, rule.measure],
   );
   const measureCompareAvailable = !!rule.measure && otherMeasures.length > 0;
 
-  const operators = useMemo(
-    () => [
-      {
-        value: 'gt',
-        label: tOps.gt || 'Greater than (>)',
-      },
-      {
-        value: 'gte',
-        label: tOps.gte || 'Greater or equal (≥)',
-      },
-      { value: 'lt', label: tOps.lt || 'Less than (<)' },
-      {
-        value: 'lte',
-        label: tOps.lte || 'Less or equal (≤)',
-      },
-      { value: 'eq', label: tOps.eq || 'Equal (=)' },
-      {
-        value: 'neq',
-        label: tOps.neq || 'Not equal (≠)',
-      },
-      {
-        value: 'between',
-        label: tOps.between || 'Between',
-      },
-      {
-        value: 'expression',
-        label: tOps.expression || 'Expression',
-      },
-    ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [t],
-  );
-  const OP_SYMBOLS: Record<string, string> = {
-    gt: '>',
-    gte: '≥',
-    lt: '<',
-    lte: '≤',
-    eq: '=',
-    neq: '≠',
-    between: '∈',
-    expression: 'ƒ(x)',
-  };
   const measureLabel = rule.measure
-    ? measures.find((m) => measureEntryMatches(m, rule.measure))?.caption ||
-      rule.measure
+    ? findMeasure(measures, rule.measure)?.caption || rule.measure
     : tF.allMeasures || 'All measures';
-  const opSym = OP_SYMBOLS[rule.operator || 'gt'];
+  const opSym = OPERATORS[rule.operator || 'gt']?.symbol;
   const formatOperand = (
     kind: string | undefined,
     val: unknown,
@@ -1393,9 +1405,7 @@ const RuleEditor = function RuleEditor({
   ) => {
     if (kind === 'measure') {
       if (!ref) return '?';
-      const c =
-        measures.find((m) => measureEntryMatches(m, ref))?.caption || ref;
-      return `[${c}]`;
+      return `[${findMeasure(measures, ref)?.caption || ref}]`;
     }
     return `${val ?? '?'}`;
   };
@@ -1420,7 +1430,6 @@ const RuleEditor = function RuleEditor({
       onDragOver={(e: React.DragEvent<HTMLDivElement>) =>
         onDragOver?.(e, index)
       }
-      onDragLeave={onDragLeave}
       onDrop={(e: React.DragEvent<HTMLDivElement>) => onDrop?.(e, index)}
       sx={(theme) => ({
         border: `1px solid ${
@@ -1466,22 +1475,10 @@ const RuleEditor = function RuleEditor({
           <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }}>
             {ruleTitle}
           </Typography>
-          <Box
-            sx={(theme) => ({
-              px: 1,
-              py: 0.25,
-              borderRadius: 0.5,
-              fontSize:
-                rule.style?.fontSize || theme.typography.caption.fontSize || 13,
-              fontFamily: rule.style?.fontFamily || 'inherit',
-              fontWeight: rule.style?.fontWeight || 400,
-              fontStyle: rule.style?.italic ? 'italic' : 'normal',
-              color: rule.style?.textColor || 'inherit',
-              backgroundColor: rule.style?.backgroundColor || 'transparent',
-            })}
-          >
-            {tF.preview || 'preview'}
-          </Box>
+          <RulePreview
+            style={rule.style}
+            sx={{ px: 1, py: 0.25, borderRadius: 0.5 }}
+          />
           <IconButton
             size="small"
             component="span"
@@ -1503,12 +1500,7 @@ const RuleEditor = function RuleEditor({
           >
             <Select
               size="small"
-              value={
-                rule.measure
-                  ? measures.find((m) => measureEntryMatches(m, rule.measure))
-                      ?.measureKey || ''
-                  : ''
-              }
+              value={findMeasure(measures, rule.measure)?.measureKey || ''}
               onChange={(e) => {
                 const nextMeasure = (e.target.value as string) || undefined;
                 const upd: Partial<ConditionalRule> = { measure: nextMeasure };
@@ -1550,71 +1542,26 @@ const RuleEditor = function RuleEditor({
               onChange={(e) => patch({ operator: e.target.value as string })}
               sx={{ width: 180, flexShrink: 0 }}
             >
-              {operators.map((o) => (
-                <MenuItem key={o.value} value={o.value}>
-                  {o.label}
+              {RULE_OPS.map((op) => (
+                <MenuItem key={op} value={op}>
+                  {operatorLabel(tF, op)}
                 </MenuItem>
               ))}
             </Select>
 
             {!isExpression && (
-              <>
-                <Select
-                  size="small"
-                  value={rule.valueKind || 'constant'}
-                  onChange={(e) =>
-                    patch({ valueKind: e.target.value as string })
-                  }
-                  sx={{ width: 120, flexShrink: 0 }}
-                >
-                  <MenuItem value="constant">
-                    {tF.ruleValueConstant || 'Constant'}
-                  </MenuItem>
-                  {measureCompareAvailable && (
-                    <MenuItem value="measure">
-                      {tF.ruleValueMeasure || 'Measure'}
-                    </MenuItem>
-                  )}
-                </Select>
-
-                {(rule.valueKind || 'constant') === 'measure' ? (
-                  <Select
-                    size="small"
-                    value={
-                      rule.valueRef
-                        ? measures.find((m) =>
-                            measureEntryMatches(m, rule.valueRef),
-                          )?.measureKey || ''
-                        : ''
-                    }
-                    onChange={(e) =>
-                      patch({ valueRef: e.target.value as string })
-                    }
-                    displayEmpty
-                    sx={{ width: 220, flexShrink: 0 }}
-                  >
-                    <MenuItem value="" disabled>
-                      <em>{tF.selectMeasure || 'Select measure'}</em>
-                    </MenuItem>
-                    {otherMeasures.map((m) => (
-                      <MenuItem key={m.measureKey} value={m.measureKey}>
-                        {m.caption || m.uniqueName}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                ) : (
-                  <TextField
-                    size="small"
-                    type="number"
-                    value={rule.value ?? ''}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      patch({ value: Number(e.target.value) })
-                    }
-                    sx={{ width: 160, flexShrink: 0 }}
-                    label={tF.ruleValue || 'Value'}
-                  />
-                )}
-              </>
+              <OperandEditor
+                kind={rule.valueKind}
+                value={rule.value}
+                measureRef={rule.valueRef}
+                label={tF.ruleValue || 'Value'}
+                onKindChange={(valueKind) => patch({ valueKind })}
+                onValueChange={(value) => patch({ value })}
+                onMeasureRefChange={(valueRef) => patch({ valueRef })}
+                measures={measures}
+                candidates={otherMeasures}
+                canReferenceMeasure={measureCompareAvailable}
+              />
             )}
 
             {isExpression && (
@@ -1647,61 +1594,18 @@ const RuleEditor = function RuleEditor({
               >
                 {tF.ruleValueAnd || 'and'}
               </Typography>
-              <Select
-                size="small"
-                value={rule.value2Kind || 'constant'}
-                onChange={(e) =>
-                  patch({ value2Kind: e.target.value as string })
-                }
-                sx={{ width: 120, flexShrink: 0 }}
-              >
-                <MenuItem value="constant">
-                  {tF.ruleValueConstant || 'Constant'}
-                </MenuItem>
-                {measureCompareAvailable && (
-                  <MenuItem value="measure">
-                    {tF.ruleValueMeasure || 'Measure'}
-                  </MenuItem>
-                )}
-              </Select>
-
-              {(rule.value2Kind || 'constant') === 'measure' ? (
-                <Select
-                  size="small"
-                  value={
-                    rule.value2Ref
-                      ? measures.find((m) =>
-                          measureEntryMatches(m, rule.value2Ref),
-                        )?.measureKey || ''
-                      : ''
-                  }
-                  onChange={(e) =>
-                    patch({ value2Ref: e.target.value as string })
-                  }
-                  displayEmpty
-                  sx={{ width: 220, flexShrink: 0 }}
-                >
-                  <MenuItem value="" disabled>
-                    <em>{tF.selectMeasure || 'Select measure'}</em>
-                  </MenuItem>
-                  {otherMeasures.map((m) => (
-                    <MenuItem key={m.measureKey} value={m.measureKey}>
-                      {m.caption || m.uniqueName}
-                    </MenuItem>
-                  ))}
-                </Select>
-              ) : (
-                <TextField
-                  size="small"
-                  type="number"
-                  value={rule.value2 ?? ''}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    patch({ value2: Number(e.target.value) })
-                  }
-                  sx={{ width: 160, flexShrink: 0 }}
-                  label={tF.ruleValueUpperBound || 'Upper bound'}
-                />
-              )}
+              <OperandEditor
+                kind={rule.value2Kind}
+                value={rule.value2}
+                measureRef={rule.value2Ref}
+                label={tF.ruleValueUpperBound || 'Upper bound'}
+                onKindChange={(value2Kind) => patch({ value2Kind })}
+                onValueChange={(value2) => patch({ value2 })}
+                onMeasureRefChange={(value2Ref) => patch({ value2Ref })}
+                measures={measures}
+                candidates={otherMeasures}
+                canReferenceMeasure={measureCompareAvailable}
+              />
             </Stack>
           )}
         </Stack>
@@ -1733,12 +1637,7 @@ const RuleEditor = function RuleEditor({
           </Select>
         </Stack>
 
-        <Divider
-          sx={{
-            marginTop: (theme) => theme.spacing(1),
-            marginBottom: (theme) => theme.spacing(1),
-          }}
-        />
+        <Divider sx={{ my: 1 }} />
 
         <SectionEditor
           section={(rule.style || {}) as SectionValues}
@@ -1749,24 +1648,16 @@ const RuleEditor = function RuleEditor({
 
         <Stack direction="row" sx={{ mt: 2 }}>
           <Box sx={{ flex: 1 }} />
-          <Box
-            sx={(theme) => ({
+          <RulePreview
+            style={rule.style}
+            sx={{
               px: 1.5,
               py: 0.5,
               borderRadius: 1,
-              fontFamily: rule.style?.fontFamily || 'inherit',
-              fontSize:
-                rule.style?.fontSize || theme.typography.caption.fontSize || 13,
-              fontWeight: rule.style?.fontWeight || 400,
-              fontStyle: rule.style?.italic ? 'italic' : 'normal',
               textAlign: rule.style?.textAlign || 'left',
-              color: rule.style?.textColor || 'inherit',
-              backgroundColor: rule.style?.backgroundColor || 'transparent',
               fontVariantNumeric: 'tabular-nums',
-            })}
-          >
-            {tF.preview || 'preview'}
-          </Box>
+            }}
+          />
         </Stack>
       </AccordionDetails>
       <ExpressionDialog
@@ -1802,9 +1693,7 @@ const ConditionalTab = function ConditionalTab({
   mode,
   setMode,
 }: ConditionalTabProps) {
-  // dynamic boundary: localization is Record<string, unknown> from context
-  const { localization: t } = usePivot();
-  const tF = (t as Record<string, Record<string, string>>)?.formatDialog ?? {};
+  const tF = section(usePivot().localization, 'formatDialog');
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
 
@@ -1825,9 +1714,6 @@ const ConditionalTab = function ConditionalTab({
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     if (idx !== dropIndex) setDropIndex(idx);
-  };
-  const handleDragLeave = () => {
-    // no-op; dropIndex is updated on next dragOver
   };
   const handleDrop = (e: React.DragEvent<HTMLDivElement>, idx: number) => {
     e.preventDefault();
@@ -1897,17 +1783,8 @@ const ConditionalTab = function ConditionalTab({
           {modeDescription}
         </Typography>
       </Stack>
-      <Divider
-        sx={{
-          marginTop: (theme) => theme.spacing(1),
-          marginBottom: (theme) => theme.spacing(1),
-        }}
-      />
-      <Stack
-        direction="row"
-        sx={{ marginBottom: (theme) => theme.spacing(1) }}
-        style={{ alignItems: 'center' }}
-      >
+      <Divider sx={{ my: 1 }} />
+      <Stack direction="row" sx={{ mb: 1 }} style={{ alignItems: 'center' }}>
         <Typography variant="caption" sx={{ opacity: 0.75, flex: 1 }}>
           {tF.rulesDesc || 'Drag to reorder rules.'}
         </Typography>
@@ -1929,7 +1806,7 @@ const ConditionalTab = function ConditionalTab({
             p: 3,
             textAlign: 'center',
             color: theme.palette.text.secondary,
-            marginTop: theme.spacing(1),
+            mt: 1,
           })}
         >
           <Typography variant="body2">
@@ -1952,7 +1829,6 @@ const ConditionalTab = function ConditionalTab({
           }
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onDragEnd={handleDragEnd}
         />
@@ -1965,57 +1841,17 @@ const ConditionalTab = function ConditionalTab({
 // DEFAULTS
 // ---------------------------------------------------------------------------
 
+/**
+ * What Reset restores: the engine's own defaults, plus the layout keys the
+ * engine leaves unset but this dialog edits.
+ */
 const DEFAULTS = {
-  values: {
-    fontFamily: 'inherit',
-    fontSize: 13,
-    fontWeight: 400,
-    italic: false,
-    textColor: null,
-    backgroundColor: null,
-    textAlign: 'right',
-    thousandSeparator: 'System',
-    decimalSeparator: 'System',
-    numberOfDecimals: 'Default',
-    currencySymbol: 'None',
-    currencyOther: '',
-    currencyAlignment: 'Left',
-    nullValue: '',
-    percentage: false,
-  } as SectionValues,
-  headers: {
-    fontFamily: 'inherit',
-    fontSize: 14,
-    fontWeight: 700,
-    italic: false,
-    textColor: null,
-    backgroundColor: null,
-    textAlign: 'left',
-  } as SectionValues,
-  grandTotals: {
-    fontFamily: 'inherit',
-    fontSize: 13,
-    fontWeight: 700,
-    italic: false,
-    textColor: null,
-    backgroundColor: null,
-    textAlign: 'left',
-  } as SectionValues,
-  dimensions: {
-    fontFamily: 'inherit',
-    fontSize: 13,
-    fontWeight: 500,
-    italic: false,
-    textColor: null,
-    backgroundColor: null,
-    textAlign: 'left',
-  } as SectionValues,
+  values: DEFAULT_VALUES_FORMAT,
+  headers: DEFAULT_HEADERS_FORMAT,
+  grandTotals: DEFAULT_GRAND_TOTALS_FORMAT,
+  dimensions: DEFAULT_DIMENSIONS_FORMAT,
   layout: {
-    totalsRowsPosition: 'before',
-    totalsRowsSticky: false,
-    totalsColumnsPosition: 'before',
-    totalsColumnsSticky: false,
-    alternateRows: false,
+    ...DEFAULT_LAYOUT,
     enableDrillThrough: true,
     density: 'Standard',
     title: '',
@@ -2032,80 +1868,61 @@ export interface FormatDialogProps {
   onClose: () => void;
 }
 
+/** Tab order, with each tab's `formatDialog.tabs` key and English caption. */
+const TABS = [
+  ['layout', 'Layout'],
+  ['headers', 'Headers'],
+  ['dimensions', 'Dimensions'],
+  ['values', 'Values'],
+  ['conditional', 'Conditional'],
+  ['grandTotals', 'Grand totals'],
+] as const;
+
+type TabKey = (typeof TABS)[number][0];
+
 const FormatDialogBody = function FormatDialogBody({
   open,
   onClose,
 }: FormatDialogProps): React.ReactElement {
-  // dynamic boundary: engine and localization come from context with broad types
   const { engine, localization: t } = usePivot();
-  const tF = (t as Record<string, Record<string, string>>)?.formatDialog ?? {};
-  const tB = (t as Record<string, Record<string, string>>)?.buttons ?? {};
-  const tTb = (t as Record<string, Record<string, string>>)?.toolbar ?? {};
+  const tF = section(t, 'formatDialog');
+  const tTabs = section(tF, 'tabs');
+  const tB = section(t, 'buttons');
+  const tTb = section(t, 'toolbar');
   const portalContainer = usePortalContainer();
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState<TabKey>('layout');
 
-  const getFormat = (): FormatSnapshot => engine.getFormat();
-
-  // Seeded once, on mount: the wrapper below remounts this body on every
-  // open, which is what a nine-setter reset effect used to do by hand.
-  const [values, setValues] = useState<SectionValues>(
-    () => (getFormat().values as SectionValues) ?? { ...DEFAULTS.values },
-  );
-  const [headers, setHeaders] = useState<SectionValues>(
-    () => (getFormat().headers as SectionValues) ?? { ...DEFAULTS.headers },
-  );
+  // The drafts seed once, on mount; withOpenSession below remounts the body
+  // on every open, so each session starts from the engine's current format.
+  const [initial] = useState(() => engine.getFormat());
+  const [values, setValues] = useState<SectionValues>(initial.values);
+  const [headers, setHeaders] = useState<SectionValues>(initial.headers);
   const [grandTotals, setGrandTotals] = useState<SectionValues>(
-    () =>
-      (getFormat().grandTotals as SectionValues) ?? { ...DEFAULTS.grandTotals },
+    initial.grandTotals,
   );
   const [dimensions, setDimensions] = useState<SectionValues>(
-    () =>
-      (getFormat().dimensions as SectionValues) ?? { ...DEFAULTS.dimensions },
+    initial.dimensions,
   );
   const [layout, setLayout] = useState<LayoutValues>(
-    () => (getFormat().layout as LayoutValues) ?? { ...DEFAULTS.layout },
+    initial.layout as LayoutValues,
   );
   const [rules, setRules] = useState<ConditionalRule[]>(() =>
-    normalizeRules(getFormat().conditional as ConditionalRule[] | undefined),
+    normalizeRules(initial.conditional as ConditionalRule[]),
   );
   const [conditionalMode, setConditionalMode] = useState<string>(
-    () => getFormat().conditionalMode || 'first',
+    initial.conditionalMode,
   );
   const [valuesByMeasure, setValuesByMeasure] = useState<
     Record<string, SectionValues>
-  >(() => (getFormat().valuesByMeasure as Record<string, SectionValues>) ?? {});
+  >(initial.valuesByMeasure);
   const [valuesTarget, setValuesTarget] = useState('__default__');
 
-  const calcByName = new Map<string, InternalCalculatedField>(
-    engine.getCalculatedFields().map((f) => [f.uniqueName, f]),
-  );
-  const aggLabel = (a: string) => {
-    const localeKey =
-      (
-        { distinctCount: 'distinctCount', avg: 'average' } as Record<
-          string,
-          string
-        >
-      )[a] || a;
-    const tAgg =
-      (t as Record<string, Record<string, unknown>>)?.aggregations ?? {};
-    const raw = tAgg[a] ?? tAgg[localeKey];
-    if (raw && typeof raw === 'object')
-      return (raw as Record<string, string>).caption || a;
-    return (raw as string) || a;
-  };
   const measures: MeasureEntry[] = (engine.getSlice().measures || []).map(
     (m) => ({
       uniqueName: m.uniqueName,
       aggregation: m.aggregation,
       measureKey: `${m.uniqueName}:${m.aggregation}`,
-      caption: (() => {
-        const base =
-          engine.getMetadata()[m.uniqueName]?.caption ||
-          calcByName.get(m.uniqueName)?.caption ||
-          m.uniqueName;
-        return `${base} (${aggLabel(m.aggregation)})`;
-      })(),
+      caption: measureCaption(engine, m, t),
       hidden: !!m.hidden,
     }),
   );
@@ -2142,13 +1959,10 @@ const FormatDialogBody = function FormatDialogBody({
   };
 
   const handleReset = () => {
+    // setFormat copies every section, so the shared defaults stay pristine.
     engine.setFormat({
-      values: { ...DEFAULTS.values },
+      ...DEFAULTS,
       valuesByMeasure: {},
-      headers: { ...DEFAULTS.headers },
-      grandTotals: { ...DEFAULTS.grandTotals },
-      dimensions: { ...DEFAULTS.dimensions },
-      layout: { ...DEFAULTS.layout },
       conditional: [],
       conditionalMode: 'first',
     });
@@ -2186,26 +2000,17 @@ const FormatDialogBody = function FormatDialogBody({
       maxWidth="md"
       container={portalContainer}
     >
-      <DialogTitle sx={{ pr: 6, pt: 2.5, pb: 2 }}>
-        {tTb.format || 'Format'}
-        <Typography
-          variant="caption"
-          component="div"
-          sx={{ opacity: 0.7, mt: 0.5 }}
-        >
-          {tF.subtitle ||
-            'Customize cell display and conditional formatting rules.'}
-        </Typography>
-        <IconButton
-          onClick={onClose}
-          sx={{ position: 'absolute', top: 12, right: 12 }}
-        >
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
+      <DialogHeader
+        title={tTb.format || 'Format'}
+        subtitle={
+          tF.subtitle ||
+          'Customize cell display and conditional formatting rules.'
+        }
+        onClose={onClose}
+      />
       <Tabs
         value={tab}
-        onChange={(_, v: number) => setTab(v)}
+        onChange={(_, v: TabKey) => setTab(v)}
         variant="scrollable"
         scrollButtons="auto"
         sx={(theme) => ({
@@ -2214,28 +2019,21 @@ const FormatDialogBody = function FormatDialogBody({
           '& .MuiTab-root': { textTransform: 'none', minHeight: 44 },
         })}
       >
-        <Tab label={tF['tabs.layout'] || tF.tabsLayout || 'Layout'} />
-        <Tab label={tF['tabs.headers'] || tF.tabsHeaders || 'Headers'} />
-        <Tab
-          label={tF['tabs.dimensions'] || tF.tabsDimensions || 'Dimensions'}
-        />
-        <Tab label={tF['tabs.values'] || tF.tabsValues || 'Values'} />
-        <Tab
-          label={tF['tabs.conditional'] || tF.tabsConditional || 'Conditional'}
-        />
-        <Tab
-          label={tF['tabs.grandTotals'] || tF.tabsGrandTotals || 'Grand totals'}
-        />
+        {TABS.map(([key, fallback]) => (
+          <Tab key={key} value={key} label={tTabs[key] || fallback} />
+        ))}
       </Tabs>
       <DialogContent sx={{ px: 3, py: 3 }}>
-        {tab === 0 && <LayoutTab layout={layout} setLayout={setLayout} />}
-        {tab === 1 && (
+        {tab === 'layout' && (
+          <LayoutTab layout={layout} setLayout={setLayout} />
+        )}
+        {tab === 'headers' && (
           <SectionEditor section={headers} setSection={setHeaders} />
         )}
-        {tab === 2 && (
+        {tab === 'dimensions' && (
           <SectionEditor section={dimensions} setSection={setDimensions} />
         )}
-        {tab === 3 && (
+        {tab === 'values' && (
           <Stack sx={{ gap: 3 }}>
             <Stack direction="row" spacing={2} style={{ alignItems: 'center' }}>
               <Typography variant="caption" sx={{ opacity: 0.75 }}>
@@ -2267,12 +2065,7 @@ const FormatDialogBody = function FormatDialogBody({
                 </Button>
               )}
             </Stack>
-            <Divider
-              sx={{
-                marginTop: (theme) => theme.spacing(1),
-                marginBottom: (theme) => theme.spacing(1),
-              }}
-            />
+            <Divider sx={{ my: 1 }} />
             <SectionEditor
               key={valuesTarget}
               section={activeValuesSection}
@@ -2281,7 +2074,7 @@ const FormatDialogBody = function FormatDialogBody({
             />
           </Stack>
         )}
-        {tab === 4 && (
+        {tab === 'conditional' && (
           <ConditionalTab
             rules={rules}
             setRules={setRules}
@@ -2291,15 +2084,10 @@ const FormatDialogBody = function FormatDialogBody({
             setMode={setConditionalMode}
           />
         )}
-        {tab === 5 && (
+        {tab === 'grandTotals' && (
           <Stack sx={{ gap: 3 }}>
             <TotalsPositionEditor layout={layout} setLayout={setLayout} />
-            <Divider
-              sx={{
-                marginTop: (theme) => theme.spacing(1),
-                marginBottom: (theme) => theme.spacing(1),
-              }}
-            />
+            <Divider sx={{ my: 1 }} />
             <SectionEditor
               section={grandTotals}
               setSection={setGrandTotals}
@@ -2322,22 +2110,6 @@ const FormatDialogBody = function FormatDialogBody({
   );
 };
 
-/**
- * Thin wrapper: a new key on every open re-seeds all nine drafts from the
- * engine, so the body needs no reset effect.
- */
-const FormatDialog = function FormatDialog(
-  props: FormatDialogProps,
-): React.ReactElement {
-  const [session, setSession] = useState(0);
-  const [wasOpen, setWasOpen] = useState(props.open);
-  if (props.open !== wasOpen) {
-    // Adjusting state during render (React's documented alternative to an
-    // effect): no extra commit, the body mounts already seeded.
-    setWasOpen(props.open);
-    if (props.open) setSession((n) => n + 1);
-  }
-  return <FormatDialogBody key={session} {...props} />;
-};
+const FormatDialog = withOpenSession(FormatDialogBody);
 
 export default FormatDialog;
