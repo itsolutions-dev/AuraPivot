@@ -349,7 +349,7 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
             tooltip: tCalc.tooltipMAXField || 'Maximum of the field',
           },
           {
-            label: 'Σ progressivo',
+            label: tCalc.runningSumLabel || 'Σ running',
             insert: 'runningSum("")',
             cursorOffset: -2,
             tooltip:
@@ -489,7 +489,7 @@ const CalculatedFieldDialog = function CalculatedFieldDialog({
     close.className = 'pv-calc-chip-remove';
     close.setAttribute('contenteditable', 'false');
     close.setAttribute('tabindex', '-1');
-    close.setAttribute('aria-label', 'Remove');
+    close.setAttribute('aria-label', tCalc.removeField || 'Remove field');
     close.textContent = '×';
     close.addEventListener('mousedown', (e) => {
       e.preventDefault();

@@ -1034,7 +1034,7 @@ const ClauseEditor = function ClauseEditor({
             patch({ value: e.target.value })
           }
           sx={{ width: 200 }}
-          label={tF.exprValue || 'Value'}
+          label={tF.value || 'Value'}
         />
       ) : (
         <>
@@ -1153,7 +1153,7 @@ const ExpressionDialogBody = function ExpressionDialogBody({
       container={portalContainer}
     >
       <DialogHeader
-        title={tF.expressionTitle || 'Expression'}
+        title={tF.expression || 'Expression'}
         subtitle={
           tF.expressionSubtitle ||
           'Combine clauses on dimensions and measures. The expression is evaluated per cell; the rule fires when it returns true.'
@@ -1462,7 +1462,7 @@ const RuleEditor = function RuleEditor({
               color: 'text.secondary',
               '&:active': { cursor: 'grabbing' },
             }}
-            title="Drag to reorder"
+            title={tF.dragToReorder || 'Drag to reorder'}
           >
             <DragIndicatorIcon fontSize="small" />
           </Box>

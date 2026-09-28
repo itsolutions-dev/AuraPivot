@@ -56,7 +56,11 @@
         "number": "Numero (1)",
         "long": "Esteso (Settimana 1)"
       }
-    }
+    },
+    "showMeasure": "Mostra valore",
+    "hideMeasure": "Nascondi valore",
+    "renameField": "Rinomina campo",
+    "atLeastOneVisibleMeasure": "Almeno un valore deve restare visibile."
   },
   "grid": {
     "total": "Totale",
@@ -76,7 +80,11 @@
     "sortByMeasure": "Ordina per valore",
     "removeSort": "Rimuovi ordinamento",
     "errorTitle": "Si è verificato un errore",
-    "errorBody": "Impossibile visualizzare la tabella pivot. Annulla l’ultima modifica e riprova."
+    "errorBody": "Impossibile visualizzare la tabella pivot. Annulla l’ultima modifica e riprova.",
+    "collapseFilters": "Comprimi filtri",
+    "expandFilters": "Espandi filtri",
+    "collapseChildren": "Comprimi",
+    "expandChildren": "Espandi"
   },
   "aggregations": {
     "sum": "Somma",
@@ -86,7 +94,8 @@
     "min": "Minimo",
     "max": "Massimo",
     "ratioTotal": "Rapporto sul totale",
-    "currentRatio": "Incidenza"
+    "currentRatio": "Incidenza",
+    "formula": "Calcolato"
   },
   "buttons": {
     "ok": "OK",
@@ -176,7 +185,12 @@
     "nameLabel": "Nome campo",
     "formulaLabel": "Formula",
     "formulaPlaceholder": "Esempio: sum(\"revenue\") / count(\"orders\") * 100",
-    "availableFields": "Campi numerici disponibili - clicca per inserire nella formula"
+    "availableFields": "Campi numerici disponibili - clicca per inserire nella formula",
+    "availableMeasures": "Valori disponibili — clicca per inserirli nella formula",
+    "tooltipNULL": "Valore nullo",
+    "tooltipEMPTY": "Stringa vuota",
+    "runningSumLabel": "Σ progressivo",
+    "removeField": "Rimuovi campo"
   },
   "formatDialog": {
     "subtitle": "Personalizza l’aspetto delle celle e le regole di formattazione condizionale.",
@@ -232,7 +246,8 @@
       "lte": "Minore o uguale (≤)",
       "eq": "Uguale (=)",
       "neq": "Diverso da (≠)",
-      "between": "Compreso tra"
+      "between": "Compreso tra",
+      "expression": "Espressione"
     },
     "rule": "Regola",
     "rulesDesc": "Trascina per riordinare le regole.",
@@ -282,7 +297,12 @@
     "exprEquals": "Eguale a",
     "exprNot": "NON",
     "enableDrillThrough": "DRILL-THROUGH",
-    "enableDrillThroughToggle": "Abilita il drill-through (doppio clic su una cella per vedere le righe sottostanti)"
+    "enableDrillThroughToggle": "Abilita il drill-through (clic su una cella per vedere le righe sottostanti)",
+    "sectionTypography": "Tipografia",
+    "sectionStyle": "Stile e allineamento",
+    "sectionColors": "Colori",
+    "dimensions": "Dimensioni",
+    "dragToReorder": "Trascina per riordinare"
   },
   "dates": {
     "monthNames": [

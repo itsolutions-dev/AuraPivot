@@ -228,7 +228,11 @@ const FilterEditor = function FilterEditor({
         <Typography variant="subtitle2" sx={{ flex: 1 }}>
           {meta?.caption || filter.uniqueName}
         </Typography>
-        <IconButton size="small" onClick={onClose}>
+        <IconButton
+          size="small"
+          onClick={onClose}
+          aria-label={tButtons.close || 'Close'}
+        >
           <CloseIcon fontSize="small" />
         </IconButton>
       </Stack>
