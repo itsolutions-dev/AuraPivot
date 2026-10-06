@@ -127,8 +127,19 @@ methods and its event bus rather than reaching into its state.
 ## Releasing (maintainers)
 
 Merging to `master` opens a version pull request. Merging _that_ publishes to
-npm, using the `NPM_TOKEN` repository secret. Nothing publishes from a local
-machine.
+npm, through trusted publishing (OIDC) or, while it is set, the `NPM_TOKEN`
+repository secret. Nothing publishes from a local machine.
+
+`aurapivot` has been on the registry since 2.5.0, so trusted publishing is the
+intended setup: see [Retiring the token](#retiring-the-token-after-the-first-publish).
+The rest of this section applies only while `NPM_TOKEN` is still in use.
+
+If a version pull request was merged but the publish failed (the version in
+`package.json` is not on npm yet), fix the credentials and re-run the failed
+**Release** workflow run on `master`, or let the next push to `master` do it:
+`changeset publish` publishes every version the registry does not have yet. A
+re-run executes the workflow file of the commit it ran on, so when the fix is
+in the workflow itself, only a new push picks it up.
 
 `NPM_TOKEN` must be a **granular access token** with read _and write_
 permission, created at
@@ -138,11 +149,9 @@ not an option: npm revoked every one of them on 9 December 2025 and no longer
 lets them be created. npm caps a write-capable granular token at 90 days, so
 the secret has to be rotated on that cycle.
 
-Until `aurapivot` exists on the registry, that token has to be scoped to
-**all packages**, not to selected ones — a package you have not published yet
-cannot appear in the selected-packages list, so a restricted token has no
-authority over the name and the publish fails. It can be narrowed to just
-`aurapivot` after the first release.
+Scope the token to just `aurapivot` under _selected packages_. (Before the
+first release it had to cover **all packages**: a package that does not exist
+yet cannot appear in the selected-packages list.)
 
 Two failure modes worth recognising, because neither says what it means:
 
@@ -184,9 +193,14 @@ Once it has been published once, register this repository at
 repository `AuraPivot`, workflow filename `release.yml` — and delete the
 `NPM_TOKEN` secret. The workflow already prefers the token when it is present
 and falls back to OIDC when it is not, so the switch is a matter of removing
-the secret. Two conditions the setup depends on: GitHub-hosted runners only,
-and `repository.url` in `package.json` has to keep matching this repository
-exactly.
+the secret. Three conditions the setup depends on: GitHub-hosted runners
+only, `repository.url` in `package.json` has to keep matching this repository
+exactly, and npm 11.5.1 or later at publish time — Node 22 bundles npm 10,
+which is why the workflow upgrades npm before anything else.
+
+With the secret gone, the package's _Publishing access_ setting can be raised
+to _Require two-factor authentication and disallow tokens_: trusted publishing
+is unaffected, and a leaked token can no longer publish.
 
 The workflow checks credentials before it builds and fails with the reason,
 rather than spending a couple of minutes on a build and then exiting on

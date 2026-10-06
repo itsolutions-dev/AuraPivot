@@ -24,6 +24,13 @@ jobs:
           node-version: 22
           cache: npm
           registry-url: https://registry.npmjs.org
+      # Trusted publishing (OIDC) needs npm >= 11.5.1, and Node 22 still
+      # bundles npm 10, which knows nothing about it: without this step the
+      # OIDC fallback below would fail with ENEEDAUTH. Pinned to the major so
+      # a new npm major cannot change publish behavior unannounced. Harmless
+      # on the token path.
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@^11.5.1
       - run: npm ci
 
       # Unconfigured npm credentials fail late and unhelpfully: `changeset
@@ -61,8 +68,10 @@ jobs:
             if ! whoami_out=$(npm whoami 2>&1); then
               echo "::error::NPM_TOKEN is set but the registry rejected it:"\
                    "${whoami_out}. A granular token expires after at most 90"\
-                   "days — check whether this one has, and see the Releasing"\
-                   "section of CONTRIBUTING.md."
+                   "days — check whether this one has. Either rotate it or,"\
+                   "since $name already exists on the registry, delete the"\
+                   "secret and switch to trusted publishing. See the"\
+                   "Releasing section of CONTRIBUTING.md."
               exit 1
             fi
             echo "NPM_TOKEN authenticates as '$whoami_out' — publishing $name as that account."
